@@ -61,3 +61,69 @@ def calculate_monthly_cash_flow(
         "available_for_savings": max(net_cash_flow, ZERO),
         "monthly_deficit": max(-net_cash_flow, ZERO),
     }
+
+
+def validate_annual_interest_rate(value):
+    """Validate an annual nominal interest rate expressed as a percentage.
+
+    For example, 6.5 represents a 6.5% annual rate, not 0.065.
+    Rates retain their supplied precision; only dollar amounts round to cents.
+    """
+    if isinstance(value, bool):
+        raise ValueError("Annual interest rate must be a valid number.")
+
+    try:
+        rate = Decimal(str(value))
+    except (InvalidOperation, TypeError):
+        raise ValueError("Annual interest rate must be a valid number.") from None
+
+    if not rate.is_finite() or rate < 0:
+        raise ValueError("Annual interest rate must be finite and nonnegative.")
+    return rate
+
+
+def calculate_monthly_loan_payment(
+    starting_balance, annual_interest_rate, scheduled_payment
+):
+    """Calculate one month of loan interest, payment, and remaining balance.
+
+    Model assumptions:
+    - The annual interest rate is a nominal percentage (e.g., 6.5 for 6.5%).
+    - Interest accrues monthly on the opening balance at annual_rate / 12.
+    - Interest is rounded to cents using ROUND_HALF_UP.
+    - Payments cover interest before principal and never exceed the amount due.
+    - If the payment is less than interest, unpaid interest is added to the
+      balance immediately (monthly capitalization). Actual loan terms vary.
+    - The scheduled payment is assumed to be made even if cash flow is negative;
+      the cash-flow model separately tracks whether that is affordable.
+
+    All monetary outputs are Decimal values; status fields are bools.
+    """
+    balance = validate_money(starting_balance, "Starting loan balance")
+    rate = validate_annual_interest_rate(annual_interest_rate)
+    scheduled = validate_money(scheduled_payment, "Scheduled loan payment")
+
+    monthly_interest = (balance * rate / Decimal("1200")).quantize(
+        CENT, rounding=ROUND_HALF_UP
+    )
+    amount_due = balance + monthly_interest
+    actual_payment = min(scheduled, amount_due)
+    interest_paid = min(actual_payment, monthly_interest)
+    unpaid_interest = monthly_interest - interest_paid
+    principal_paid = actual_payment - interest_paid
+    ending_balance = amount_due - actual_payment
+
+    return {
+        "starting_balance": balance,
+        "annual_interest_rate": rate,
+        "scheduled_payment": scheduled,
+        "monthly_interest": monthly_interest,
+        "actual_payment": actual_payment,
+        "interest_paid": interest_paid,
+        "unpaid_interest": unpaid_interest,
+        "principal_paid": principal_paid,
+        "ending_balance": ending_balance,
+        "paid_off": ending_balance == ZERO,
+        "negative_amortization": ending_balance > balance,
+        "principal_not_decreasing": balance > ZERO and ending_balance >= balance,
+    }
