@@ -185,7 +185,7 @@ with overview_tab:
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Projected savings", dollars(summary["ending_savings"]))
     col2.metric("Remaining loan debt", dollars(summary["ending_loan_balance"]))
-    col3.metric("Modeled net position", dollars(summary["ending_net_position"]))
+    col3.metric("Projected net position", dollars(summary["ending_net_position"]))
     col4.metric("Total interest charged", dollars(summary["total_interest_charged"]))
 
     st.info(
