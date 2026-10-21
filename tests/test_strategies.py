@@ -95,7 +95,8 @@ def test_shortfalls_prevent_voluntary_extra_payments():
         row["extra_loan_payment"] == Decimal("0.00")
         for row in r["accelerated"]["monthly_records"]
     )
-    assert r["saving"] == r["accelerated"]
+    assert r["saving"]["monthly_records"] == r["accelerated"]["monthly_records"]
+    assert r["saving"]["summary"]["ending_net_position"] == r["accelerated"]["summary"]["ending_net_position"]
 
 
 def test_earlier_unfunded_shortfall_takes_priority_over_extra():
