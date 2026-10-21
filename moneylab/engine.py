@@ -137,6 +137,7 @@ def project_finances(
     annual_loan_interest_rate,
     required_monthly_loan_payment,
     months,
+    extra_monthly_loan_payment=0,
 ):
     """Project fixed monthly cash flow and a single loan over 1 to 600 months.
 
@@ -145,9 +146,11 @@ def project_finances(
 
     Assumptions: income, living expenses and loan terms remain constant; cash
     has no interest, and the entire monthly cash surplus stays as savings.
-    No voluntary extra loan payments are made. Scheduled debt payments happen
-    even when cash is inadequate, so any shortage is *unfunded*, not assumed
-    to be an actual bank overdraft or a new interest-bearing loan.
+    Optional extra loan payments come only from the current monthly surplus,
+    after any previous unfunded shortfall has been covered. They do not draw
+    down starting cash. Scheduled debt payments happen even when cash is
+    inadequate, so any shortage is *unfunded*, not assumed to be an actual
+    bank overdraft or a new interest-bearing loan.
 
     Signed cash position carries shortages forward. Positive cash position is
     savings; negative cash position creates a separate unfunded shortfall. A
@@ -169,14 +172,16 @@ def project_finances(
     loan_balance = validate_money(outstanding_loan_balance, "Outstanding loan balance")
     rate = validate_annual_interest_rate(annual_loan_interest_rate)
     payment = validate_money(required_monthly_loan_payment, "Required monthly loan payment")
+    extra_request = validate_money(extra_monthly_loan_payment, "Extra monthly loan payment")
 
     initial_savings = cash_position
     initial_debt = loan_balance
     total_interest = ZERO
     total_payments = ZERO
+    total_extra_payments = ZERO
     payoff_month = 0 if loan_balance == ZERO else None
 
-    def snapshot(month, flow, loan):
+    def snapshot(month, flow, loan, regular_payment=ZERO, extra_payment=ZERO):
         savings = max(cash_position, ZERO)
         shortfall = max(-cash_position, ZERO)
         return {
@@ -189,6 +194,8 @@ def project_finances(
             "income": flow["income"],
             "living_expenses": flow["living_expenses"],
             "loan_payment": loan["actual_payment"],
+            "regular_loan_payment": regular_payment,
+            "extra_loan_payment": extra_payment,
             "net_cash_flow": flow["net_cash_flow"],
             "interest_charged": loan["monthly_interest"],
             "interest_paid_this_month": loan["interest_paid"],
@@ -204,17 +211,34 @@ def project_finances(
     records = [snapshot(0, zero_flow, zero_loan)]
 
     for month in range(1, months + 1):
-        loan = calculate_monthly_loan_payment(loan_balance, rate, payment)
+        # Determine the actual contractual payment, including early payoff cap.
+        regular_loan = calculate_monthly_loan_payment(loan_balance, rate, payment)
+        regular_payment = regular_loan["actual_payment"]
+        regular_cash_flow = income - expenses - regular_payment
+
+        # Do not fund optional loan payments using cash reserves, deficits, or
+        # surpluses already needed to cover an earlier unfunded shortfall.
+        affordable_extra = min(
+            max(regular_cash_flow, ZERO),
+            max(cash_position + regular_cash_flow, ZERO),
+        )
+        extra_payment = min(
+            extra_request, affordable_extra, regular_loan["ending_balance"]
+        )
+        loan = calculate_monthly_loan_payment(
+            loan_balance, rate, regular_payment + extra_payment
+        )
         flow = calculate_monthly_cash_flow(income, expenses, loan["actual_payment"])
 
         cash_position += flow["net_cash_flow"]
         loan_balance = loan["ending_balance"]
         total_interest += loan["monthly_interest"]
         total_payments += loan["actual_payment"]
+        total_extra_payments += extra_payment
         if loan_balance == ZERO and payoff_month is None:
             payoff_month = month
 
-        records.append(snapshot(month, flow, loan))
+        records.append(snapshot(month, flow, loan, regular_payment, extra_payment))
 
     ending_savings = max(cash_position, ZERO)
     ending_shortfall = max(-cash_position, ZERO)
@@ -232,6 +256,8 @@ def project_finances(
             "ending_net_position": ending_savings - ending_shortfall - loan_balance,
             "total_interest_charged": total_interest,
             "total_loan_payments": total_payments,
+            "total_extra_loan_payments": total_extra_payments,
+            "requested_extra_monthly_payment": extra_request,
             "loan_payoff_month": payoff_month,
         },
     }
