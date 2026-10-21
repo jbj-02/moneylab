@@ -1,66 +1,98 @@
-# MoneyLab
+# 💰 MoneyLab
 
-**MoneyLab** is a Python-based personal financial planning and decision simulator for students, graduates, and anyone who wants to explore simple financial scenarios.
+**Personal Financial Planning & Decision Simulator** — a general-purpose Python and Streamlit application that helps you model future cash savings, loan repayments, and the consequences of allocating your monthly surplus.
 
-**Current status:** Phase 1 dashboard and projection engine implemented. Strategy comparisons are planned for Phase 2.
+[![Python checks](https://github.com/jbj-02/moneylab/actions/workflows/tests.yml/badge.svg)](https://github.com/jbj-02/moneylab/actions/workflows/tests.yml)
 
-## Phase 1 features
+## What it does
 
-- Enter starting cash savings, monthly take-home income, and living expenses **excluding debt payments**.
-- Enter one loan's outstanding balance, annual interest rate (as a percent), and required monthly payment.
-- Choose a projection horizon from 1 to 600 months.
-- Inspect monthly cash flow and loan amortization.
-- View projected cash savings, modeled loan debt, and partial net position.
-- View a timeline chart and detailed month-by-month calculations.
-- See warnings for rising loan balances or unfunded cash shortfalls.
+- **Your financial profile:** Enter current savings, monthly take-home income, living expenses, outstanding loan balance, annual loan rate, monthly payment, and projection length.
+- **Monthly cash flow:** See income minus living expenses and actual loan payments, without double-counting.
+- **Loan amortization:** Model monthly interest, principal, loan balances, early payoff, and negative amortization.
+- **Financial outlook:** Explore monthly savings, remaining debt, cash shortfalls, and modeled partial net financial position.
+- **Strategy comparisons:** Compare saving monthly surplus against applying an optional extra amount toward loan repayment. Both strategies use the same baseline financial assumptions. Extra payments are capped to affordability.
+- **Interactive dashboard:** View summaries, charts, estimated payoff month, warnings, and a full monthly breakdown.
+- **CSV downloads:** Export a projection or both scenarios with exact cent values.
 
-## Quick start
+The application operates **without a bank connection, paid API, or login**. Sample values are fictional.
 
-Python 3.12+ recommended. In the repository root:
+## Local installation
+
+Python 3.12+ recommended.
 
 ```powershell
+git clone https://github.com/jbj-02/moneylab.git
+cd moneylab
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
 python -m streamlit run app.py
 ```
 
-On macOS/Linux, activate with `source .venv/bin/activate` and use
-`python3 -m venv .venv` if needed.
+On macOS/Linux use `python3 -m venv .venv` and `source .venv/bin/activate`.
 
-The application opens locally in your web browser. No paid service, account connection, or banking data is required. The prefilled inputs are hypothetical examples; edit them to explore other situations.
+In your browser, change values in the sidebar and select **Recalculate**. Explore four tabs:
 
-## Testing
+1. **Overview:** baseline financial position, monthly cash flow, and projections.
+2. **Compare strategies:** save your surplus versus add an affordable extra loan payment.
+3. **Monthly data & export:** inspect and download your results.
+4. **Assumptions:** understand exactly what the model includes or excludes.
+
+## Run automated tests
 
 ```powershell
 python -m pytest -v
 ```
 
-Unit tests cover input validation, cash flow, monthly loan amortization, and multi-month financial accounting. A Streamlit smoke test checks the initial dashboard against the calculation engine.
+Tests check financial arithmetic, loan payoff, negative amortization, input validation, strategy fairness, CSV reporting, and dashboard rendering. GitHub Actions runs the suite on pushes to `main` and pull requests.
 
-## Project structure
+## Project layout
 
-- `app.py` — Streamlit presentation and financial profile form.
-- `moneylab/engine.py` — pure Python financial calculations, independent of the interface.
-- `tests/` — calculation tests and dashboard smoke test.
-- `requirements.txt` — dependencies.
+```text
+moneylab/
+├── app.py                  # Streamlit user interface
+├── moneylab/
+│   ├── __init__.py
+│   ├── engine.py           # Pure Python financial projections
+│   ├── strategies.py       # Comparable financial strategies
+│   └── reporting.py        # Exact-cent CSV exports
+├── tests/                  # Unit and Streamlit interface tests
+├── notebooks/
+│   └── phase1_demo.ipynb   # Colab-compatible demonstration
+├── docs/
+│   └── phase1_submission.md
+├── requirements.txt
+└── README.md
+```
 
-## Model assumptions and limitations
+## University assignment submission
 
-- All figures are in US dollars, and dollar arithmetic uses cent rounding.
-- Monthly income and living expenses are held constant over the projection.
-- Monthly interest is calculated on the starting loan balance using annual nominal interest rate divided by 12, with interest rounded to cents.
-- The scheduled payment pays interest first, then principal, and is capped at the balance plus interest owed. Payments stop after payoff.
-- Any unpaid interest is added to the modeled loan balance every month; this may not match an actual loan's capitalization terms.
-- The model assumes required loan payments occur even when funds are insufficient. Negative modeled cash is tracked as an **unfunded shortfall**, rather than representing a bank overdraft or real borrowing.
-- Surpluses first offset unfunded shortfalls; otherwise, they stay as cash savings with no interest. There are no automatic extra loan payments.
-- *Modeled net position* = cash savings - modeled loan balance - unfunded shortfall. This is not total net worth because other assets and liabilities are excluded.
-- Taxes beyond the supplied take-home income, inflation, investment gains, fees, changing income/expenses, and multiple loans are not modeled.
+- [Phase 1 written description](docs/phase1_submission.md)
+- [Colab-compatible Python demonstration notebook](notebooks/phase1_demo.ipynb)
+- [Open demonstration in Colab](https://colab.research.google.com/github/jbj-02/moneylab/blob/main/notebooks/phase1_demo.ipynb)
 
-**MoneyLab is an educational mathematical projection, not a financial prediction or personalized financial advice.**
+The course requires a shared Colab notebook during Phases 1 and 2. The notebook uses this repository's calculation engine, but **the repository owner must save/share an appropriate Colab copy and confirm the professor's access**. Do not assume the public GitHub link alone satisfies the professor's instructions.
 
-## Planned enhancements
+## Assumptions and limitations
 
-Phase 2: compare saving surplus versus allocating some of it to additional loan payments, with consistent assumptions and interactive visualizations.
+- Amounts are in USD. Currency calculations use Python `Decimal` rounded to cents.
+- Income, expenses, and loan interest rates remain constant across each projection.
+- Loan interest accrues monthly on opening principal at the nominal annual percentage rate divided by 12.
+- Payments pay interest before principal. Final payments are capped to the amount actually owed.
+- When a payment fails to cover interest, the model **adds unpaid interest to the loan balance monthly**. Actual loan contracts vary.
+- Mandatory payments are assumed to occur even when cash is insufficient; deficits are shown as **unfunded shortfalls** rather than invented bank overdrafts or new loans.
+- Optional extra payments come only from available monthly surplus after earlier shortfalls are covered. They never consume starting cash savings.
+- Savings do not accrue interest. Investments, inflation, variable cash flows, multiple loans, asset values, and extra real-world financial obligations are not included.
+- **Modeled net position = cash savings − modeled loan debt − unfunded shortfall.** It is not complete net worth.
 
-Phase 3: documentation, demonstration, and optional improvements only after the core app is verified.
+**MoneyLab is a mathematical scenario simulator for education and planning, not a prediction of financial outcomes or personalized advice.**
+
+## Roadmap
+
+**Available in Version 1:** Cash flow, amortization, financial projection, two-strategy comparison, interactive graphs, approximate payoff month, monthly exports.
+
+**Possible Version 2 additions:** Multiple loans, cash yield and investments, profile saving/loading, variable cash flow, one-time expense shocks, and deployment. These are not required to run Version 1.
+
+## License
+
+No license selected yet. All rights reserved unless a license is later added.
