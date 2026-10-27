@@ -129,9 +129,9 @@ if "ml_blocks" not in st.session_state:
 st.title("💰 MoneyLab")
 st.caption("Your money, your possibilities · Personalized financial planning")
 st.write(
-    "Build your financial picture from the pieces that apply to you. "
-    "See what's left to spend, how your money may change, and what different "
-    "decisions could mean for your goals."
+    "Learn how money works while you build your own financial picture. "
+    "See what your plan covers, what needs attention, and the tradeoffs "
+    "behind decisions—without a spreadsheet or a mysterious score."
 )
 
 with st.sidebar:
@@ -224,7 +224,11 @@ with tabs[0]:
         st.subheader("Your spending flexibility")
         a, b, c = st.columns(3)
         a.metric("Unallocated monthly buffer", dollars(summary["unallocated_monthly_buffer"]))
-        b.metric("Estimated extra weekly spend", dollars(summary["estimated_extra_weekly_spend"]))
+        b.metric(
+            "Estimated extra weekly spend",
+            dollars(summary["estimated_extra_weekly_spend"])
+            if checkin["status"] == "on_track" else "Review needed",
+        )
         c.metric("Projected net position", dollars(summary["ending_net_position"]))
         st.caption(
             "The weekly estimate is the unallocated first-month buffer × 12 ÷ 52. "
@@ -713,7 +717,8 @@ with tabs[5]:
     left, right = st.columns(2)
     left.metric(
         "Estimated extra weekly flexibility",
-        dollars(checkin["estimated_weekly_extra"]),
+        dollars(checkin["estimated_weekly_extra"])
+        if checkin["status"] == "on_track" else "Review needed",
     )
     if checkin["coverage_months"] is not None:
         right.metric(
