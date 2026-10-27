@@ -14,6 +14,7 @@ from moneylab.engine import (
     CENT, ZERO, calculate_monthly_loan_payment, validate_annual_interest_rate,
     validate_money,
 )
+from moneylab.cadence import FREQUENCIES, monthly_equivalent, validate_schedule_date
 
 ACCOUNT_TYPES = {
     "savings": "Traditional savings",
@@ -119,12 +120,30 @@ def validate_blocks(blocks):
         if not isinstance(name, str) or not (1 <= len(name.strip()) <= 60):
             raise ValueError("Each block needs a name of 1–60 characters.")
         required = {"id", "kind", "name"} | fields[kind]
-        allowed = required | ({"routes"} if kind == "income" else set())
+        extra = {"frequency", "period_amount", "next_date"} if kind in ("income", "expense") else set()
+        allowed = required | extra | ({"routes"} if kind == "income" else set())
         if not required.issubset(raw) or set(raw) - allowed:
             raise ValueError(f"{name}: unexpected or missing fields for {kind}.")
         item = {"id": block_id, "kind": kind, "name": name.strip()}
         for key in fields[kind] - {"annual_rate", "target_months", "account_type"}:
             item[key] = _money(raw[key], f"{name}: {key}")
+        if kind in ("income", "expense"):
+            frequency = raw.get("frequency", "monthly")
+            if frequency not in FREQUENCIES:
+                raise ValueError(f"{name}: unsupported income/expense frequency.")
+            if ("frequency" in raw) != ("period_amount" in raw):
+                raise ValueError(f"{name}: frequency and period_amount must be supplied together.")
+            if "frequency" in raw:
+                per_period = _money(raw["period_amount"], f"{name}: period_amount")
+                expected = monthly_equivalent(per_period, frequency)
+                if item["monthly_amount"] != expected:
+                    raise ValueError(f"{name}: monthly amount does not match the period amount.")
+                item["frequency"] = frequency
+                item["period_amount"] = per_period
+            if "next_date" in raw:
+                item["next_date"] = validate_schedule_date(raw["next_date"])
+                if item["next_date"] is None:
+                    raise ValueError(f"{name}: next_date must be a real date when supplied.")
         if "annual_rate" in fields[kind]:
             item["annual_rate"] = _rate(raw["annual_rate"], f"{name}: annual_rate")
         if kind == "account":
@@ -233,6 +252,10 @@ def modify_expense(blocks, block_id, monthly_change):
             item["monthly_amount"] = str(_money(
                 Decimal(item["monthly_amount"]) + delta, "Adjusted expense"
             ))
+            # The What-if Lab models a monthly-average change. Keep the saved
+            # block intact, but express the temporary scenario in monthly terms.
+            item.pop("frequency", None)
+            item.pop("period_amount", None)
             found = True
     if not found:
         raise ValueError("Expense block not found.")
