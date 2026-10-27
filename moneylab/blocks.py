@@ -1,10 +1,11 @@
-"""Composable financial blocks for MoneyLab's personalized planning workspace.
+"""Validated modular financial profiles and deterministic monthly projections.
 
-All balances and calculations use Decimal with explicit cent rounding.
-This module never connects to banking services or stores personal information.
+Profiles are JSON-friendly. Historical income/cash/HYSA/Roth IRA/goal blocks
+remain supported; flexible account blocks use a reusable account subtype.
+Income routes are optional direct-deposit allocations to existing accounts.
+All calculations are in Decimal cents and do not connect to financial services.
 """
 
-import copy
 import json
 import re
 from decimal import Decimal, ROUND_HALF_UP
@@ -14,22 +15,37 @@ from moneylab.engine import (
     validate_money,
 )
 
+ACCOUNT_TYPES = {
+    "savings": "Traditional savings",
+    "hysa": "High-yield savings",
+    "money_market": "Money market",
+    "cd": "Certificate of deposit (simplified)",
+    "roth_ira": "Roth IRA",
+    "traditional_ira": "Traditional IRA",
+    "traditional_401k": "Traditional 401(k)",
+    "roth_401k": "Roth 401(k)",
+    "403b": "403(b)",
+    "brokerage": "Taxable brokerage",
+    "hsa": "Health savings account",
+    "529": "529 education savings",
+}
 BLOCK_KINDS = {
     "income": "Income",
     "expense": "Expense",
-    "loan": "Loan / car payment",
+    "loan": "Loan / debt",
     "cash": "Checking / cash",
-    "hysa": "High-yield savings",
-    "roth_ira": "Roth IRA (illustrative)",
+    "hysa": "High-yield savings (legacy)",
+    "roth_ira": "Roth IRA (legacy)",
     "goal": "Dedicated savings goal",
+    "account": "Savings / retirement / investment account",
 }
-ASSET_KINDS = ("hysa", "roth_ira", "goal")
+ASSET_KINDS = ("hysa", "roth_ira", "goal", "account")
 MAX_BLOCKS = 50
 MAX_AMOUNT = Decimal("1000000000000.00")
 
 
 def default_blocks():
-    """Fictional starter profile; no real user details."""
+    """Optional fictional demonstration; real new users start with no blocks."""
     return [
         {"id": "pay", "kind": "income", "name": "Take-home salary", "monthly_amount": "3800"},
         {"id": "rent", "kind": "expense", "name": "Rent", "monthly_amount": "1350"},
@@ -58,15 +74,24 @@ def _rate(value, label):
     return rate
 
 
-def validate_blocks(blocks):
-    """Validate a JSON-friendly profile, returning normalized Decimal entries.
+def _routing_amount(route, income):
+    """Convert a validated route to a monthly amount, rounded once to cents."""
+    if route["mode"] == "percent":
+        return (income * route["value"] / Decimal("100")).quantize(
+            CENT, rounding=ROUND_HALF_UP
+        )
+    return route["value"]
 
-    Only documented fields are accepted. IDs must be unique; labels are
-    plain text. The UI can serialize with `serialize_blocks`.
+
+def validate_blocks(blocks):
+    """Return normalized entries and validate all cross-block route references.
+
+    An income block can optionally contain a list of routes. Fixed amounts and
+    percentages may be mixed. The remainder stays in modeled checking/cash.
+    Route destinations must be named cash or asset blocks, never expenses/debts.
     """
     if not isinstance(blocks, list) or len(blocks) > MAX_BLOCKS:
         raise ValueError(f"Use a list of no more than {MAX_BLOCKS} financial blocks.")
-    output, seen = [], set()
     fields = {
         "income": {"monthly_amount"},
         "expense": {"monthly_amount"},
@@ -75,7 +100,9 @@ def validate_blocks(blocks):
         "hysa": {"balance", "annual_rate", "monthly_contribution"},
         "roth_ira": {"balance", "annual_rate", "monthly_contribution"},
         "goal": {"balance", "annual_rate", "monthly_contribution", "target", "target_months"},
+        "account": {"balance", "annual_rate", "monthly_contribution", "account_type"},
     }
+    result, seen = [], set()
     for index, raw in enumerate(blocks):
         if not isinstance(raw, dict):
             raise ValueError(f"Block {index + 1} must be a dictionary.")
@@ -91,13 +118,20 @@ def validate_blocks(blocks):
         name = raw.get("name")
         if not isinstance(name, str) or not (1 <= len(name.strip()) <= 60):
             raise ValueError("Each block needs a name of 1–60 characters.")
-        if set(raw) != ({"id", "kind", "name"} | fields[kind]):
+        required = {"id", "kind", "name"} | fields[kind]
+        allowed = required | ({"routes"} if kind == "income" else set())
+        if not required.issubset(raw) or set(raw) - allowed:
             raise ValueError(f"{name}: unexpected or missing fields for {kind}.")
         item = {"id": block_id, "kind": kind, "name": name.strip()}
-        for key in fields[kind] - {"annual_rate", "target_months"}:
+        for key in fields[kind] - {"annual_rate", "target_months", "account_type"}:
             item[key] = _money(raw[key], f"{name}: {key}")
         if "annual_rate" in fields[kind]:
             item["annual_rate"] = _rate(raw["annual_rate"], f"{name}: annual_rate")
+        if kind == "account":
+            account_type = raw["account_type"]
+            if not isinstance(account_type, str) or account_type not in ACCOUNT_TYPES:
+                raise ValueError(f"{name}: unsupported account type.")
+            item["account_type"] = account_type
         if kind == "goal":
             duration = raw["target_months"]
             if isinstance(duration, bool) or not isinstance(duration, int) or not 1 <= duration <= 600:
@@ -105,23 +139,68 @@ def validate_blocks(blocks):
             item["target_months"] = duration
             if item["target"] == ZERO:
                 raise ValueError(f"{name}: target must be greater than zero.")
-        output.append(item)
-    return output
+        if kind == "income" and "routes" in raw:
+            routes = raw["routes"]
+            if not isinstance(routes, list) or len(routes) > MAX_BLOCKS:
+                raise ValueError(f"{name}: routes must be a list of at most {MAX_BLOCKS}.")
+            normalized, targets = [], set()
+            for route in routes:
+                if not isinstance(route, dict) or set(route) != {"destination_id", "mode", "value"}:
+                    raise ValueError(f"{name}: each route needs destination_id, mode and value.")
+                target = route["destination_id"]
+                mode = route["mode"]
+                if not isinstance(target, str) or not target:
+                    raise ValueError(f"{name}: route destination ID is required.")
+                if target in targets:
+                    raise ValueError(f"{name}: duplicate destination route.")
+                targets.add(target)
+                if mode not in ("fixed", "percent"):
+                    raise ValueError(f"{name}: route mode must be fixed or percent.")
+                value = _money(route["value"], f"{name}: route value") if mode == "fixed" else _rate(
+                    route["value"], f"{name}: route percentage"
+                )
+                normalized.append({"destination_id": target, "mode": mode, "value": value})
+            item["routes"] = normalized
+        result.append(item)
+
+    destinations = {b["id"]: b["kind"] for b in result}
+    for item in result:
+        if item["kind"] != "income":
+            continue
+        allocated = ZERO
+        for route in item.get("routes", []):
+            target = route["destination_id"]
+            if destinations.get(target) not in ("cash", *ASSET_KINDS):
+                raise ValueError(
+                    f"{item['name']}: income route must point to an existing cash or account block."
+                )
+            allocated += _routing_amount(route, item["monthly_amount"])
+        if allocated > item["monthly_amount"]:
+            raise ValueError(
+                f"{item['name']}: routed deposits exceed monthly take-home income."
+            )
+    return result
 
 
 def serialize_blocks(blocks):
-    """Return a JSON-compatible validated list with exact decimal strings."""
-    parsed = validate_blocks(blocks)
-    return [
-        {key: str(value) if isinstance(value, Decimal) else value
-         for key, value in item.items()}
-        for item in parsed
-    ]
+    """Serialize a validated profile preserving exact monetary/route values."""
+    def serial(value):
+        if isinstance(value, Decimal):
+            return str(value)
+        if isinstance(value, list):
+            return [serial(x) for x in value]
+        if isinstance(value, dict):
+            return {k: serial(v) for k, v in value.items()}
+        return value
+
+    return serial(validate_blocks(blocks))
 
 
 def profile_to_json(blocks):
-    return json.dumps({"schema_version": 1, "blocks": serialize_blocks(blocks)},
-                      indent=2, ensure_ascii=False)
+    return json.dumps(
+        {"schema_version": 1, "blocks": serialize_blocks(blocks)},
+        indent=2, ensure_ascii=False,
+    )
 
 
 def profile_from_json(text):
@@ -131,13 +210,17 @@ def profile_from_json(text):
         document = json.loads(text)
     except (ValueError, TypeError):
         raise ValueError("The file is not valid JSON.") from None
-    if not isinstance(document, dict) or set(document) != {"schema_version", "blocks"} or document["schema_version"] != 1:
+    if (
+        not isinstance(document, dict)
+        or set(document) != {"schema_version", "blocks"}
+        or document["schema_version"] != 1
+    ):
         raise ValueError("Unsupported MoneyLab profile format.")
     return serialize_blocks(document["blocks"])
 
 
 def modify_expense(blocks, block_id, monthly_change):
-    """Create a new what-if profile without mutating the saved scenario."""
+    """Create a what-if profile without mutating the saved scenario."""
     items = serialize_blocks(blocks)
     delta = Decimal(str(monthly_change))
     if not delta.is_finite():
@@ -157,13 +240,15 @@ def modify_expense(blocks, block_id, monthly_change):
 
 
 def project_blocks(blocks, months=24):
-    """Run a monthly cash/debt/asset simulation for a modular financial profile.
+    """Project multiple loans, accounts and take-home direct-deposit routing.
 
-    Loans use the existing amortization engine. Asset monthly yields are
-    illustrative deterministic assumptions, **not guaranteed investment returns**.
-    Planned transfers into HYSA, Roth and goal accounts are only made from
-    available *monthly* surplus, after outstanding unfunded shortfalls.
-    Transfers move money from checking to assets and are not expenses.
+    Routes allocate income to an existing account or cash block; any unrouted
+    remainder is modeled as available cash even without a checking block.
+    Savings/retirement allocations are internal transfers, not expenses.
+    Recurring account contributions use the remaining monthly available
+    cash only after expenses, contractual payments and any prior shortfall.
+
+    This is a constant-rate planning model, NOT an investment/tax forecast.
     """
     if isinstance(months, bool) or not isinstance(months, int) or not 1 <= months <= 600:
         raise ValueError("Projection months must be an integer from 1 to 600.")
@@ -180,11 +265,10 @@ def project_blocks(blocks, months=24):
     goal_progress = {}
     rows = []
 
-    def snapshot(month, loan_paid, transfers, earned, negative_amortization):
+    def snapshot(month, loan_paid, transfers, earned, negative_amortization, routes=None):
         loan_total = sum(loan_balances.values(), ZERO)
         asset_total = sum(assets.values(), ZERO)
         shortfall = max(-cash, ZERO)
-        savings = max(cash, ZERO)
         return {
             "month": month,
             "income": income if month else ZERO,
@@ -192,9 +276,10 @@ def project_blocks(blocks, months=24):
             "loan_payments": loan_paid,
             "asset_contributions": transfers,
             "asset_yield": earned,
+            "direct_deposits": routes or {},
             "net_cash_flow": (income - expenses - loan_paid - transfers) if month else ZERO,
             "cash_position": cash,
-            "cash_savings": savings,
+            "cash_savings": max(cash, ZERO),
             "unfunded_shortfall": shortfall,
             "other_assets": asset_total,
             "loan_balance": loan_total,
@@ -208,6 +293,9 @@ def project_blocks(blocks, months=24):
 
     rows.append(snapshot(0, ZERO, ZERO, ZERO, False))
     first_month_unallocated = ZERO
+    first_month_direct_assets = ZERO
+    first_month_cash_routes = ZERO
+
     for month in range(1, months + 1):
         paid = ZERO
         negative = False
@@ -221,55 +309,72 @@ def project_blocks(blocks, months=24):
             total_interest += entry["monthly_interest"]
             negative = negative or entry["negative_amortization"]
 
-        free = income - expenses - paid
-        # Monthly available cash before planned transfers; starting savings do
-        # not fund contributions and negative prior cash gets covered first.
+        routed = {}
+        directed_assets = ZERO
+        cash_routes = ZERO
+        for block in items:
+            if block["kind"] != "income":
+                continue
+            for route in block.get("routes", []):
+                amount = _routing_amount(route, block["monthly_amount"])
+                id_ = route["destination_id"]
+                routed[id_] = routed.get(id_, ZERO) + amount
+                if id_ in assets:
+                    directed_assets += amount
+                else:
+                    cash_routes += amount
+
+        # Direct deposits to assets leave less take-home income for expenses.
+        free = income - expenses - paid - directed_assets
         available = min(max(free, ZERO), max(cash + free, ZERO))
-        transferred = ZERO
+        planned = ZERO
         earned = ZERO
         for id_, balance in assets.items():
             block = by_id[id_]
-            asset_yield = (balance * block["annual_rate"] / Decimal("1200")).quantize(
+            growth = (balance * block["annual_rate"] / Decimal("1200")).quantize(
                 CENT, rounding=ROUND_HALF_UP
             )
             contribution = min(block["monthly_contribution"], available)
             available -= contribution
-            transferred += contribution
-            earned += asset_yield
-            assets[id_] = balance + asset_yield + contribution
+            planned += contribution
+            earned += growth
+            assets[id_] = balance + growth + contribution + routed.get(id_, ZERO)
             if block["kind"] == "goal" and month == block["target_months"]:
                 goal_progress[id_] = assets[id_]
 
-        cash += free - transferred
+        transferred = planned + directed_assets
+        cash += free - planned
         total_transfers += transferred
         total_yield += earned
         if month == 1:
-            first_month_unallocated = min(max(free - transferred, ZERO), max(cash, ZERO))
-        rows.append(snapshot(month, paid, transferred, earned, negative))
+            first_month_unallocated = min(max(free - planned, ZERO), max(cash, ZERO))
+            first_month_direct_assets = directed_assets
+            first_month_cash_routes = cash_routes
+        rows.append(snapshot(month, paid, transferred, earned, negative, routed))
 
-    start_net = rows[0]["net_position"]
     end = rows[-1]
     goals = []
     for block in items:
         if block["kind"] != "goal":
             continue
-        at_deadline = goal_progress.get(block["id"])
+        balance = goal_progress.get(block["id"])
         goals.append({
             "id": block["id"],
             "name": block["name"],
             "target": block["target"],
             "target_months": block["target_months"],
             "starting_balance": block["balance"],
-            "projected_at_deadline": at_deadline,
-            "on_track": at_deadline >= block["target"] if at_deadline is not None else None,
-            "gap_at_deadline": max(block["target"] - at_deadline, ZERO) if at_deadline is not None else None,
+            "projected_at_deadline": balance,
+            "on_track": balance >= block["target"] if balance is not None else None,
+            "gap_at_deadline": max(block["target"] - balance, ZERO) if balance is not None else None,
         })
+
     return {
         "monthly_records": rows,
         "goals": goals,
         "summary": {
             "months": months,
-            "starting_net_position": start_net,
+            "starting_net_position": rows[0]["net_position"],
             "ending_net_position": end["net_position"],
             "ending_cash_savings": end["cash_savings"],
             "ending_unfunded_shortfall": end["unfunded_shortfall"],
@@ -279,8 +384,12 @@ def project_blocks(blocks, months=24):
             "monthly_expenses": expenses,
             "first_month_loan_payments": rows[1]["loan_payments"],
             "first_month_transfers": rows[1]["asset_contributions"],
+            "first_month_direct_to_assets": first_month_direct_assets,
+            "first_month_direct_to_cash": first_month_cash_routes,
             "unallocated_monthly_buffer": first_month_unallocated,
-            "estimated_extra_weekly_spend": (first_month_unallocated * Decimal(12) / Decimal(52)).quantize(CENT, rounding=ROUND_HALF_UP),
+            "estimated_extra_weekly_spend": (
+                first_month_unallocated * Decimal(12) / Decimal(52)
+            ).quantize(CENT, rounding=ROUND_HALF_UP),
             "total_interest": total_interest,
             "total_asset_yield": total_yield,
             "total_asset_contributions": total_transfers,
