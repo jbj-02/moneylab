@@ -94,6 +94,22 @@ LESSONS = {
         "answer": 1,
         "feedback": "Correct: long-term investments are not ordinary weekly spending cash.",
     },
+    "special_accounts": {
+        "title": "Special-purpose savings accounts",
+        "summary": "HSA and 529 accounts follow rules that differ from ordinary savings.",
+        "explanation": (
+            "An HSA is intended for eligible healthcare expenses, and a 529 "
+            "plan is primarily an education savings arrangement. Their "
+            "eligibility, tax treatment and withdrawal rules can vary. "
+            "MoneyLab currently models the balances and hypothetical growth, "
+            "not the legal or tax requirements. Do not automatically treat "
+            "these balances as unrestricted spending cash."
+        ),
+        "question": "Does a balance in an HSA or 529 automatically mean you can spend it on anything without consequences?",
+        "options": ["Yes", "No, restrictions may apply"],
+        "answer": 1,
+        "feedback": "Correct: account-specific restrictions and tax rules matter.",
+    },
     "routing": {
         "title": "Money movements are not new income",
         "summary": "Depositing part of your paycheck into savings doesn't create more money.",
@@ -135,7 +151,8 @@ TOPIC_BY_KIND = {
     "account": ("interest",),
 }
 RETIREMENT_TYPES = {"roth_ira", "traditional_ira", "traditional_401k",
-                    "roth_401k", "403b", "hsa", "529"}
+                    "roth_401k", "403b"}
+SPECIAL_ACCOUNT_TYPES = {"hsa", "529"}
 
 
 def recommended_lesson_ids(blocks):
@@ -145,9 +162,13 @@ def recommended_lesson_ids(blocks):
         return ["paycheck", "budget", "savings"]
     for block in blocks:
         kind = block["kind"]
-        topics = ("retirement", "interest") if (
-            kind == "account" and block.get("account_type") in RETIREMENT_TYPES
-        ) else TOPIC_BY_KIND.get(kind, ())
+        account_type = block.get("account_type")
+        if kind == "account" and account_type in RETIREMENT_TYPES:
+            topics = ("retirement", "interest")
+        elif kind == "account" and account_type in SPECIAL_ACCOUNT_TYPES:
+            topics = ("special_accounts", "interest")
+        else:
+            topics = TOPIC_BY_KIND.get(kind, ())
         for topic in topics:
             if topic not in discovered:
                 discovered.append(topic)
