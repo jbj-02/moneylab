@@ -62,6 +62,16 @@ current_page = st.navigation(
     expanded=True,
 )
 
+def load_sample_profile():
+    st.session_state.ml_blocks = default_blocks()
+    st.session_state.ml_saved_scenarios = []
+
+
+def clear_financial_profile():
+    st.session_state.ml_blocks = []
+    st.session_state.ml_saved_scenarios = []
+
+
 with st.sidebar:
     st.caption("UNDERSTAND YOUR MONEY. ENJOY YOUR LIFE.")
     with st.expander("Planning horizon & examples"):
@@ -69,14 +79,14 @@ with st.sidebar:
             "Projection months", 1, 120, 24,
             key="ml_months",
         )
-        if st.button("Load optional example profile", use_container_width=True):
-            st.session_state.ml_blocks = default_blocks()
-            st.session_state.ml_saved_scenarios = []
-            st.rerun()
-        if st.button("Start with an empty profile", use_container_width=True):
-            st.session_state.ml_blocks = []
-            st.session_state.ml_saved_scenarios = []
-            st.rerun()
+        st.button(
+            "Load optional example profile", use_container_width=True,
+            key="ml_load_example", on_click=load_sample_profile,
+        )
+        st.button(
+            "Start with an empty profile", use_container_width=True,
+            key="ml_clear_profile", on_click=clear_financial_profile,
+        )
     st.page_link(settings, label="Settings & data", icon="⚙️")
     st.page_link(classic, label="Classic simulator", icon="🧮")
     st.caption(
