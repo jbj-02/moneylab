@@ -244,7 +244,7 @@ def project_blocks(blocks, months=24):
         total_transfers += transferred
         total_yield += earned
         if month == 1:
-            first_month_unallocated = max(free - transferred, ZERO)
+            first_month_unallocated = min(max(free - transferred, ZERO), max(cash, ZERO))
         rows.append(snapshot(month, paid, transferred, earned, negative))
 
     start_net = rows[0]["net_position"]
