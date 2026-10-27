@@ -238,17 +238,17 @@ def edit_block_form(action, *, seed=None, preferred_kind=None, form_identity="ed
             format_func=lambda item: FREQUENCIES[item][0],
             key=f"{form_identity}_frequency",
         )
-    with st.form(f"{form_identity}_form"):
-        name = st.text_input(
-            "Name", value=source.get("name", ""),
-            placeholder="e.g. Paycheck, apartment rent, emergency fund",
-        )
-        fields = fields_for(kind, form_identity, source, frequency=frequency)
-        submitted = st.form_submit_button(
-            "Save changes" if action == "edit" else "Add to my money",
-            type="primary", use_container_width=True,
-        )
-    if submitted:
+    name = st.text_input(
+        "Name", value=source.get("name", ""),
+        placeholder="e.g. Paycheck, apartment rent, emergency fund",
+        key=f"{form_identity}_name",
+    )
+    fields = fields_for(kind, form_identity, source, frequency=frequency)
+    if st.button(
+        "Save changes" if action == "edit" else "Add to my money",
+        type="primary", use_container_width=True,
+        key=f"{form_identity}_submit",
+    ):
         data = {
             "id": source["id"] if action == "edit" else uuid4().hex[:12],
             "kind": kind, "name": name, **fields,
