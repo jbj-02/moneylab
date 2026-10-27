@@ -43,17 +43,12 @@ def money_field(label, key, initial=0):
     )
 
 
-def fields_for(kind, prefix, initial=None):
+def fields_for(kind, prefix, initial=None, frequency=None):
     """Render fields for exactly one block type, ready for validation."""
     item = initial or {}
     data = {}
     if kind in ("income", "expense"):
-        frequency = st.selectbox(
-            "How often?", list(FREQUENCIES),
-            index=list(FREQUENCIES).index(item.get("frequency", "monthly")),
-            format_func=lambda x: FREQUENCIES[x][0],
-            key=f"{prefix}_frequency",
-        )
+        frequency = frequency or item.get("frequency", "monthly")
         source_amount = (
             item.get("period_amount", item.get("monthly_amount", 0))
             if item.get("frequency", "monthly") == frequency
@@ -425,10 +420,19 @@ if selected_page == NAV_PAGES[1]:
             "Type", options=list(BLOCK_KINDS),
             format_func=lambda kind: BLOCK_KINDS[kind], key="ml_new_kind",
         )
+        new_frequency = None
+        if new_kind in ("income", "expense"):
+            new_frequency = st.selectbox(
+                "Frequency", options=list(FREQUENCIES),
+                format_func=lambda key: FREQUENCIES[key][0],
+                key="ml_add_frequency",
+            )
         with st.form("new_financial_block", clear_on_submit=False):
             name = st.text_input("Give this block a name", value="", key="ml_new_name",
                                  placeholder="e.g. Apartment rent")
-            new_fields = fields_for(new_kind, "ml_add_" + new_kind)
+            new_fields = fields_for(
+                new_kind, "ml_add_" + new_kind, frequency=new_frequency
+            )
             add = st.form_submit_button("Add block", use_container_width=True)
         with st.expander("Why would I add this kind of block?"):
             topic = recommended_lesson_ids([{"kind": new_kind}])[0]
@@ -454,10 +458,22 @@ if selected_page == NAV_PAGES[1]:
                 key="ml_selected_block",
             )
             selected = next(x for x in blocks if x["id"] == selected_id)
+            edit_frequency = None
+            if selected["kind"] in ("income", "expense"):
+                edit_frequency = st.selectbox(
+                    "Payment frequency",
+                    options=list(FREQUENCIES),
+                    index=list(FREQUENCIES).index(
+                        selected.get("frequency", "monthly")
+                    ),
+                    format_func=lambda key: FREQUENCIES[key][0],
+                    key=f"ml_edit_frequency_{selected_id}",
+                )
             with st.form(f"edit_{selected_id}"):
                 edit_name = st.text_input("Name", value=selected["name"])
                 changes = fields_for(
-                    selected["kind"], "ml_edit_" + selected_id, selected
+                    selected["kind"], "ml_edit_" + selected_id,
+                    selected, frequency=edit_frequency,
                 )
                 save = st.form_submit_button("Save changes", use_container_width=True)
             if save:
