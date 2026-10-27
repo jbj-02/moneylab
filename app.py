@@ -18,7 +18,9 @@ from moneylab.blocks import (
     profile_from_json, profile_to_json, project_blocks, serialize_blocks,
 )
 
+from moneylab.checkin import build_checkin
 from moneylab.insights import scenario_impacts
+from moneylab.learning import LESSONS, check_answer, recommended_lesson_ids
 from moneylab.presets import PRESET_CATALOG, preset_block
 
 st.set_page_config(page_title="MoneyLab | My Financial Life", page_icon="💰", layout="wide")
@@ -157,9 +159,12 @@ except ValueError as exc:
     st.stop()
 
 summary = result["summary"]
+profile_signature = profile_to_json(blocks)
+reviewed = st.session_state.get("ml_reviewed_signature") == profile_signature
+checkin = build_checkin(blocks, result, reviewed=reviewed)
 tabs = st.tabs([
     "My dashboard", "Build my profile", "What-if Lab",
-    "Goals & insights", "Export / import",
+    "Goals & insights", "Export / import", "My check-in", "Learn",
 ])
 
 with tabs[0]:
@@ -172,7 +177,43 @@ with tabs[0]:
         )
         st.markdown("**Suggested starting blocks:** Take-home salary · Checking · Rent · HYSA")
         st.caption("Projections and spending estimates will appear when you add financial blocks.")
+        st.subheader("What brings you to MoneyLab?")
+        starters = {
+            "I just got my first paycheck": "takehome",
+            "I'm preparing to move out": "rent",
+            "I want to start saving": "hysa",
+            "I want to learn about investing": "roth",
+            "I'm managing student debt": "student",
+            "I want to organize my finances": "checking",
+        }
+        situation = st.selectbox(
+            "Choose a starting point",
+            list(starters),
+            key="ml_start_situation",
+        )
+        if st.button("Add my first suggested block", type="primary"):
+            try:
+                first = preset_block(starters[situation], uuid4().hex[:12])
+                st.session_state.ml_blocks = serialize_blocks([first])
+                st.rerun()
+            except ValueError as exc:
+                st.error(str(exc))
+        st.caption(
+            "The suggested block contains fictional starting values. "
+            "Edit them to match your circumstances before relying on projections."
+        )
     else:
+        st.subheader("Your MoneyLab Check-In")
+        if checkin["status"] == "on_track":
+            st.success(f"**{checkin['heading']}** — {checkin['explanation']}")
+        elif checkin["status"] == "needs_attention":
+            st.warning(f"**{checkin['heading']}** — {checkin['explanation']}")
+        else:
+            st.info(f"**{checkin['heading']}** — {checkin['explanation']}")
+        st.caption(
+            "Open the **My check-in** tab for specific next steps, "
+            "coverage estimates, and a manual review confirmation."
+        )
         st.subheader("At a glance")
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Monthly take-home income", dollars(summary["monthly_income"]))
@@ -297,6 +338,11 @@ with tabs[1]:
                                  placeholder="e.g. Apartment rent")
             new_fields = fields_for(new_kind, "ml_add_" + new_kind)
             add = st.form_submit_button("Add block", use_container_width=True)
+        with st.expander("Why would I add this kind of block?"):
+            topic = recommended_lesson_ids([{"kind": new_kind}])[0]
+            st.markdown(f"**{LESSONS[topic]['title']}**")
+            st.write(LESSONS[topic]["summary"])
+            st.caption("Explore the Learn tab for a short interactive explanation.")
         if add:
             candidate = {"id": uuid4().hex[:12], "kind": new_kind, "name": name, **new_fields}
             try:
@@ -620,3 +666,141 @@ with tabs[4]:
             - Educational scenario model, not financial advice.
             """
         )
+
+
+with tabs[5]:
+    st.subheader("Your MoneyLab Check-In")
+    st.write(
+        "A calmer way to review your financial plan: what's covered, "
+        "what may need attention, and one manageable next step."
+    )
+    if checkin["status"] == "on_track":
+        st.success(f"**{checkin['heading']}** — {checkin['explanation']}")
+    elif checkin["status"] == "needs_attention":
+        st.warning(f"**{checkin['heading']}** — {checkin['explanation']}")
+    else:
+        st.info(f"**{checkin['heading']}** — {checkin['explanation']}")
+
+    st.markdown("#### How complete is your financial picture?")
+    if not checkin["reviewed"]:
+        st.caption(
+            "The entries have **not** been confirmed as reviewed in this session. "
+            "MoneyLab does not have current bank or transaction data."
+        )
+    else:
+        st.caption(
+            "You confirmed this set of inputs during this session. "
+            "Any edited, added, or removed block requires another review."
+        )
+    for missing_item in checkin["missing"]:
+        st.write(f"◯ {missing_item}")
+    if not checkin["missing"]:
+        st.write("✓ Income, expense, and checking/cash blocks are present.")
+    if st.button(
+        "I've reviewed my entered financial information",
+        key="ml_mark_reviewed",
+        use_container_width=True,
+    ):
+        st.session_state.ml_reviewed_signature = profile_signature
+        st.rerun()
+    st.caption(
+        "This acknowledges your own review only; it does not verify "
+        "accuracy, completeness, bank balances, or recent transactions."
+    )
+
+    st.divider()
+    st.markdown("#### Everyday stability and emergency readiness")
+    left, right = st.columns(2)
+    left.metric(
+        "Estimated extra weekly flexibility",
+        dollars(checkin["estimated_weekly_extra"]),
+    )
+    if checkin["coverage_months"] is not None:
+        right.metric(
+            "Months of listed outflows covered",
+            f"{checkin['coverage_months']:.1f}",
+        )
+    else:
+        right.metric("Months of listed outflows covered", "Unknown")
+    st.caption(
+        "Coverage uses entered checking/cash plus traditional savings, HYSA "
+        "and money-market balances, divided by listed monthly expenses "
+        "and first-month required loan payments. Retirement, brokerage, "
+        "CDs, HSA and earmarked goal accounts are excluded. The estimate "
+        "depends on your inputs and does not account for bill timing."
+    )
+    if checkin["attention"]:
+        st.markdown("#### What needs attention")
+        for issue in checkin["attention"]:
+            st.warning(issue)
+    st.markdown("#### A useful next step")
+    if checkin["actions"]:
+        for action in checkin["actions"]:
+            st.write(f"• {action}")
+    else:
+        st.write(
+            "Your reviewed model has no flagged issues within this projection. "
+            "Revisit the check-in when expenses, income or goals change."
+        )
+    st.caption(
+        "This is an educational planning check-in, not a financial-health "
+        "rating or a guarantee that future expenses are affordable."
+    )
+
+with tabs[6]:
+    st.subheader("Learn by doing")
+    st.write(
+        "Short, practical lessons when they matter to your financial life. "
+        "Each topic includes one question to check your understanding."
+    )
+    recommendations = recommended_lesson_ids(blocks)
+    topics = recommendations + [
+        topic for topic in LESSONS if topic not in recommendations
+    ]
+    st.caption(
+        "Suggested topics are based only on your currently entered building blocks. "
+        "Lessons are educational and do not provide individualized investment advice."
+    )
+    if "ml_completed_lessons" not in st.session_state:
+        st.session_state.ml_completed_lessons = []
+    st.metric(
+        "Lessons completed this session",
+        f"{len(st.session_state.ml_completed_lessons)} / {len(LESSONS)}",
+    )
+    topic = st.selectbox(
+        "Choose a 1-minute lesson",
+        options=topics,
+        format_func=lambda name: LESSONS[name]["title"],
+        key="ml_lesson",
+    )
+    lesson = LESSONS[topic]
+    st.markdown(f"#### {lesson['title']}")
+    st.write(lesson["summary"])
+    st.write(lesson["explanation"])
+    st.markdown("**Quick self-check**")
+    st.write(lesson["question"])
+    with st.form(f"ml_lesson_quiz_{topic}"):
+        selected_answer = st.radio(
+            "Your answer",
+            options=list(range(len(lesson["options"]))),
+            format_func=lambda index: lesson["options"][index],
+            index=None,
+        )
+        submitted = st.form_submit_button("Check my answer")
+    if submitted:
+        if selected_answer is None:
+            st.info("Choose an answer first.")
+        else:
+            feedback = check_answer(topic, selected_answer)
+            if feedback["correct"]:
+                if topic not in st.session_state.ml_completed_lessons:
+                    st.session_state.ml_completed_lessons = (
+                        st.session_state.ml_completed_lessons + [topic]
+                    )
+                st.success(feedback["explanation"])
+            else:
+                st.info(feedback["explanation"])
+    st.caption(
+        "Learning progress is held only in this Streamlit browser session. "
+        "It is not connected to an account, grade, or bank."
+    )
