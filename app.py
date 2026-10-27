@@ -24,6 +24,9 @@ from moneylab.checkin import build_checkin
 from moneylab.insights import scenario_impacts
 from moneylab.learning import LESSONS, check_answer, recommended_lesson_ids
 from moneylab.presets import PRESET_CATALOG, preset_block
+from moneylab.workspace import (
+    validated_scenarios, workspace_from_json, workspace_to_json,
+)
 
 st.set_page_config(page_title="MoneyLab | My Financial Life", page_icon="💰", layout="wide")
 
@@ -159,6 +162,8 @@ def as_csv(projection):
 
 if "ml_blocks" not in st.session_state:
     st.session_state.ml_blocks = []
+if "ml_saved_scenarios" not in st.session_state:
+    st.session_state.ml_saved_scenarios = []
 
 st.title("💰 MoneyLab")
 st.caption("Your money, your possibilities · Personalized financial planning")
@@ -193,6 +198,18 @@ except ValueError as exc:
     st.stop()
 
 summary = result["summary"]
+try:
+    saved_scenarios = validated_scenarios(
+        blocks, st.session_state.ml_saved_scenarios
+    )
+except ValueError:
+    # Invalid saved scenarios no longer match an edited/deleted base profile.
+    saved_scenarios = []
+    st.session_state.ml_saved_scenarios = []
+    st.warning(
+        "Some saved what-if scenarios were cleared because their referenced "
+        "expense or amount is no longer valid in this profile."
+    )
 profile_signature = profile_to_json(blocks)
 reviewed = st.session_state.get("ml_reviewed_signature") == profile_signature
 checkin = build_checkin(blocks, result, reviewed=reviewed)
@@ -628,12 +645,87 @@ if selected_page == NAV_PAGES[2]:
                 "What-if plan": [float(r["net_position"]) for r in scenario["monthly_records"]],
             }).set_index("Month"), height=300)
             st.caption(
-                "This is a temporary comparison only; it does not alter "
-                "your saved profile. Adjusting rent, dining, or subscriptions "
-                "changes the outlook while keeping all other assumptions fixed."
+                "This is a temporary monthly-average comparison; it never "
+                "changes the original profile. Weekly, biweekly and yearly "
+                "expenses are converted to equivalent monthly amounts."
             )
+            st.markdown("#### Save this scenario")
+            scenario_name = st.text_input(
+                "Scenario name",
+                value=f"{chosen['name']} change",
+                max_chars=60,
+                key="ml_scenario_name",
+            )
+            if st.button("Save to my scenarios", key="ml_save_scenario"):
+                candidate = {
+                    "name": scenario_name,
+                    "expense_id": expense_id,
+                    "monthly_change": str(Decimal(str(delta))),
+                }
+                revised = [
+                    item for item in saved_scenarios
+                    if item["name"] != scenario_name
+                ] + [candidate]
+                try:
+                    st.session_state.ml_saved_scenarios = validated_scenarios(
+                        blocks, revised
+                    )
+                    st.rerun()
+                except ValueError as exc:
+                    st.error(str(exc))
         except ValueError as exc:
             st.error(str(exc))
+
+    st.divider()
+    st.subheader("Saved What-if scenarios")
+    st.caption(
+        "Scenarios can be revisited in this session and included in your "
+        "workspace JSON export. Saving one does not change your actual plan."
+    )
+    if saved_scenarios:
+        saved_name = st.selectbox(
+            "Review a saved scenario",
+            [item["name"] for item in saved_scenarios],
+            key="ml_pick_saved_scenario",
+        )
+        chosen_saved = next(
+            item for item in saved_scenarios if item["name"] == saved_name
+        )
+        saved_block = next(
+            item for item in blocks
+            if item["id"] == chosen_saved["expense_id"]
+        )
+        try:
+            remembered = project_blocks(
+                modify_expense(
+                    blocks, chosen_saved["expense_id"],
+                    chosen_saved["monthly_change"],
+                ), months,
+            )
+            net_delta = (
+                remembered["summary"]["ending_net_position"]
+                - summary["ending_net_position"]
+            )
+            st.metric(
+                f"Projected net-position change: {saved_name}",
+                dollars(net_delta),
+            )
+            st.caption(
+                f"Adjusted block: {saved_block['name']}. "
+                f"Monthly change: {dollars(Decimal(chosen_saved['monthly_change']))}."
+            )
+            for impact in scenario_impacts(result, remembered, blocks):
+                st.write(f"• **{impact['title']}** — {impact['detail']}")
+        except ValueError as exc:
+            st.warning(f"Saved scenario cannot be compared: {exc}")
+        if st.button("Delete selected scenario", key="ml_delete_scenario"):
+            st.session_state.ml_saved_scenarios = [
+                item for item in saved_scenarios
+                if item["name"] != saved_name
+            ]
+            st.rerun()
+    else:
+        st.info("No saved scenarios yet. Create one above.")
 
 if selected_page == NAV_PAGES[3]:
     st.subheader("Savings goals")
@@ -691,11 +783,15 @@ if selected_page == NAV_PAGES[4]:
         "automatically saved between browser sessions."
     )
     st.download_button(
-        "Download my profile (JSON)",
-        data=profile_to_json(blocks),
-        file_name="moneylab_profile.json",
+        "Download my workspace + saved scenarios (JSON)",
+        data=workspace_to_json(blocks, saved_scenarios),
+        file_name="moneylab_workspace.json",
         mime="application/json",
         use_container_width=True,
+    )
+    st.caption(
+        "Version 2 workspace files include your blocks and named scenarios. "
+        "Older profile-only JSON files are still supported for import."
     )
     st.download_button(
         "Download projection (CSV)",
@@ -711,7 +807,9 @@ if selected_page == NAV_PAGES[4]:
     if st.button("Load selected profile", disabled=uploaded is None):
         try:
             text = uploaded.getvalue().decode("utf-8")
-            st.session_state.ml_blocks = profile_from_json(text)
+            restored, restored_scenarios = workspace_from_json(text)
+            st.session_state.ml_blocks = restored
+            st.session_state.ml_saved_scenarios = restored_scenarios
             st.rerun()
         except (UnicodeDecodeError, ValueError) as exc:
             st.error(f"Could not load profile: {exc}")
@@ -756,6 +854,103 @@ if selected_page == NAV_PAGES[5]:
     else:
         st.info(f"**{checkin['heading']}** — {checkin['explanation']}")
 
+    st.markdown("#### Quick weekly update")
+    st.write(
+        "Changed your bank balance or a recurring expense? Update it here "
+        "without searching through every block. This is a manual check-in, "
+        "not a bank sync."
+    )
+    update_candidates = [
+        item for item in blocks if item["kind"] in ("cash", "expense")
+    ]
+    if update_candidates:
+        target_id = st.selectbox(
+            "Which value changed?",
+            options=[item["id"] for item in update_candidates],
+            format_func=lambda ident: next(
+                item["name"] for item in update_candidates if item["id"] == ident
+            ),
+            key="ml_weekly_update_target",
+        )
+        old_entry = next(item for item in update_candidates if item["id"] == target_id)
+        old_value = (
+            old_entry["balance"] if old_entry["kind"] == "cash"
+            else old_entry.get("period_amount", old_entry["monthly_amount"])
+        )
+        freq = old_entry.get("frequency", "monthly")
+        label = (
+            "Updated checking/cash balance ($)" if old_entry["kind"] == "cash"
+            else f"Updated {FREQUENCIES[freq][0].lower()} expense ($)"
+        )
+        with st.form("ml_quick_review_form"):
+            updated_value = st.number_input(
+                label, min_value=0.0, value=float(old_value),
+                step=10.0, format="%.2f",
+            )
+            update_submitted = st.form_submit_button(
+                "Save this update", use_container_width=True
+            )
+        if update_submitted:
+            revised = []
+            for item in blocks:
+                if item["id"] != target_id:
+                    revised.append(item)
+                    continue
+                changed = dict(item)
+                if changed["kind"] == "cash":
+                    changed["balance"] = updated_value
+                else:
+                    changed["monthly_amount"] = str(
+                        monthly_equivalent(updated_value, freq)
+                    )
+                    if "frequency" in changed:
+                        changed["period_amount"] = updated_value
+                revised.append(changed)
+            try:
+                st.session_state.ml_blocks = serialize_blocks(revised)
+                st.session_state.ml_last_manual_update = date.today().isoformat()
+                st.rerun()
+            except ValueError as exc:
+                st.error(str(exc))
+        if "ml_last_manual_update" in st.session_state:
+            st.caption(
+                "Latest manual update this session: "
+                + st.session_state.ml_last_manual_update
+            )
+    else:
+        st.info("Add checking/cash or expense blocks to enable quick updates.")
+    st.divider()
+    st.markdown("#### Upcoming dates you've entered")
+    event_rows = upcoming_events(blocks, from_date=date.today(), days=45)
+    if event_rows:
+        st.dataframe(
+            pd.DataFrame([
+                {
+                    "Date": row["date"],
+                    "Type": "Payday" if row["kind"] == "income" else "Bill",
+                    "Name": row["name"],
+                    "Amount": float(row["amount"]),
+                }
+                for row in event_rows
+            ]),
+            hide_index=True, use_container_width=True,
+            column_config={
+                "Amount": st.column_config.NumberColumn(
+                    "Amount", format="$%.2f"
+                )
+            },
+        )
+        st.caption(
+            "Only income/expense blocks with an optional next occurrence "
+            "date appear. This calendar lists expected dates, but does not "
+            "simulate daily account balances or guarantee available funds."
+        )
+    else:
+        st.info(
+            "No paydays or bills are scheduled for the next 45 days. "
+            "In Building blocks, edit an income/expense block and add its next date."
+        )
+    st.divider()
     st.markdown("#### How complete is your financial picture?")
     if not checkin["reviewed"]:
         st.caption(
