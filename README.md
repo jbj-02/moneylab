@@ -6,7 +6,7 @@
 
 ## Try the new experience
 
-**UX Refresh:** The app now has **five primary destinations: Home, My Money, Goals, Explore, and Learn**. Native Streamlit navigation replaces the seven-section radio menu. **Settings & data** and the original **Classic Simulator** remain accessible as secondary sidebar links. New workspaces start empty. Choose a situation on Home or add a suggested block; example values are fictional and should be edited.
+**UX Refresh:** The app now has **five primary destinations: Home, My Money, Goals, Explore, and Learn**. Native Streamlit navigation replaces the seven-section radio menu. **Settings & data** and the original **Classic Simulator** remain accessible as secondary sidebar links. New workspaces start empty. **Quick Start is now the primary onboarding path:** answer four questions and review multiple suggested blocks at once. You can also add blocks individually. Example figures are fictional and should be edited.
 
 The modular profile is built from independent **financial building blocks**:
 
@@ -34,6 +34,27 @@ On **My Money**, blocks are grouped into readable cards for Income, Everyday spe
 - **Can I learn while using the app?** The **Learn** tab offers short lessons matched to the blocks the user adds, such as net pay, HYSA assumptions, loan interest and retirement accounts, with optional quick self-check quizzes.
 
 The old simulation remains available at `pages/2_Classic_Simulator.py`.
+
+## Quick Start — set up a profile without adding every block yourself
+
+**Start on Home → “Set up my finances in a few steps”**, or open **My Money → “Quick Start · add multiple blocks.”** A focused setup page offers:
+
+- **Guided setup (no AI, always available).** Four small steps gather take-home income, rent/groceries and other expenses, cash/savings and optional loan information, plus an optional goal. Weekly, biweekly, monthly and yearly amounts are converted by the existing tested financial engine.
+- **Review and approve.** MoneyLab previews every proposed block. You can edit amounts/frequency/names, leave individual entries out, or discard all drafts. The current profile is never changed until you click **Add selected blocks to my profile**. When information is missing, the preview identifies it and requires explicit confirmation rather than silently inventing a loan rate, balance or payment.
+- **Optional AI-assisted setup.** On an explicitly opted-in request, OpenAI can extract a set of draft blocks from a plain-language description. The AI **never computes forecasts, imports transactions, or writes directly to a profile**; all data goes through MoneyLab's own validation and the same review/approval screen. If AI is not configured, the non-AI wizard still works.
+
+### Enable optional AI setup on Streamlit Community Cloud
+
+AI features are deliberately **disabled by default**. The app owner must configure the following in their Streamlit Community Cloud app's **Settings → Secrets** area (do **not** commit real values to GitHub):
+
+```toml
+OPENAI_API_KEY = "YOUR_PRIVATE_OPENAI_API_KEY"
+MONEYLAB_ENABLE_AI_SETUP = true
+```
+
+The server makes bounded calls to the OpenAI Responses API using a supported compact model (currently `gpt-4.1-mini`). The code requests structured output and sets `store = false`, and does not save the original description in the MoneyLab profile. Users must check a consent box before any external request. It is **not automatically included with a ChatGPT subscription**; the account owner must arrange separate API access and billing. See [OpenAI structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs) and [Streamlit Cloud secrets](https://docs.streamlit.io/deploy/concepts/secrets).
+
+**Public-deployment caution:** A three-request limit per browser session, a description length limit and bounded output help reduce accidental usage, but are **not** secure per-user rate limiting. Before enabling AI for an unrestricted public audience, add real authentication / per-user quotas, spending limits, abuse monitoring and a privacy review. Financial descriptions submitted to AI are transmitted to an external service and subject to that service's data policies. Do not solicit banking credentials, account numbers or personally identifying information.
 
 ## Install and run
 
