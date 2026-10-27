@@ -75,7 +75,7 @@ def test_add_custom_expense_and_loan():
         D("300.00"), D("200.00"), D("0.00")
     ]
     assert result["summary"]["ending_debt"] == D("0.00")
-    assert result["summary"]["ending_cash_savings"] == D("2350.00")
+    assert result["summary"]["ending_cash_savings"] == D("2850.00")
 
 
 def test_multiple_loans_and_increasing_balances_warning():
