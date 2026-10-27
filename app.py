@@ -14,10 +14,11 @@ import pandas as pd
 import streamlit as st
 
 from moneylab.blocks import (
-    ASSET_KINDS, BLOCK_KINDS, default_blocks, modify_expense,
+    ACCOUNT_TYPES, ASSET_KINDS, BLOCK_KINDS, default_blocks, modify_expense,
     profile_from_json, profile_to_json, project_blocks, serialize_blocks,
 )
 
+from moneylab.insights import scenario_impacts
 from moneylab.presets import PRESET_CATALOG, preset_block
 
 st.set_page_config(page_title="MoneyLab | My Financial Life", page_icon="💰", layout="wide")
@@ -71,6 +72,14 @@ def fields_for(kind, prefix, initial=None):
             "Planned monthly contribution ($)", f"{prefix}_monthly_contribution",
             item.get("monthly_contribution", 0),
         )
+    if kind == "account":
+        options = list(ACCOUNT_TYPES)
+        data["account_type"] = st.selectbox(
+            "Account type", options=options,
+            index=options.index(item.get("account_type", "savings")),
+            format_func=lambda x: ACCOUNT_TYPES[x],
+            key=f"{prefix}_account_type",
+        )
     if kind == "goal":
         data["target"] = money_field(
             "Savings target ($)", f"{prefix}_target",
@@ -113,7 +122,7 @@ def as_csv(projection):
 
 
 if "ml_blocks" not in st.session_state:
-    st.session_state.ml_blocks = default_blocks()
+    st.session_state.ml_blocks = []
 
 st.title("💰 MoneyLab")
 st.caption("Your money, your possibilities · Personalized financial planning")
@@ -126,8 +135,8 @@ st.write(
 with st.sidebar:
     st.header("Your workspace")
     months = st.slider("Projection months", 1, 120, 24, key="ml_months")
-    st.caption("Sample profile is fictional. Your edits stay in this browser session until you export them.")
-    if st.button("Reset to example profile", use_container_width=True):
+    st.caption("Start with zero blocks. Your changes stay in this browser session unless you export a profile.")
+    if st.button("Load optional example profile", use_container_width=True):
         st.session_state.ml_blocks = default_blocks()
         st.rerun()
     if st.button("Start with an empty profile", use_container_width=True):
@@ -154,55 +163,65 @@ tabs = st.tabs([
 ])
 
 with tabs[0]:
-    st.subheader("At a glance")
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Monthly take-home income", dollars(summary["monthly_income"]))
-    c2.metric("Monthly bills & spending", dollars(summary["monthly_expenses"]))
-    c3.metric("Required loan payments", dollars(summary["first_month_loan_payments"]))
-    c4.metric("Planned savings transfers", dollars(summary["first_month_transfers"]))
-
-    st.subheader("Your spending flexibility")
-    a, b, c = st.columns(3)
-    a.metric("Unallocated monthly buffer", dollars(summary["unallocated_monthly_buffer"]))
-    b.metric("Estimated extra weekly spend", dollars(summary["estimated_extra_weekly_spend"]))
-    c.metric("Projected net position", dollars(summary["ending_net_position"]))
-    st.caption(
-        "The weekly estimate is the unallocated first-month buffer × 12 ÷ 52. "
-        "It is **additional** spending beyond your listed categories, not "
-        "verified cash in your bank. It assumes no surprise expenses and "
-        "is reduced to zero when an unfunded shortfall remains."
-    )
-
-    if summary["ending_unfunded_shortfall"] > 0:
-        st.warning(
-            "This plan produces an unfunded cash shortfall of "
-            f"{dollars(summary['ending_unfunded_shortfall'])} at month {months}. "
-            "Reduce spending or contributions, or increase income."
+    if not blocks:
+        st.info(
+            "Welcome to MoneyLab! Your workspace starts completely empty. "
+            "Open **Build my profile**, add a paycheck or an account, "
+            "then keep adding the blocks that apply to your life. "
+            "You can also load an optional example in the sidebar."
         )
-    if any(row["negative_amortization"] for row in result["monthly_records"][1:]):
-        st.warning(
-            "At least one loan grows because its scheduled payment "
-            "does not cover the month's interest."
-        )
-    if summary["first_month_transfers"] == 0 and any(
-        x["kind"] in ASSET_KINDS and float(x["monthly_contribution"]) > 0
-        for x in blocks
-    ):
-        st.info("Planned savings transfers are not affordable this month.")
+        st.markdown("**Suggested starting blocks:** Take-home salary · Checking · Rent · HYSA")
+        st.caption("Projections and spending estimates will appear when you add financial blocks.")
+    else:
+        st.subheader("At a glance")
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Monthly take-home income", dollars(summary["monthly_income"]))
+        c2.metric("Monthly bills & spending", dollars(summary["monthly_expenses"]))
+        c3.metric("Required loan payments", dollars(summary["first_month_loan_payments"]))
+        c4.metric("Planned savings transfers", dollars(summary["first_month_transfers"]))
 
-    st.subheader("Projected financial position")
-    st.line_chart(as_chart(result), height=330)
-    st.caption(
-        "Balances are illustrative. HYSA and Roth IRA yields are fixed "
-        "assumptions, not promised returns. Net position includes modeled "
-        "assets, debts, and any negative cash position."
-    )
+        st.subheader("Your spending flexibility")
+        a, b, c = st.columns(3)
+        a.metric("Unallocated monthly buffer", dollars(summary["unallocated_monthly_buffer"]))
+        b.metric("Estimated extra weekly spend", dollars(summary["estimated_extra_weekly_spend"]))
+        c.metric("Projected net position", dollars(summary["ending_net_position"]))
+        st.caption(
+            "The weekly estimate is the unallocated first-month buffer × 12 ÷ 52. "
+            "It is **additional** spending beyond your listed categories, not "
+            "verified cash in your bank. It assumes no surprise expenses and "
+            "is reduced to zero when an unfunded shortfall remains."
+        )
+
+        if summary["ending_unfunded_shortfall"] > 0:
+            st.warning(
+                "This plan produces an unfunded cash shortfall of "
+                f"{dollars(summary['ending_unfunded_shortfall'])} at month {months}. "
+                "Reduce spending or contributions, or increase income."
+            )
+        if any(row["negative_amortization"] for row in result["monthly_records"][1:]):
+            st.warning(
+                "At least one loan grows because its scheduled payment "
+                "does not cover the month's interest."
+            )
+        if summary["first_month_transfers"] == 0 and any(
+            x["kind"] in ASSET_KINDS and float(x["monthly_contribution"]) > 0
+            for x in blocks
+        ):
+            st.info("Planned savings transfers are not affordable this month.")
+
+        st.subheader("Projected financial position")
+        st.line_chart(as_chart(result), height=330)
+        st.caption(
+            "Balances are illustrative. HYSA and Roth IRA yields are fixed "
+            "assumptions, not promised returns. Net position includes modeled "
+            "assets, debts, and any negative cash position."
+        )
 
 with tabs[1]:
     st.subheader("Your financial building blocks")
     st.write(
-        "Add income, rent, car payments, student debt, a HYSA, Roth IRA, "
-        "or a savings goal. You can edit or remove any block independently."
+        "Start from zero. Add only the accounts, bills, income sources, loans "
+        "and goals that belong in your life. Edit or remove anything at any time."
     )
     st.markdown("#### Quick-add a common financial block")
     preset = st.selectbox(
@@ -283,6 +302,8 @@ with tabs[1]:
                     "id": selected_id, "kind": selected["kind"],
                     "name": edit_name, **changes,
                 }
+                if selected["kind"] == "income" and "routes" in selected:
+                    replacement["routes"] = selected["routes"]
                 try:
                     updated = [
                         replacement if item["id"] == selected_id else item
@@ -310,12 +331,112 @@ with tabs[1]:
                     st.rerun()
             if st.button("Remove selected block", key="ml_remove_block",
                          use_container_width=True):
-                st.session_state.ml_blocks = [
-                    item for item in blocks if item["id"] != selected_id
-                ]
+                remaining = [item for item in blocks if item["id"] != selected_id]
+                for item in remaining:
+                    if item["kind"] == "income" and "routes" in item:
+                        item["routes"] = [
+                            route for route in item["routes"]
+                            if route["destination_id"] != selected_id
+                        ]
+                st.session_state.ml_blocks = serialize_blocks(remaining)
                 st.rerun()
         else:
             st.caption("Add a block first, then choose it to edit or remove.")
+
+    st.divider()
+    st.subheader("Income routing: Where does each paycheck go?")
+    st.caption(
+        "Route take-home income to named accounts by dollars or percent. "
+        "The unallocated remainder stays in modeled checking/cash. "
+        "Routes to savings accounts are direct deposits, not new income "
+        "or additional expenses. Enter **net** income here—pretax employer "
+        "retirement withholding is not modeled."
+    )
+    income_sources = [item for item in blocks if item["kind"] == "income"]
+    destinations = [item for item in blocks
+                    if item["kind"] == "cash" or item["kind"] in ASSET_KINDS]
+    if income_sources and destinations:
+        income_id = st.selectbox(
+            "Choose an income source",
+            options=[item["id"] for item in income_sources],
+            format_func=lambda ident: next(
+                item["name"] for item in income_sources if item["id"] == ident
+            ),
+            key="ml_route_income",
+        )
+        income_block = next(item for item in income_sources if item["id"] == income_id)
+        current_routes = income_block.get("routes", [])
+        if current_routes:
+            for route in current_routes:
+                target = next(item["name"] for item in destinations
+                              if item["id"] == route["destination_id"])
+                suffix = "%" if route["mode"] == "percent" else " dollars"
+                st.write(f"• {target}: {route['value']}{suffix} of monthly pay")
+        else:
+            st.info("No allocations yet. All take-home pay currently flows to modeled cash.")
+
+        with st.form("ml_route_editor"):
+            dest = st.selectbox(
+                "Destination account", [item["id"] for item in destinations],
+                format_func=lambda ident: next(
+                    item["name"] for item in destinations if item["id"] == ident
+                ),
+            )
+            mode = st.radio(
+                "Allocation method", ["fixed", "percent"],
+                format_func=lambda name: "Dollars ($)" if name == "fixed" else "Percent (%)",
+                horizontal=True,
+            )
+            amount = st.number_input(
+                "Monthly allocation amount",
+                min_value=0.0,
+                max_value=100.0 if mode == "percent" else 100000000.0,
+                value=10.0 if mode == "percent" else 100.0,
+                step=1.0 if mode == "percent" else 25.0,
+                format="%.2f",
+            )
+            save_route = st.form_submit_button("Add / update income route")
+        if save_route:
+            updated = []
+            for item in blocks:
+                if item["id"] == income_id:
+                    new_routes = [
+                        route for route in item.get("routes", [])
+                        if route["destination_id"] != dest
+                    ]
+                    new_routes.append({
+                        "destination_id": dest, "mode": mode, "value": amount,
+                    })
+                    updated.append({**item, "routes": new_routes})
+                else:
+                    updated.append(item)
+            try:
+                st.session_state.ml_blocks = serialize_blocks(updated)
+                st.rerun()
+            except ValueError as exc:
+                st.error(f"Cannot allocate income: {exc}")
+
+        if current_routes:
+            remove_route_id = st.selectbox(
+                "Remove an existing income route",
+                options=[route["destination_id"] for route in current_routes],
+                format_func=lambda ident: next(
+                    item["name"] for item in destinations if item["id"] == ident
+                ),
+                key="ml_remove_route_id",
+            )
+            if st.button("Remove income route"):
+                revised = [
+                    {**item, "routes": [
+                        route for route in item.get("routes", [])
+                        if route["destination_id"] != remove_route_id
+                    ]} if item["id"] == income_id else item
+                    for item in blocks
+                ]
+                st.session_state.ml_blocks = serialize_blocks(revised)
+                st.rerun()
+    else:
+        st.info("Add an income block and a checking/savings/investment block to enable routing.")
 
 with tabs[2]:
     st.subheader("What if you changed one expense?")
@@ -342,6 +463,19 @@ with tabs[2]:
             col2.metric("Scenario monthly buffer",
                         dollars(scenario["summary"]["unallocated_monthly_buffer"]))
             col3.metric("Net-position difference", dollars(gap))
+            st.subheader("What this decision actually affects")
+            st.caption(
+                "Alerts below compare real model results with your current profile. "
+                "Unchanged items are not described as affected."
+            )
+            for alert in scenario_impacts(result, scenario, blocks):
+                message = f"**{alert['title']}** — {alert['detail']}"
+                if alert["level"] == "warning":
+                    st.warning(message)
+                elif alert["level"] == "positive":
+                    st.success(message)
+                else:
+                    st.info(message)
             st.line_chart(pd.DataFrame({
                 "Month": [r["month"] for r in result["monthly_records"]],
                 "Current plan": [float(r["net_position"]) for r in result["monthly_records"]],
@@ -399,8 +533,8 @@ with tabs[3]:
             "to recorded expenses, required loan payments and planned transfers."
         )
     st.caption(
-        "Roth IRA returns are hypothetical; this calculator does not model "
-        "tax rules, contribution limits, or investment volatility."
+        "Retirement, HSA and 529 growth assumptions are illustrative. "
+        "The model does not implement tax rules, eligibility or contribution limits."
     )
 
 with tabs[4]:
@@ -442,11 +576,16 @@ with tabs[4]:
             - Take-home income and recorded living expenses are assumed constant.
             - Required loan payments are modeled separately and stop after payoff.
               Unpaid monthly loan interest is added to the balance.
-            - Transfers to a HYSA, Roth IRA or goal account occur only from
-              affordable monthly surplus. These are not double-counted as expenses.
-            - An HYSA earns illustrative monthly yield; an IRA uses a
-              deterministic hypothetical return, not guaranteed investment gains.
-              Real tax treatment and contribution restrictions are not modeled.
+            - Optional take-home income routes direct-deposit funds into existing
+              accounts; they are never extra income or additional expenses.
+              The remaining net pay flows to modeled cash.
+            - Other account contributions occur only from affordable monthly
+              surplus; transfers are not double-counted as expenses.
+            - Every non-cash account uses a fixed hypothetical yield or return;
+              investment values may fluctuate in reality. CDs may restrict
+              deposits/withdrawals; no lock-up terms are simulated.
+            - Retirement/HSA/529 contribution limits, eligibility, pretax payroll
+              deductions, taxes and employer matches are not modeled.
             - A negative cash position represents an unfunded shortfall, not
               actual borrowed money.
             - No bank connections, Plaid integration, or automatic transaction
