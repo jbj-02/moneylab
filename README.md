@@ -6,7 +6,7 @@
 
 ## Try the new experience
 
-Open the Streamlit app and use the **sidebar navigation** to switch between **Overview**, **Building blocks**, **What-if Lab**, **Goals & insights**, **Data & export**, **My check-in**, and **Learn**. The previous seven-tab ribbon has been removed. **New profiles start completely empty**. Choose a life situation to add your first suggested block, or deliberately load the fictional example from the sidebar. Suggested amounts are fictional and must be edited.
+**UX Refresh:** The app now has **five primary destinations: Home, My Money, Goals, Explore, and Learn**. Native Streamlit navigation replaces the seven-section radio menu. **Settings & data** and the original **Classic Simulator** remain accessible as secondary sidebar links. New workspaces start empty. Choose a situation on Home or add a suggested block; example values are fictional and should be edited.
 
 The modular profile is built from independent **financial building blocks**:
 
@@ -20,17 +20,17 @@ The modular profile is built from independent **financial building blocks**:
 | Roth IRA | Retirement account | Balance, hypothetical annual growth, planned contribution |
 | Dedicated savings goal | Trip, moving fund | Balance, contribution, target, months to goal |
 
-Blocks can be added, renamed, edited, removed, and reordered. The expanded library includes traditional and Roth IRAs, 401(k) variants, 403(b), money market and CD accounts, brokerage, HSA, 529 and traditional savings. All are simplified balances with hypothetical fixed rates; MoneyLab does not yet implement account-specific tax rules, employer contributions, spending restrictions or deposit maturity schedules. Multiple loans are supported. A **classic loan simulator** remains accessible through the sidebar for the Phase 1 calculations and comparison features.
+On **My Money**, blocks are grouped into readable cards for Income, Everyday spending, Accounts & savings, Loans & debt, and Savings goals. A single Add action opens a focused editor; each card has Edit and a More options menu for reordering or confirming deletion. Paycheck routing is available under an Advanced expander. The expanded library includes traditional and Roth IRAs, 401(k) variants, 403(b), money market and CD accounts, brokerage, HSA, 529 and traditional savings. All are simplified balances with hypothetical fixed rates; MoneyLab does not yet implement account-specific tax rules, employer contributions, spending restrictions or deposit maturity schedules. Multiple loans are supported. A **classic loan simulator** remains accessible through the sidebar for the Phase 1 calculations and comparison features.
 
 ### What the new dashboard answers
 
-- **Where does my monthly income go?** Route take-home income from each paycheck to checking, savings, retirement or investment account blocks using **fixed dollar amounts or percentages**. Remaining income stays in modeled cash. Routed deposits are not counted as new income or spending. See routing destinations on the dashboard.
-- **What can I spend beyond my existing budget?** See an *estimated extra weekly spend* figure calculated from the unallocated first-month buffer. It is a planning estimate, **not verified bank money**.
-- **How might my position change?** View projected cash, other assets, loan balances and modeled net position.
-- **What happens if rent changes?** Adjust an expense in the What-if Lab. MoneyLab calculates the separate scenario and presents **specific impact alerts** for spending flexibility, cash, accounts, debt, goals and final modeled financial position. Name and save up to 20 expense-change scenarios for comparison or workspace export without changing your baseline.
-- **Will I reach my savings goal?** Add an emergency fund, travel savings, or a fully custom **goal block**, set the target, monthly contribution and deadline, and see its projected progress and status in Goals & insights.
-- **Can I keep my setup?** Export a version 2 workspace JSON containing the profile **and saved what-if scenarios**, import it later (older version 1 profile exports still work), and download month-by-month results as CSV.
-- **What should I check this week?** The **MoneyLab Check-In** gives a cautious, explainable status (needs attention, more information needed, or on track in the *modeled plan*) and now allows a quick update to a cash balance or recurring expense. Users can optionally enter dates for paychecks and bills to view a simple upcoming calendar. The user must explicitly review current inputs before an on-track status appears.
+- **Where does my monthly income go?** Under **My Money → Advanced · Route take-home income into accounts**, route net income to checking, savings, retirement or investment blocks using fixed dollar amounts or percentages. The engine avoids double-counting routed deposits as income or spending.
+- **How much flexibility does the plan show?** Home emphasizes one careful check-in status, income, recorded commitments, and *additional monthly flexibility*. A reassuring amount appears only if reviewed inputs yield an on-track modeled plan; it is **not verified bank money**.
+- **How might my position change?** Expand **Home → Explore your detailed financial projection** for modeled cash, accounts, debt and net position.
+- **What happens if rent changes?** The **Explore** page leads with three significant before-and-after results and the most important explanatory effects. Full impact details and charts are optional expanders. Save up to 20 named expense-change scenarios without changing your baseline.
+- **Will I reach my savings goal?** The dedicated **Goals** page creates and edits the same underlying goal blocks used elsewhere. It displays current savings, target, and the projected result at each goal's deadline—even if the dashboard uses a shorter projection horizon.
+- **Can I keep my setup?** Open the secondary **Settings & data** page to export or restore profile and scenario JSON (including legacy version 1 imports), or download a projection CSV.
+- **What should I check this week?** **Home** shows the most useful check-in finding. Expand **Update your finances and upcoming dates** to refresh a balance or recurring expense, review recorded inputs, and inspect manually entered upcoming paydays or bills.
 - **Can I learn while using the app?** The **Learn** tab offers short lessons matched to the blocks the user adds, such as net pay, HYSA assumptions, loan interest and retirement accounts, with optional quick self-check quizzes.
 
 The old simulation remains available at `pages/2_Classic_Simulator.py`.
@@ -68,7 +68,10 @@ GitHub Actions runs tests on pushes and pull requests. Legacy cash-flow, amortiz
 
 ## Source structure
 
-- `app.py` — personalized Streamlit home and editable blocks.
+- `app.py` — minimal native Streamlit multipage router and shared sidebar controls.
+- `moneylab/ui_app.py` — five focused page renderers, card-based block management and focused add/edit dialogs.
+- `pages/0_Home.py`, `pages/1_My_Money.py`, `pages/2_Goals.py`, `pages/3_Explore.py`, `pages/4_Learn.py` — primary page entrypoints.
+- `pages/6_Settings.py` — secondary workspace import/export page.
 - `pages/2_Classic_Simulator.py` — original one-loan Streamlit interface, preserved.
 - `moneylab/blocks.py` — validation, multiple-block projection, what-if changes, JSON profiles.
 - `moneylab/engine.py` — original pure-Python cash-flow and loan calculation engine.
@@ -89,9 +92,9 @@ GitHub Actions runs tests on pushes and pull requests. Legacy cash-flow, amortiz
 
 1. Add an **Income** block with monthly take-home salary, e.g. $4,000.
 2. Add a **Checking account** block and any other destination accounts (e.g. HYSA, Roth IRA).
-3. In **Build my profile → Income routing**, choose the paycheck, then create allocations: $3,500 to checking, $300 to HYSA, and $200 to Roth IRA. Fixed-dollar and percentage routes are supported.
+3. In **My Money → Advanced · Route take-home income into accounts**, choose the paycheck and make allocations. Fixed-dollar and percentage routes are supported.
 4. MoneyLab validates that routed amounts do not exceed that income and keeps any unrouted remainder in modeled cash. Existing separate monthly contributions to savings accounts are funded only from cash left after expenses, loan payments, and prior shortfalls.
-5. In **My dashboard**, review monthly deposit destinations. In **What-if Lab**, adjust an expense and read the projected impact alerts.
+5. Check **Home** for the financial summary and **Explore** to test how a changing expense affects your projections. MoneyLab currently models routing destinations but pools checking for the cash-flow projection.
 
 **Important:** Multiple checking blocks may be named as routing destinations, but the current model **pools cash for the financial projection**; it does not yet maintain independent checking account transaction ledgers. Treat the weekly spending number as an educational planning estimate, not verified account funds.
 
@@ -99,7 +102,7 @@ GitHub Actions runs tests on pushes and pull requests. Legacy cash-flow, amortiz
 
 Choose weekly, **every two weeks**, monthly or yearly amounts when adding or editing an income/expense block. The monthly simulator converts to a mathematical monthly average: weekly × 52 ÷ 12, biweekly × 26 ÷ 12, monthly as entered, and yearly ÷ 12. It uses `Decimal` and rounds to cents for consistent model arithmetic. **Averaged income and bills are not actual cash arrivals or withdrawals on particular dates.** For example, a yearly $1,200 insurance bill becomes a $100 monthly *planning equivalent*; it is still one real-world yearly bill.
 
-Optionally specify the **next expected payday or bill date** in the block editor. MoneyLab shows expected upcoming events in My check-in but does **not** yet simulate individual account balances on those dates or remind you automatically. Month-end occurrences clip to shorter months. The calendar is informational and must not be used as a guarantee that sufficient money will be available when a bill is due.
+Optionally specify the **next expected payday or bill date** in the focused block editor. Home's review expander shows expected upcoming events, but the calendar does **not** simulate individual account balances on those dates or send reminders. Month-end occurrences clip to shorter months. The calendar is informational and must not be used as a guarantee that sufficient money will be available when a bill is due.
 
 Saved What-if scenarios currently change one expense's *monthly equivalent*. They are compared with the current profile and stored in your Streamlit session. Export a **MoneyLab workspace (JSON)** to preserve both the profile and named scenarios. Older profile-only JSON files are compatible with imports. Saving a scenario does not apply it to the original profile.
 
@@ -119,7 +122,7 @@ Saved What-if scenarios currently change one expense's *monthly equivalent*. The
 
 ## Roadmap
 
-**Now:** Clean sidebar navigation; empty-first, life-situation-guided onboarding; recurring income/expense blocks with **weekly, biweekly, monthly or yearly amounts**; optional payday/bill dates; customizable goals; short financial lessons; conservative MoneyLab Check-In with quick manual updates; spendability estimates; take-home income routing; explainable what-if alerts with named scenarios; workspace JSON/CSV exports.
+**Now:** UX Refresh with five native pages, concise Home check-in, readable grouped financial-block cards with focused editing, integrated goal creation and deadline projections, streamlined Explain/Explore impact summaries, and secondary Settings; alongside empty-first onboarding, recurring amounts, optional dates, lessons, routing, scenarios, and JSON/CSV exports.
 
 **Next (course milestones):** User testing with recent graduates; further mobile-size layout and accessibility improvements; goal priority settings; recurring expense exceptions; and a true date-based short-term account cash ledger. Scheduled notifications, history and persistent logins would require separate consent, security and storage design.
 
