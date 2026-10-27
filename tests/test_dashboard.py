@@ -10,7 +10,7 @@ from streamlit.testing.v1 import AppTest
 
 
 def test_dashboard_starts_and_shows_calculated_metrics():
-    app_path = Path(__file__).resolve().parents[1] / "app.py"
+    app_path = Path(__file__).resolve().parents[1] / "pages" / "2_Classic_Simulator.py"
     app = AppTest.from_file(str(app_path), default_timeout=15).run()
 
     assert not app.exception, [str(error.message) for error in app.exception]
