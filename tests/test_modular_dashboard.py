@@ -79,7 +79,7 @@ def test_learning_remains_accessible():
     app = start()
     app = navigate(app, "4_Learn.py")
     assert not errors(app), errors(app)
-    assert any("Learn by doing" in t.value for t in app.subheader)
+    assert any("Learn by doing" in t.value for t in app.title)
 
 
 def test_settings_supports_workspace_export_and_old_import():
