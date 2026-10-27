@@ -18,6 +18,8 @@ from moneylab.blocks import (
     profile_from_json, profile_to_json, project_blocks, serialize_blocks,
 )
 
+from moneylab.presets import PRESET_CATALOG, preset_block
+
 st.set_page_config(page_title="MoneyLab | My Financial Life", page_icon="💰", layout="wide")
 
 
@@ -202,6 +204,22 @@ with tabs[1]:
         "Add income, rent, car payments, student debt, a HYSA, Roth IRA, "
         "or a savings goal. You can edit or remove any block independently."
     )
+    st.markdown("#### Quick-add a common financial block")
+    preset = st.selectbox(
+        "Choose a ready-to-edit example",
+        options=list(PRESET_CATALOG),
+        format_func=lambda code: PRESET_CATALOG[code]["name"],
+        key="ml_preset",
+    )
+    if st.button("Add this building block", key="ml_add_preset", type="primary"):
+        new_block = preset_block(preset, uuid4().hex[:12])
+        try:
+            st.session_state.ml_blocks = serialize_blocks(blocks + [new_block])
+            st.rerun()
+        except ValueError as exc:
+            st.error(str(exc))
+    st.caption("Templates start with fictional values. Edit each amount to fit your own life.")
+
     if not blocks:
         st.info("Your profile is empty. Add your first block below.")
     else:
@@ -274,6 +292,22 @@ with tabs[1]:
                     st.rerun()
                 except ValueError as exc:
                     st.error(str(exc))
+            idx = next(i for i, item in enumerate(blocks) if item["id"] == selected_id)
+            up_col, down_col = st.columns(2)
+            with up_col:
+                if st.button("Move up", disabled=idx == 0,
+                             key="ml_move_up", use_container_width=True):
+                    reordered = list(blocks)
+                    reordered[idx - 1], reordered[idx] = reordered[idx], reordered[idx - 1]
+                    st.session_state.ml_blocks = reordered
+                    st.rerun()
+            with down_col:
+                if st.button("Move down", disabled=idx == len(blocks) - 1,
+                             key="ml_move_down", use_container_width=True):
+                    reordered = list(blocks)
+                    reordered[idx + 1], reordered[idx] = reordered[idx], reordered[idx + 1]
+                    st.session_state.ml_blocks = reordered
+                    st.rerun()
             if st.button("Remove selected block", key="ml_remove_block",
                          use_container_width=True):
                 st.session_state.ml_blocks = [
