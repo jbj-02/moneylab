@@ -35,7 +35,7 @@ def test_ai_is_optional_and_no_key_is_safe():
     method = next(x for x in app.radio if x.label == "Choose your setup method")
     app = method.set_value("AI-assisted setup").run()
     assert not errors(app), errors(app)
-    assert any("not enabled" in x.message for x in app.info)
+    assert any("not enabled" in x.value for x in app.info)
     assert len(app.session_state["ml_blocks"]) == 0
 
 
