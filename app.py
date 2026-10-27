@@ -7,6 +7,7 @@ remains available as a separate classic simulator page.
 
 import csv
 from datetime import date
+from decimal import Decimal
 from io import StringIO
 from uuid import uuid4
 
@@ -18,6 +19,7 @@ from moneylab.blocks import (
     profile_from_json, profile_to_json, project_blocks, serialize_blocks,
 )
 
+from moneylab.cadence import FREQUENCIES, monthly_equivalent, upcoming_events
 from moneylab.checkin import build_checkin
 from moneylab.insights import scenario_impacts
 from moneylab.learning import LESSONS, check_answer, recommended_lesson_ids
@@ -43,9 +45,41 @@ def fields_for(kind, prefix, initial=None):
     item = initial or {}
     data = {}
     if kind in ("income", "expense"):
-        data["monthly_amount"] = money_field(
-            "Monthly amount ($)", f"{prefix}_monthly_amount",
-            item.get("monthly_amount", 0),
+        frequency = st.selectbox(
+            "How often?", list(FREQUENCIES),
+            index=list(FREQUENCIES).index(item.get("frequency", "monthly")),
+            format_func=lambda x: FREQUENCIES[x][0],
+            key=f"{prefix}_frequency",
+        )
+        source_amount = (
+            item.get("period_amount", item.get("monthly_amount", 0))
+            if item.get("frequency", "monthly") == frequency
+            else 0
+        )
+        period_amount = money_field(
+            f"Amount each {FREQUENCIES[frequency][0].lower()} period ($)",
+            f"{prefix}_{frequency}_period_amount", source_amount,
+        )
+        data["monthly_amount"] = str(monthly_equivalent(period_amount, frequency))
+        if frequency != "monthly":
+            data["frequency"] = frequency
+            data["period_amount"] = period_amount
+        if st.checkbox(
+            "Add a next payday / due date",
+            key=f"{prefix}_track_date",
+            value=bool(item.get("next_date")),
+        ):
+            event_date = st.date_input(
+                "Next scheduled occurrence",
+                value=date.fromisoformat(item.get("next_date", date.today().isoformat())),
+                key=f"{prefix}_event_date",
+            )
+            data["next_date"] = event_date.isoformat()
+        st.caption(
+            "Projected monthly equivalent: "
+            f"{dollars(monthly_equivalent(period_amount, frequency))}. "
+            "Cash-flow projections use averages; dates do not yet change "
+            "the month-by-month financial simulation."
         )
     if kind in ("loan", "cash", *ASSET_KINDS):
         data["balance"] = money_field(
@@ -162,12 +196,17 @@ summary = result["summary"]
 profile_signature = profile_to_json(blocks)
 reviewed = st.session_state.get("ml_reviewed_signature") == profile_signature
 checkin = build_checkin(blocks, result, reviewed=reviewed)
-tabs = st.tabs([
-    "My dashboard", "Build my profile", "What-if Lab",
-    "Goals & insights", "Export / import", "My check-in", "Learn",
-])
+NAV_PAGES = [
+    "🏠 Overview", "🧱 Building blocks", "🔬 What-if Lab",
+    "🎯 Goals & insights", "🗂️ Data & export",
+    "🧭 My check-in", "📚 Learn",
+]
+selected_page = st.sidebar.radio(
+    "Navigate", NAV_PAGES, key="ml_navigation",
+)
+st.sidebar.caption("Your workspace stays here as you move between sections.")
 
-with tabs[0]:
+if selected_page == NAV_PAGES[0]:
     if not blocks:
         st.info(
             "Welcome to MoneyLab! Your workspace starts completely empty. "
@@ -287,13 +326,17 @@ with tabs[0]:
             "assets, debts, and any negative cash position."
         )
 
-with tabs[1]:
+if selected_page == NAV_PAGES[1]:
     st.subheader("Your financial building blocks")
     st.write(
         "Start from zero. Add only the accounts, bills, income sources, loans "
         "and goals that belong in your life. Edit or remove anything at any time."
     )
-    st.markdown("#### Quick-add a common financial block")
+    st.markdown("#### Start with a suggested block")
+    st.caption(
+        "Choose from common building blocks, or use the custom form below. "
+        "Income and bills can be entered weekly, biweekly, monthly or yearly."
+    )
     preset = st.selectbox(
         "Choose a ready-to-edit example",
         options=list(PRESET_CATALOG),
@@ -316,11 +359,17 @@ with tabs[1]:
             left, right = st.columns([3, 2])
             with left:
                 st.markdown(
-                    f"**{block['name']}**  ·  {BLOCK_KINDS[block['kind']]}"
+                    f"**{block['name']}**  ·  "
+                    f"{block.get('account_type', BLOCK_KINDS[block['kind']])}"
                 )
             with right:
                 if block["kind"] in ("income", "expense"):
-                    st.caption(dollars(float(block["monthly_amount"])) + " / month")
+                    period = block.get("period_amount", block["monthly_amount"])
+                    freq = block.get("frequency", "monthly")
+                    st.caption(
+                        dollars(float(period)) + " / " + FREQUENCIES[freq][0].lower()
+                        + " · " + dollars(float(block["monthly_amount"])) + "/mo avg"
+                    )
                 elif block["kind"] == "loan":
                     st.caption(
                         f"{dollars(float(block['balance']))} owed · "
@@ -329,6 +378,28 @@ with tabs[1]:
                 else:
                     st.caption(dollars(float(block["balance"])) + " balance")
 
+    st.markdown("#### Saving for something?")
+    st.write(
+        "Goals are financial building blocks too. Add an emergency fund, trip, "
+        "apartment deposit, or a goal with your own target and deadline."
+    )
+    goal_cols = st.columns(2)
+    with goal_cols[0]:
+        if st.button("➕ Emergency fund goal", key="ml_goal_emergency", use_container_width=True):
+            st.session_state.ml_blocks = serialize_blocks(
+                blocks + [preset_block("emergency", uuid4().hex[:12])]
+            )
+            st.rerun()
+    with goal_cols[1]:
+        if st.button("➕ Travel savings goal", key="ml_goal_travel", use_container_width=True):
+            st.session_state.ml_blocks = serialize_blocks(
+                blocks + [preset_block("trip", uuid4().hex[:12])]
+            )
+            st.rerun()
+    st.caption(
+        "Edit the goal block to set the target, contributions and months "
+        "to your deadline. Its progress appears under Goals & insights."
+    )
     st.divider()
     left, right = st.columns(2, gap="large")
     with left:
@@ -513,7 +584,7 @@ with tabs[1]:
     else:
         st.info("Add an income block and a checking/savings/investment block to enable routing.")
 
-with tabs[2]:
+if selected_page == NAV_PAGES[2]:
     st.subheader("What if you changed one expense?")
     expenses = [item for item in blocks if item["kind"] == "expense"]
     if not expenses:
@@ -564,7 +635,7 @@ with tabs[2]:
         except ValueError as exc:
             st.error(str(exc))
 
-with tabs[3]:
+if selected_page == NAV_PAGES[3]:
     st.subheader("Savings goals")
     if not result["goals"]:
         st.info("Add a Dedicated savings goal block to track a target.")
@@ -612,7 +683,7 @@ with tabs[3]:
         "The model does not implement tax rules, eligibility or contribution limits."
     )
 
-with tabs[4]:
+if selected_page == NAV_PAGES[4]:
     st.subheader("Keep your profile portable")
     st.write(
         "Download your blocks as JSON for later use or upload a previously "
@@ -672,7 +743,7 @@ with tabs[4]:
         )
 
 
-with tabs[5]:
+if selected_page == NAV_PAGES[5]:
     st.subheader("Your MoneyLab Check-In")
     st.write(
         "A calmer way to review your financial plan: what's covered, "
@@ -752,7 +823,7 @@ with tabs[5]:
         "rating or a guarantee that future expenses are affordable."
     )
 
-with tabs[6]:
+if selected_page == NAV_PAGES[6]:
     st.subheader("Learn by doing")
     st.write(
         "Short, practical lessons when they matter to your financial life. "
