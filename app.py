@@ -1,368 +1,424 @@
-"""MoneyLab: financial projection, loan strategy comparison, and CSV export."""
+"""MoneyLab's customizable financial-life dashboard.
 
-import calendar
+This is a local-first prototype: profiles live in the current Streamlit
+session unless explicitly exported as JSON. The original loan interface
+remains available as a separate classic simulator page.
+"""
+
+import csv
 from datetime import date
+from io import StringIO
+from uuid import uuid4
 
 import pandas as pd
 import streamlit as st
 
-from moneylab.reporting import comparison_to_csv, projection_to_csv
-from moneylab.strategies import compare_financial_strategies
+from moneylab.blocks import (
+    ASSET_KINDS, BLOCK_KINDS, default_blocks, modify_expense,
+    profile_from_json, profile_to_json, project_blocks, serialize_blocks,
+)
 
-
-st.set_page_config(page_title="MoneyLab", page_icon="💰", layout="wide")
+st.set_page_config(page_title="MoneyLab | My Financial Life", page_icon="💰", layout="wide")
 
 
 def dollars(value):
-    """Render exact Decimal values consistently in metric cards."""
+    """USD metric label."""
     return f"${value:,.2f}" if value >= 0 else f"-${abs(value):,.2f}"
 
 
-def payoff_description(month, start_date):
-    """Identify an approximate calendar payoff month, not a guaranteed date."""
-    if month is None:
-        return "Not within projection"
-    if month == 0:
-        return "No starting debt"
-    month_index = start_date.month - 1 + month
-    year = start_date.year + month_index // 12
-    month_name = calendar.month_name[month_index % 12 + 1]
-    return f"Month {month} ({month_name} {year})"
+def money_field(label, key, initial=0):
+    return st.number_input(
+        label, key=key, min_value=0.0, value=float(initial),
+        step=25.0, format="%.2f",
+    )
 
 
-def chart_dataframe(projection):
-    """Convert Decimal results for visualization only, not for arithmetic."""
+def fields_for(kind, prefix, initial=None):
+    """Render fields for exactly one block type, ready for validation."""
+    item = initial or {}
+    data = {}
+    if kind in ("income", "expense"):
+        data["monthly_amount"] = money_field(
+            "Monthly amount ($)", f"{prefix}_monthly_amount",
+            item.get("monthly_amount", 0),
+        )
+    if kind in ("loan", "cash", *ASSET_KINDS):
+        data["balance"] = money_field(
+            "Current balance ($)", f"{prefix}_balance",
+            item.get("balance", 0),
+        )
+    if kind == "loan":
+        data["annual_rate"] = st.number_input(
+            "Annual loan interest (%)", key=f"{prefix}_annual_rate",
+            min_value=0.0, max_value=100.0, step=0.1,
+            value=float(item.get("annual_rate", 0)), format="%.3f",
+        )
+        data["monthly_payment"] = money_field(
+            "Required monthly payment ($)", f"{prefix}_monthly_payment",
+            item.get("monthly_payment", 0),
+        )
+    if kind in ASSET_KINDS:
+        data["annual_rate"] = st.number_input(
+            "Illustrative annual growth / yield (%)",
+            key=f"{prefix}_annual_rate", min_value=0.0, max_value=100.0,
+            step=0.1, value=float(item.get("annual_rate", 0)),
+            format="%.3f",
+            help="A scenario assumption, not a guaranteed return or a quoted rate.",
+        )
+        data["monthly_contribution"] = money_field(
+            "Planned monthly contribution ($)", f"{prefix}_monthly_contribution",
+            item.get("monthly_contribution", 0),
+        )
+    if kind == "goal":
+        data["target"] = money_field(
+            "Savings target ($)", f"{prefix}_target",
+            item.get("target", 1000),
+        )
+        data["target_months"] = st.number_input(
+            "Months until goal", key=f"{prefix}_target_months",
+            min_value=1, max_value=600, step=1,
+            value=int(item.get("target_months", 12)),
+        )
+    return data
+
+
+def as_chart(projection):
     return pd.DataFrame(
         {
-            "Month": row["month"],
-            "Cash savings": float(row["savings"]),
-            "Loan debt": float(row["loan_balance"]),
-            "Modeled net position": float(row["net_position"]),
+            "Month": entry["month"],
+            "Checking / cash": float(entry["cash_savings"]),
+            "Other assets": float(entry["other_assets"]),
+            "Loan balances": float(entry["loan_balance"]),
+            "Modeled net position": float(entry["net_position"]),
         }
-        for row in projection["monthly_records"]
+        for entry in projection["monthly_records"]
     ).set_index("Month")
 
 
-def details_dataframe(projection):
-    """Human-readable monthly data table; financial engine stays unchanged."""
-    labels = {
-        "month": "Month",
-        "income": "Income",
-        "living_expenses": "Living expenses",
-        "regular_loan_payment": "Required payment",
-        "extra_loan_payment": "Extra payment",
-        "loan_payment": "Total loan payment",
-        "interest_charged": "Interest",
-        "principal_paid": "Principal paid",
-        "net_cash_flow": "Net cash flow",
-        "savings": "Cash savings",
-        "unfunded_shortfall": "Unfunded shortfall",
-        "loan_balance": "Loan debt",
-        "net_position": "Net position",
-    }
-    return pd.DataFrame(
-        {
-            label: row[key] if key == "month" else float(row[key])
-            for key, label in labels.items()
-        }
-        for row in projection["monthly_records"]
+def as_csv(projection):
+    fields = (
+        "month", "income", "living_expenses", "loan_payments",
+        "asset_contributions", "asset_yield", "net_cash_flow",
+        "cash_savings", "unfunded_shortfall", "other_assets",
+        "loan_balance", "net_position",
     )
+    result = StringIO()
+    writer = csv.DictWriter(result, fieldnames=fields, lineterminator="\n")
+    writer.writeheader()
+    for row in projection["monthly_records"]:
+        writer.writerow({field: str(row[field]) for field in fields})
+    return result.getvalue()
 
 
-def risk_messages(projection):
-    """Show model limitations exactly where a user makes a decision."""
-    records = projection["monthly_records"]
-    if any(row["negative_amortization"] for row in records[1:]):
-        st.warning(
-            "One or more payments fail to cover monthly interest. "
-            "This scenario includes an increasing loan balance."
-        )
-    highest_shortfall = max(row["unfunded_shortfall"] for row in records)
-    if highest_shortfall > 0:
-        st.warning(
-            f"Cash runs short by as much as {dollars(highest_shortfall)}. "
-            "MoneyLab records this as an *unfunded shortfall*; it does not "
-            "assume a real overdraft or a new interest-bearing loan."
-        )
-
+if "ml_blocks" not in st.session_state:
+    st.session_state.ml_blocks = default_blocks()
 
 st.title("💰 MoneyLab")
-st.caption("Personal Financial Planning & Decision Simulator  •  Version 1")
+st.caption("Your money, your possibilities · Personalized financial planning")
 st.write(
-    "See where your money could go. Project savings and debt, then compare "
-    "saving your monthly surplus against paying a loan down faster."
+    "Build your financial picture from the pieces that apply to you. "
+    "See what's left to spend, how your money may change, and what different "
+    "decisions could mean for your goals."
 )
 
 with st.sidebar:
-    st.header("Your financial profile")
-    st.caption("Figures are monthly and in USD unless otherwise indicated.")
-    with st.form("financial_profile"):
-        savings = st.number_input(
-            "Current cash savings ($)", min_value=0.0, value=5000.0,
-            step=100.0, format="%.2f",
-        )
-        income = st.number_input(
-            "Monthly take-home income ($)", min_value=0.0, value=3000.0,
-            step=100.0, format="%.2f",
-        )
-        expenses = st.number_input(
-            "Monthly living expenses ($)", min_value=0.0, value=2000.0,
-            step=100.0, format="%.2f",
-            help="Exclude all loan payments from this number to avoid double-counting.",
-        )
-        st.markdown("#### Loan details")
-        balance = st.number_input(
-            "Outstanding loan balance ($)", min_value=0.0, value=12000.0,
-            step=100.0, format="%.2f",
-        )
-        annual_rate = st.number_input(
-            "Annual loan interest rate (%)", min_value=0.0, value=5.0,
-            step=0.1, format="%.3f", help="Enter 5 for 5%, not 0.05.",
-        )
-        payment = st.number_input(
-            "Required monthly loan payment ($)", min_value=0.0,
-            value=250.0, step=25.0, format="%.2f",
-        )
-        st.markdown("#### Projection")
-        months = st.slider("Projection duration (months)", 1, 600, 60)
-        start_date = st.date_input(
-            "Starting date (for payoff estimate)", value=date.today(),
-            help="Used only to label the approximate payoff month.",
-        )
-        extra_payment = st.number_input(
-            "Optional extra loan payment ($/month)", min_value=0.0,
-            value=150.0, step=25.0, format="%.2f",
-            help="Used only in the strategy comparison. Extra payments never "
-                 "exceed the affordable monthly surplus.",
-        )
-        st.form_submit_button("Recalculate", use_container_width=True)
+    st.header("Your workspace")
+    months = st.slider("Projection months", 1, 120, 24, key="ml_months")
+    st.caption("Sample profile is fictional. Your edits stay in this browser session until you export them.")
+    if st.button("Reset to example profile", use_container_width=True):
+        st.session_state.ml_blocks = default_blocks()
+        st.rerun()
+    if st.button("Start with an empty profile", use_container_width=True):
+        st.session_state.ml_blocks = []
+        st.rerun()
+    st.divider()
+    st.page_link(
+        "pages/2_Classic_Simulator.py",
+        label="Classic loan simulator", icon="🧮",
+    )
+    st.caption("No bank connections or third-party finance APIs are used.")
 
 try:
-    comparison = compare_financial_strategies(
-        current_savings=savings,
-        monthly_income=income,
-        monthly_living_expenses=expenses,
-        outstanding_loan_balance=balance,
-        annual_loan_interest_rate=annual_rate,
-        required_monthly_loan_payment=payment,
-        extra_monthly_loan_payment=extra_payment,
-        months=months,
-    )
+    blocks = serialize_blocks(st.session_state.ml_blocks)
+    result = project_blocks(blocks, months)
 except ValueError as exc:
-    st.error(f"Please correct the financial inputs: {exc}")
+    st.error(f"Your profile needs attention: {exc}")
     st.stop()
 
-baseline = comparison["saving"]
-accelerated = comparison["accelerated"]
-summary = baseline["summary"]
-results = comparison["comparison"]
-first_month = baseline["monthly_records"][1]
+summary = result["summary"]
+tabs = st.tabs([
+    "My dashboard", "Build my profile", "What-if Lab",
+    "Goals & insights", "Export / import",
+])
 
-overview_tab, compare_tab, data_tab, about_tab = st.tabs(
-    ["Overview", "Compare strategies", "Monthly data & export", "Assumptions"]
-)
+with tabs[0]:
+    st.subheader("At a glance")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Monthly take-home income", dollars(summary["monthly_income"]))
+    c2.metric("Monthly bills & spending", dollars(summary["monthly_expenses"]))
+    c3.metric("Required loan payments", dollars(summary["first_month_loan_payments"]))
+    c4.metric("Planned savings transfers", dollars(summary["first_month_transfers"]))
 
-with overview_tab:
-    st.subheader("Your financial position today")
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Cash savings", dollars(summary["starting_savings"]))
-    col2.metric("Loan debt", dollars(summary["starting_loan_balance"]))
-    col3.metric("Modeled net position", dollars(summary["starting_net_position"]))
-
-    st.subheader("Month 1 cash flow")
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Take-home income", dollars(first_month["income"]))
-    col2.metric("Living expenses", dollars(first_month["living_expenses"]))
-    col3.metric("Actual loan payment", dollars(first_month["loan_payment"]))
-    col4.metric("Monthly surplus / deficit", dollars(first_month["net_cash_flow"]))
+    st.subheader("Your spending flexibility")
+    a, b, c = st.columns(3)
+    a.metric("Unallocated monthly buffer", dollars(summary["unallocated_monthly_buffer"]))
+    b.metric("Estimated extra weekly spend", dollars(summary["estimated_extra_weekly_spend"]))
+    c.metric("Projected net position", dollars(summary["ending_net_position"]))
     st.caption(
-        "Living expenses exclude debt payments. Loan payments stop after the "
-        "loan is paid off. This overview assumes all remaining surplus is saved."
+        "The weekly estimate is the unallocated first-month buffer × 12 ÷ 52. "
+        "It is **additional** spending beyond your listed categories, not "
+        "verified cash in your bank. It assumes no surprise expenses and "
+        "is reduced to zero when an unfunded shortfall remains."
     )
+
+    if summary["ending_unfunded_shortfall"] > 0:
+        st.warning(
+            "This plan produces an unfunded cash shortfall of "
+            f"{dollars(summary['ending_unfunded_shortfall'])} at month {months}. "
+            "Reduce spending or contributions, or increase income."
+        )
+    if any(row["negative_amortization"] for row in result["monthly_records"][1:]):
+        st.warning(
+            "At least one loan grows because its scheduled payment "
+            "does not cover the month's interest."
+        )
+    if summary["first_month_transfers"] == 0 and any(
+        x["kind"] in ASSET_KINDS and float(x["monthly_contribution"]) > 0
+        for x in blocks
+    ):
+        st.info("Planned savings transfers are not affordable this month.")
+
+    st.subheader("Projected financial position")
+    st.line_chart(as_chart(result), height=330)
+    st.caption(
+        "Balances are illustrative. HYSA and Roth IRA yields are fixed "
+        "assumptions, not promised returns. Net position includes modeled "
+        "assets, debts, and any negative cash position."
+    )
+
+with tabs[1]:
+    st.subheader("Your financial building blocks")
+    st.write(
+        "Add income, rent, car payments, student debt, a HYSA, Roth IRA, "
+        "or a savings goal. You can edit or remove any block independently."
+    )
+    if not blocks:
+        st.info("Your profile is empty. Add your first block below.")
+    else:
+        for block in blocks:
+            left, right = st.columns([3, 2])
+            with left:
+                st.markdown(
+                    f"**{block['name']}**  ·  {BLOCK_KINDS[block['kind']]}"
+                )
+            with right:
+                if block["kind"] in ("income", "expense"):
+                    st.caption(dollars(float(block["monthly_amount"])) + " / month")
+                elif block["kind"] == "loan":
+                    st.caption(
+                        f"{dollars(float(block['balance']))} owed · "
+                        f"{dollars(float(block['monthly_payment']))}/mo"
+                    )
+                else:
+                    st.caption(dollars(float(block["balance"])) + " balance")
 
     st.divider()
-    st.subheader(f"Projected results after {months} months")
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Projected savings", dollars(summary["ending_savings"]))
-    col2.metric("Remaining loan debt", dollars(summary["ending_loan_balance"]))
-    col3.metric("Projected net position", dollars(summary["ending_net_position"]))
-    col4.metric("Total interest charged", dollars(summary["total_interest_charged"]))
-
-    st.info(
-        "Estimated loan payoff: "
-        + payoff_description(summary["loan_payoff_month"], start_date)
-    )
-    risk_messages(baseline)
-    st.subheader("Savings, debt, and financial position")
-    st.line_chart(chart_dataframe(baseline), height=360)
-    st.caption(
-        "Month 0 is today. Net position is a partial estimate based only on "
-        "cash, the modeled loan, and any unfunded shortfall."
-    )
-
-with compare_tab:
-    st.subheader("Save the surplus or pay extra toward debt?")
-    st.write(
-        "Both scenarios share your exact financial inputs. The first saves all "
-        "monthly surplus; the second directs up to "
-        f"**{dollars(results['requested_extra_monthly_payment'])}** per month "
-        "toward additional loan repayment."
-    )
-    if results["actual_total_extra_payments"] == 0:
-        st.info(
-            "No extra debt payment was affordable or applicable over this "
-            "timeline. Increase the available monthly surplus or choose a "
-            "loan with an outstanding balance to see a difference."
+    left, right = st.columns(2, gap="large")
+    with left:
+        st.markdown("#### Add a building block")
+        new_kind = st.selectbox(
+            "Type", options=list(BLOCK_KINDS),
+            format_func=lambda kind: BLOCK_KINDS[kind], key="ml_new_kind",
         )
+        with st.form("new_financial_block", clear_on_submit=False):
+            name = st.text_input("Give this block a name", value="", key="ml_new_name",
+                                 placeholder="e.g. Apartment rent")
+            new_fields = fields_for(new_kind, "ml_add_" + new_kind)
+            add = st.form_submit_button("Add block", use_container_width=True)
+        if add:
+            candidate = {"id": uuid4().hex[:12], "kind": new_kind, "name": name, **new_fields}
+            try:
+                st.session_state.ml_blocks = serialize_blocks(blocks + [candidate])
+                st.rerun()
+            except ValueError as exc:
+                st.error(str(exc))
 
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Interest avoided", dollars(results["interest_avoided"]))
-    col2.metric("Extra amount paid to debt",
-                dollars(results["actual_total_extra_payments"]))
-    col3.metric("Change in net position",
-                dollars(results["ending_net_position_gain"]))
-
-    summary_rows = [
-        {
-            "Strategy": "Save monthly surplus",
-            "Ending savings": float(summary["ending_savings"]),
-            "Ending loan debt": float(summary["ending_loan_balance"]),
-            "Ending net position": float(summary["ending_net_position"]),
-            "Interest charged": float(summary["total_interest_charged"]),
-            "Estimated payoff": payoff_description(
-                summary["loan_payoff_month"], start_date
-            ),
-        },
-        {
-            "Strategy": "Pay extra toward debt",
-            "Ending savings": float(accelerated["summary"]["ending_savings"]),
-            "Ending loan debt": float(accelerated["summary"]["ending_loan_balance"]),
-            "Ending net position": float(accelerated["summary"]["ending_net_position"]),
-            "Interest charged": float(accelerated["summary"]["total_interest_charged"]),
-            "Estimated payoff": payoff_description(
-                accelerated["summary"]["loan_payoff_month"], start_date
-            ),
-        },
-    ]
-    st.dataframe(
-        pd.DataFrame(summary_rows), hide_index=True, use_container_width=True,
-        column_config={
-            field: st.column_config.NumberColumn(field, format="$%.2f")
-            for field in (
-                "Ending savings", "Ending loan debt",
-                "Ending net position", "Interest charged",
+    with right:
+        st.markdown("#### Edit or remove a block")
+        if blocks:
+            selected_id = st.selectbox(
+                "Choose a block", options=[item["id"] for item in blocks],
+                format_func=lambda key: next(
+                    x["name"] for x in blocks if x["id"] == key
+                ),
+                key="ml_selected_block",
             )
-        },
-    )
-    st.caption(
-        "Optional payments are limited by current monthly surplus, earlier "
-        "unfunded shortfalls, and remaining loan debt; existing savings "
-        "are never spent to make extra payments."
-    )
+            selected = next(x for x in blocks if x["id"] == selected_id)
+            with st.form(f"edit_{selected_id}"):
+                edit_name = st.text_input("Name", value=selected["name"])
+                changes = fields_for(
+                    selected["kind"], "ml_edit_" + selected_id, selected
+                )
+                save = st.form_submit_button("Save changes", use_container_width=True)
+            if save:
+                replacement = {
+                    "id": selected_id, "kind": selected["kind"],
+                    "name": edit_name, **changes,
+                }
+                try:
+                    updated = [
+                        replacement if item["id"] == selected_id else item
+                        for item in blocks
+                    ]
+                    st.session_state.ml_blocks = serialize_blocks(updated)
+                    st.rerun()
+                except ValueError as exc:
+                    st.error(str(exc))
+            if st.button("Remove selected block", key="ml_remove_block",
+                         use_container_width=True):
+                st.session_state.ml_blocks = [
+                    item for item in blocks if item["id"] != selected_id
+                ]
+                st.rerun()
+        else:
+            st.caption("Add a block first, then choose it to edit or remove.")
 
-    months_index = [row["month"] for row in baseline["monthly_records"]]
-    debt_compare = pd.DataFrame({
-        "Month": months_index,
-        "Save surplus": [
-            float(row["loan_balance"]) for row in baseline["monthly_records"]
-        ],
-        "Pay extra": [
-            float(row["loan_balance"]) for row in accelerated["monthly_records"]
-        ],
-    }).set_index("Month")
-    st.subheader("Debt balance comparison")
-    st.line_chart(debt_compare, height=310)
-
-    net_compare = pd.DataFrame({
-        "Month": months_index,
-        "Save surplus": [
-            float(row["net_position"]) for row in baseline["monthly_records"]
-        ],
-        "Pay extra": [
-            float(row["net_position"]) for row in accelerated["monthly_records"]
-        ],
-    }).set_index("Month")
-    st.subheader("Net position comparison")
-    st.line_chart(net_compare, height=310)
-    risk_messages(accelerated)
-
-with data_tab:
-    st.subheader("Explore the monthly calculations")
-    selected_strategy = st.selectbox(
-        "Choose scenario", ["Save monthly surplus", "Pay extra toward debt"]
-    )
-    selected = (
-        baseline if selected_strategy == "Save monthly surplus" else accelerated
-    )
-    table = details_dataframe(selected)
-    monetary_columns = {
-        column: st.column_config.NumberColumn(column, format="$%.2f")
-        for column in table.columns if column != "Month"
-    }
-    st.dataframe(
-        table, hide_index=True, use_container_width=True,
-        column_config=monetary_columns,
-    )
-
-    col1, col2 = st.columns(2)
-    with col1:
-        st.download_button(
-            "Download this scenario (CSV)",
-            projection_to_csv(selected),
-            file_name="moneylab_projection.csv",
-            mime="text/csv",
-            use_container_width=True,
+with tabs[2]:
+    st.subheader("What if you changed one expense?")
+    expenses = [item for item in blocks if item["kind"] == "expense"]
+    if not expenses:
+        st.info("Add an expense block to try a scenario.")
+    else:
+        expense_id = st.selectbox(
+            "Choose an expense to adjust", [x["id"] for x in expenses],
+            format_func=lambda ident: next(x["name"] for x in expenses if x["id"] == ident),
         )
-    with col2:
-        st.download_button(
-            "Download both strategies (CSV)",
-            comparison_to_csv(comparison),
-            file_name="moneylab_strategies.csv",
-            mime="text/csv",
-            use_container_width=True,
+        chosen = next(x for x in expenses if x["id"] == expense_id)
+        delta = st.number_input(
+            "Change per month ($, negative means less spending)",
+            min_value=-float(chosen["monthly_amount"]), max_value=10000.0,
+            value=100.0, step=25.0, format="%.2f",
+        )
+        try:
+            adjusted = modify_expense(blocks, expense_id, delta)
+            scenario = project_blocks(adjusted, months)
+            gap = scenario["summary"]["ending_net_position"] - summary["ending_net_position"]
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Current monthly buffer", dollars(summary["unallocated_monthly_buffer"]))
+            col2.metric("Scenario monthly buffer",
+                        dollars(scenario["summary"]["unallocated_monthly_buffer"]))
+            col3.metric("Net-position difference", dollars(gap))
+            st.line_chart(pd.DataFrame({
+                "Month": [r["month"] for r in result["monthly_records"]],
+                "Current plan": [float(r["net_position"]) for r in result["monthly_records"]],
+                "What-if plan": [float(r["net_position"]) for r in scenario["monthly_records"]],
+            }).set_index("Month"), height=300)
+            st.caption(
+                "This is a temporary comparison only; it does not alter "
+                "your saved profile. Adjusting rent, dining, or subscriptions "
+                "changes the outlook while keeping all other assumptions fixed."
+            )
+        except ValueError as exc:
+            st.error(str(exc))
+
+with tabs[3]:
+    st.subheader("Savings goals")
+    if not result["goals"]:
+        st.info("Add a Dedicated savings goal block to track a target.")
+    for goal in result["goals"]:
+        st.markdown(f"**{goal['name']}** · Goal {dollars(goal['target'])} "
+                    f"by month {goal['target_months']}")
+        if goal["projected_at_deadline"] is None:
+            st.caption("Extend the projection horizon to assess this goal's deadline.")
+        else:
+            progress = min(
+                float(goal["projected_at_deadline"] / goal["target"]), 1.0
+            )
+            st.progress(progress)
+            if goal["on_track"]:
+                st.success(
+                    f"Projected {dollars(goal['projected_at_deadline'])} "
+                    "by the goal deadline — on track under current assumptions."
+                )
+            else:
+                st.warning(
+                    f"Projected {dollars(goal['projected_at_deadline'])} "
+                    f"at the deadline; short by {dollars(goal['gap_at_deadline'])}."
+                )
+
+    st.subheader("Budget insights")
+    committed = (
+        summary["monthly_expenses"] + summary["first_month_loan_payments"]
+        + summary["first_month_transfers"]
+    )
+    if summary["monthly_income"] == 0:
+        st.info("Add an income block to estimate spending flexibility.")
+    elif committed > summary["monthly_income"]:
+        st.warning(
+            "Your listed obligations and actual savings contributions exceed "
+            "monthly income. Review the blocks for possible changes."
+        )
+    else:
+        st.info(
+            f"Based on your entries, {dollars(committed)} of "
+            f"{dollars(summary['monthly_income'])} monthly income is allocated "
+            "to recorded expenses, required loan payments and planned transfers."
         )
     st.caption(
-        "CSV exports keep exact cent amounts and include Month 0. "
-        "Downloaded data is generated locally by the app."
+        "Roth IRA returns are hypothetical; this calculator does not model "
+        "tax rules, contribution limits, or investment volatility."
     )
 
-with about_tab:
-    st.subheader("How MoneyLab calculates your projection")
-    st.markdown(
-        """
-        1. **Cash flow:** Take-home income minus living expenses and actual
-           loan payments, counting each expense only once.
-        2. **Loan interest:** Start-of-month loan balance × annual interest
-           rate ÷ 12. Interest is rounded to cents.
-        3. **Loan payments:** The required payment pays interest first, then
-           principal. It is capped at the balance plus interest remaining.
-        4. **Extra loan payments:** In the comparison only, these use at most
-           the *current month's surplus*, after covering earlier unfunded
-           shortfalls, and cannot exceed the remaining loan balance.
-        5. **Savings:** Positive cash flow is saved, unless allocated to extra
-           loan payments. Any earlier unfunded shortfall is covered first.
-        6. **Net position:** Savings − loan debt − unfunded shortfall.
-           This is not an estimate of total household net worth.
-        """
+with tabs[4]:
+    st.subheader("Keep your profile portable")
+    st.write(
+        "Download your blocks as JSON for later use or upload a previously "
+        "exported MoneyLab profile. No account is required and data is not "
+        "automatically saved between browser sessions."
     )
-    st.subheader("Important limitations")
-    st.markdown(
-        """
-        - All monthly income, living expenses, and loan terms remain constant.
-          The model excludes unexpected costs, inflation, changing income,
-          multiple loans, and investment growth.
-        - Savings do not earn interest. This deliberately isolates the impact
-          of paying down debt. Future versions may compare loan interest with
-          savings or investment returns.
-        - The model capitalizes unpaid loan interest each month. Real loan
-          agreements, especially some student loans, may treat unpaid
-          interest differently.
-        - Payments are assumed to occur even if cash is insufficient. The
-          unfunded shortfall is a **planning indicator**, not an overdraft or
-          another loan with modeled interest.
-        - Calendar payoff results are approximate months, not exact payoff
-          dates. A loan may not be paid off within the selected horizon.
-        - MoneyLab is a scenario simulator, **not a financial forecast,
-          lending calculator, or individualized financial advice**.
-        """
+    st.download_button(
+        "Download my profile (JSON)",
+        data=profile_to_json(blocks),
+        file_name="moneylab_profile.json",
+        mime="application/json",
+        use_container_width=True,
     )
+    st.download_button(
+        "Download projection (CSV)",
+        data=as_csv(result),
+        file_name="moneylab_modular_projection.csv",
+        mime="text/csv",
+        use_container_width=True,
+    )
+    uploaded = st.file_uploader(
+        "Import a MoneyLab profile (.json)", type=["json"],
+        help="Only import files you trust. Files must match MoneyLab's supported profile format.",
+    )
+    if st.button("Load selected profile", disabled=uploaded is None):
+        try:
+            text = uploaded.getvalue().decode("utf-8")
+            st.session_state.ml_blocks = profile_from_json(text)
+            st.rerun()
+        except (UnicodeDecodeError, ValueError) as exc:
+            st.error(f"Could not load profile: {exc}")
+    with st.expander("Calculation assumptions and data handling"):
+        st.markdown(
+            """
+            - Money figures are in USD and calculated with Decimal cents.
+            - Take-home income and recorded living expenses are assumed constant.
+            - Required loan payments are modeled separately and stop after payoff.
+              Unpaid monthly loan interest is added to the balance.
+            - Transfers to a HYSA, Roth IRA or goal account occur only from
+              affordable monthly surplus. These are not double-counted as expenses.
+            - An HYSA earns illustrative monthly yield; an IRA uses a
+              deterministic hypothetical return, not guaranteed investment gains.
+              Real tax treatment and contribution restrictions are not modeled.
+            - A negative cash position represents an unfunded shortfall, not
+              actual borrowed money.
+            - No bank connections, Plaid integration, or automatic transaction
+              synchronization exist in this version.
+            - Profile data lives in the current Streamlit browser session; it is
+              not stored in an account database. Export the profile to save it.
+            - Educational scenario model, not financial advice.
+            """
+        )
