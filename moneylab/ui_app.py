@@ -593,17 +593,17 @@ def render_my_money():
                 else:
                     st.info("No allocations yet. All take-home pay currently flows to modeled cash.")
 
+                mode = st.radio(
+                    "Allocation method", ["fixed", "percent"],
+                    format_func=lambda name: "Dollars ($)" if name == "fixed" else "Percent (%)",
+                    key="ml_route_mode", horizontal=True,
+                )
                 with st.form("ml_route_editor"):
                     dest = st.selectbox(
                         "Destination account", [item["id"] for item in destinations],
                         format_func=lambda ident: next(
                             item["name"] for item in destinations if item["id"] == ident
                         ),
-                    )
-                    mode = st.radio(
-                        "Allocation method", ["fixed", "percent"],
-                        format_func=lambda name: "Dollars ($)" if name == "fixed" else "Percent (%)",
-                        horizontal=True,
                     )
                     amount = st.number_input(
                         "Monthly allocation amount",
@@ -866,7 +866,8 @@ def render_explore():
 
 def render_learn():
     blocks, result, summary, months, _, _, _ = context()
-    st.subheader("Learn by doing")
+    st.title("Learn by doing")
+    st.caption("Small lessons that help big financial decisions feel clearer.")
     st.write(
         "Short, practical lessons when they matter to your financial life. "
         "Each topic includes one question to check your understanding."
