@@ -35,6 +35,16 @@ def test_existing_profile_drives_learning_context():
     assert len(ids) == len(set(ids))
 
 
+@pytest.mark.parametrize("account_type", ["hsa", "529"])
+def test_special_purpose_accounts_get_relevant_lesson(account_type):
+    topics = recommended_lesson_ids([
+        {"kind": "account", "account_type": account_type,
+         "name": "Long-term savings"}
+    ])
+    assert topics[0] == "special_accounts"
+    assert "retirement" not in topics
+
+
 def test_correct_and_incorrect_quiz_answers():
     for key, lesson in LESSONS.items():
         correct = check_answer(key, lesson["answer"])
