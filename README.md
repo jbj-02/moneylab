@@ -1,12 +1,12 @@
 # 💰 MoneyLab
 
-**A personalized financial planning and decision simulator for life after college.** MoneyLab helps people understand their monthly obligations, decide what they can afford, and explore how their choices affect savings and financial flexibility.
+**Understand your money. Enjoy your life.** MoneyLab is a personalized financial learning and planning app for the transition to financial independence. It combines educational guidance, a careful MoneyLab Check-In, budgeting building blocks, and what-if decisions.
 
 [![Python checks](https://github.com/jbj-02/moneylab/actions/workflows/tests.yml/badge.svg)](https://github.com/jbj-02/moneylab/actions/workflows/tests.yml)
 
 ## Try the new experience
 
-Open the Streamlit app and choose **My dashboard**, **Build my profile**, **What-if Lab**, **Goals & insights**, or **Export / import**. **New profiles start completely empty**: add only the blocks relevant to you, or deliberately load the optional fictional example from the sidebar.
+Open the Streamlit app and explore **My dashboard**, **Build my profile**, **What-if Lab**, **Goals & insights**, **Export / import**, **My check-in**, and **Learn**. **New profiles start completely empty**. Choose a life situation to add your first suggested block; or deliberately load the optional fictional example from the sidebar. Suggested blocks start with fictional figures you must edit.
 
 The modular profile is built from independent **financial building blocks**:
 
@@ -30,6 +30,8 @@ Blocks can be added, renamed, edited, removed, and reordered. The expanded libra
 - **What happens if rent changes?** Adjust an expense in the What-if Lab. MoneyLab calculates the separate scenario and presents **specific impact alerts** for spending flexibility, cash, accounts, debt, goals and final modeled financial position, without modifying your profile.
 - **Will I reach my savings goal?** Dedicated goal blocks compare the projected earmarked balance with the target at its deadline.
 - **Can I keep my setup?** Export a profile to JSON and import it later; download month-by-month results as CSV.
+- **What should I check this week?** The **MoneyLab Check-In** gives a cautious, explainable status (needs attention, more information needed, or on track in the *modeled plan*), covers recurring obligations, reviewed inputs, goal deadlines, and loan risks. The user must explicitly confirm the current inputs before an on-track status appears.
+- **Can I learn while using the app?** The **Learn** tab offers short lessons matched to the blocks the user adds, such as net pay, HYSA assumptions, loan interest and retirement accounts, with optional quick self-check quizzes.
 
 The old simulation remains available at `pages/2_Classic_Simulator.py`.
 
@@ -72,9 +74,14 @@ GitHub Actions runs tests on pushes and pull requests. Legacy cash-flow, amortiz
 - `moneylab/engine.py` — original pure-Python cash-flow and loan calculation engine.
 - `moneylab/strategies.py` — original extra-payment comparisons.
 - `moneylab/reporting.py` — original CSV reports.
+- `moneylab/checkin.py` — conservative, explainable check-in from financial projection results.
+- `moneylab/learning.py` — contextual mini-lessons and self-check feedback.
+- `moneylab/insights.py` — what-if impact descriptions.
+- `moneylab/presets.py` — one-click suggested financial blocks.
 - `tests/` — regression tests and Streamlit smoke tests.
 - `notebooks/phase1_demo.ipynb` — Colab demonstration of the original engine.
 - `docs/phase1_submission.md` — Phase 1 write-up.
+- `docs/product_roadmap.md` — learning-first product strategy, privacy safeguards and next phases.
 
 ## Routing example (manual-first)
 
@@ -90,7 +97,7 @@ GitHub Actions runs tests on pushes and pull requests. Legacy cash-flow, amortiz
 
 **This is an educational planning prototype, not a bank balance, financial forecast or personal financial advice.**
 
-- The current version is **manual-first**. There is no Plaid connection, automatic transaction feed or financial login.
+- The current version is **manual-first**. There is no Plaid connection, automatic transaction feed or financial login. **Check-ins only evaluate manually entered financial data.** An on-track status is not an assurance of financial health or accuracy and requires an explicit user review of the current profile. Balances and estimates can become stale.
 - Data is held in the current Streamlit session and **is not automatically saved to an account**. Export your profile JSON to save it; do not enter information you would not want processed by the application host.
 - Income, expenses, scheduled payments, and annual rate assumptions remain constant through the projection.
 - Money and loan interest are calculated using `Decimal` cents; monthly interest is APR/12 on each loan's opening balance. Unpaid loan interest is capitalized monthly; actual contracts vary.
@@ -102,9 +109,9 @@ GitHub Actions runs tests on pushes and pull requests. Legacy cash-flow, amortiz
 
 ## Roadmap
 
-**Now:** Empty-first onboarding; dozens of optional starter blocks; flexible savings/retirement/investment account types; monthly take-home income routing by dollars/percentages; multiple debts, budget categories, goals, what-if impact alerts, spending estimates and JSON/CSV export.
+**Now:** Empty-first, life-situation-guided onboarding; contextual financial lessons and quizzes; MoneyLab Check-In with review acknowledgement and conservative status; months of listed outflows covered by eligible liquid savings; starter blocks, account types, take-home income routing, multiple debts, goals, explainable what-if alerts and JSON/CSV export.
 
-**Next (course milestones):** Add per-checking-account transaction ledgers, saved multi-variable what-if scenarios, improved goal timelines, real pay and bill schedules, mobile-size interface polish and further accessibility tests.
+**Next (course milestones):** Usability testing with recent graduates, faster profile review and refresh, saved scenario comparisons, improved goal timelines, a bill/paycheck calendar, mobile-size layout and accessibility tests. Later, optional account history and notifications would require storage, consent and privacy controls.
 
 **Later (post-course):** Optional secure profile accounts and mobile apps, transaction CSV imports, and economic context APIs.
 
