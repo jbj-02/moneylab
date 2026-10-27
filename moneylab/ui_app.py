@@ -348,9 +348,15 @@ def render_home():
         )
         st.write(
             "You don't need to know everything about personal finance to "
-            "get started. Choose a situation, add one building block, and "
-            "learn as you go."
+            "get started. Answer a few questions and MoneyLab will build "
+            "several editable financial blocks for you."
         )
+        if st.button(
+            "✨ Set up my finances in a few steps",
+            type="primary", key="ml_home_quick_start",
+        ):
+            st.switch_page("pages/5_Quick_Start.py")
+        st.caption("Or start with one building block below.")
         situations = {
             "I just got paid": "takehome",
             "I'm thinking of moving": "rent",
@@ -540,6 +546,15 @@ def render_my_money():
             for block in members:
                 block_card(block, all_ids.index(block["id"]), len(blocks))
 
+    st.markdown("#### Faster setup")
+    st.write(
+        "Want to add income, regular expenses, accounts and a goal together? "
+        "Quick Start prepares a set of blocks for you to review."
+    )
+    if st.button(
+        "✨ Quick Start · add multiple blocks", key="ml_money_quick_start",
+    ):
+        st.switch_page("pages/5_Quick_Start.py")
     st.markdown("#### Add something common")
     shortcuts = [
         ("Paycheck", "takehome"),
