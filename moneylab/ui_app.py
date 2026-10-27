@@ -562,99 +562,99 @@ def render_my_money():
     ]
     if incomes and destinations:
         with st.expander("Advanced · Route take-home income into accounts"):
-        st.subheader("Where does each paycheck go?")
-        st.caption(
-            "Route take-home income to named accounts by dollars or percent. "
-            "The unallocated remainder stays in modeled checking/cash. "
-            "Routes to savings accounts are direct deposits, not new income "
-            "or additional expenses. Enter **net** income here—pretax employer "
-            "retirement withholding is not modeled."
-        )
-        income_sources = [item for item in blocks if item["kind"] == "income"]
-        destinations = [item for item in blocks
-                        if item["kind"] == "cash" or item["kind"] in ASSET_KINDS]
-        if income_sources and destinations:
-            income_id = st.selectbox(
-                "Choose an income source",
-                options=[item["id"] for item in income_sources],
-                format_func=lambda ident: next(
-                    item["name"] for item in income_sources if item["id"] == ident
-                ),
-                key="ml_route_income",
+            st.subheader("Where does each paycheck go?")
+            st.caption(
+                "Route take-home income to named accounts by dollars or percent. "
+                "The unallocated remainder stays in modeled checking/cash. "
+                "Routes to savings accounts are direct deposits, not new income "
+                "or additional expenses. Enter **net** income here—pretax employer "
+                "retirement withholding is not modeled."
             )
-            income_block = next(item for item in income_sources if item["id"] == income_id)
-            current_routes = income_block.get("routes", [])
-            if current_routes:
-                for route in current_routes:
-                    target = next(item["name"] for item in destinations
-                                  if item["id"] == route["destination_id"])
-                    suffix = "%" if route["mode"] == "percent" else " dollars"
-                    st.write(f"• {target}: {route['value']}{suffix} of monthly pay")
-            else:
-                st.info("No allocations yet. All take-home pay currently flows to modeled cash.")
-
-            with st.form("ml_route_editor"):
-                dest = st.selectbox(
-                    "Destination account", [item["id"] for item in destinations],
+            income_sources = [item for item in blocks if item["kind"] == "income"]
+            destinations = [item for item in blocks
+                            if item["kind"] == "cash" or item["kind"] in ASSET_KINDS]
+            if income_sources and destinations:
+                income_id = st.selectbox(
+                    "Choose an income source",
+                    options=[item["id"] for item in income_sources],
                     format_func=lambda ident: next(
-                        item["name"] for item in destinations if item["id"] == ident
+                        item["name"] for item in income_sources if item["id"] == ident
                     ),
+                    key="ml_route_income",
                 )
-                mode = st.radio(
-                    "Allocation method", ["fixed", "percent"],
-                    format_func=lambda name: "Dollars ($)" if name == "fixed" else "Percent (%)",
-                    horizontal=True,
-                )
-                amount = st.number_input(
-                    "Monthly allocation amount",
-                    min_value=0.0,
-                    max_value=100.0 if mode == "percent" else 100000000.0,
-                    value=10.0 if mode == "percent" else 100.0,
-                    step=1.0 if mode == "percent" else 25.0,
-                    format="%.2f",
-                )
-                save_route = st.form_submit_button("Add / update income route")
-            if save_route:
-                updated = []
-                for item in blocks:
-                    if item["id"] == income_id:
-                        new_routes = [
-                            route for route in item.get("routes", [])
-                            if route["destination_id"] != dest
+                income_block = next(item for item in income_sources if item["id"] == income_id)
+                current_routes = income_block.get("routes", [])
+                if current_routes:
+                    for route in current_routes:
+                        target = next(item["name"] for item in destinations
+                                      if item["id"] == route["destination_id"])
+                        suffix = "%" if route["mode"] == "percent" else " dollars"
+                        st.write(f"• {target}: {route['value']}{suffix} of monthly pay")
+                else:
+                    st.info("No allocations yet. All take-home pay currently flows to modeled cash.")
+
+                with st.form("ml_route_editor"):
+                    dest = st.selectbox(
+                        "Destination account", [item["id"] for item in destinations],
+                        format_func=lambda ident: next(
+                            item["name"] for item in destinations if item["id"] == ident
+                        ),
+                    )
+                    mode = st.radio(
+                        "Allocation method", ["fixed", "percent"],
+                        format_func=lambda name: "Dollars ($)" if name == "fixed" else "Percent (%)",
+                        horizontal=True,
+                    )
+                    amount = st.number_input(
+                        "Monthly allocation amount",
+                        min_value=0.0,
+                        max_value=100.0 if mode == "percent" else 100000000.0,
+                        value=10.0 if mode == "percent" else 100.0,
+                        step=1.0 if mode == "percent" else 25.0,
+                        format="%.2f",
+                    )
+                    save_route = st.form_submit_button("Add / update income route")
+                if save_route:
+                    updated = []
+                    for item in blocks:
+                        if item["id"] == income_id:
+                            new_routes = [
+                                route for route in item.get("routes", [])
+                                if route["destination_id"] != dest
+                            ]
+                            new_routes.append({
+                                "destination_id": dest, "mode": mode, "value": amount,
+                            })
+                            updated.append({**item, "routes": new_routes})
+                        else:
+                            updated.append(item)
+                    try:
+                        st.session_state.ml_blocks = serialize_blocks(updated)
+                        st.rerun()
+                    except ValueError as exc:
+                        st.error(f"Cannot allocate income: {exc}")
+
+                if current_routes:
+                    remove_route_id = st.selectbox(
+                        "Remove an existing income route",
+                        options=[route["destination_id"] for route in current_routes],
+                        format_func=lambda ident: next(
+                            item["name"] for item in destinations if item["id"] == ident
+                        ),
+                        key="ml_remove_route_id",
+                    )
+                    if st.button("Remove income route"):
+                        revised = [
+                            {**item, "routes": [
+                                route for route in item.get("routes", [])
+                                if route["destination_id"] != remove_route_id
+                            ]} if item["id"] == income_id else item
+                            for item in blocks
                         ]
-                        new_routes.append({
-                            "destination_id": dest, "mode": mode, "value": amount,
-                        })
-                        updated.append({**item, "routes": new_routes})
-                    else:
-                        updated.append(item)
-                try:
-                    st.session_state.ml_blocks = serialize_blocks(updated)
-                    st.rerun()
-                except ValueError as exc:
-                    st.error(f"Cannot allocate income: {exc}")
-
-            if current_routes:
-                remove_route_id = st.selectbox(
-                    "Remove an existing income route",
-                    options=[route["destination_id"] for route in current_routes],
-                    format_func=lambda ident: next(
-                        item["name"] for item in destinations if item["id"] == ident
-                    ),
-                    key="ml_remove_route_id",
-                )
-                if st.button("Remove income route"):
-                    revised = [
-                        {**item, "routes": [
-                            route for route in item.get("routes", [])
-                            if route["destination_id"] != remove_route_id
-                        ]} if item["id"] == income_id else item
-                        for item in blocks
-                    ]
-                    st.session_state.ml_blocks = serialize_blocks(revised)
-                    st.rerun()
-        else:
-            st.info("Add an income block and a checking/savings/investment block to enable routing.")
+                        st.session_state.ml_blocks = serialize_blocks(revised)
+                        st.rerun()
+            else:
+                st.info("Add an income block and a checking/savings/investment block to enable routing.")
 
 
     elif incomes:
