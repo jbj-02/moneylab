@@ -40,7 +40,7 @@ def test_example_profile_can_be_loaded_and_cleared():
     assert metrics["Required loan payments"] == "$470.00"
     assert metrics["Planned savings transfers"] == "$425.00"
     assert metrics["Unallocated monthly buffer"] == "$905.00"
-    assert metrics["Estimated extra weekly spend"] == "$208.85"
+    assert metrics["Estimated extra weekly spend"] == "Review needed"
     empty = next(
         button for button in app.sidebar.button
         if button.label == "Start with an empty profile"
