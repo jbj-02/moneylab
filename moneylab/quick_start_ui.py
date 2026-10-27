@@ -11,11 +11,32 @@ from moneylab.cadence import FREQUENCIES, monthly_equivalent
 from moneylab.onboarding import approve_drafts, guided_drafts
 
 STEPS = ("Income", "Everyday spending", "Savings and debt", "Your goal")
+GUIDED_KEYS = (
+    "qs_income", "qs_income_frequency",
+    "qs_rent", "qs_rent_frequency", "qs_groceries", "qs_groceries_frequency",
+    "qs_other", "qs_other_frequency",
+    "qs_checking", "qs_savings", "qs_debt", "qs_know_debt",
+    "qs_debt_rate", "qs_debt_payment",
+    "qs_include_goal", "qs_goal_name", "qs_goal_target",
+    "qs_goal_months", "qs_goal_balance", "qs_goal_contribution",
+)
+
+
+def persist_step_answers():
+    """Keep earlier wizard answers when Streamlit removes hidden widgets."""
+    state = st.session_state
+    saved = dict(state.get("qs_saved_answers", {}))
+    saved.update({key: state[key] for key in GUIDED_KEYS if key in state})
+    state.qs_saved_answers = saved
+
+
+def previous_answer(key, default):
+    return st.session_state.get("qs_saved_answers", {}).get(key, default)
 
 
 def amount(label, key):
     return st.number_input(
-        label, min_value=0.0, max_value=1000000000.0, value=0.0,
+        label, min_value=0.0, max_value=1000000000.0, value=float(previous_answer(key, 0.0)),
         step=25.0, format="%.2f", key=key,
     )
 
@@ -23,7 +44,7 @@ def amount(label, key):
 def cadence(label, key, preferred):
     options = list(FREQUENCIES)
     return st.selectbox(
-        label, options, index=options.index(preferred),
+        label, options, index=options.index(previous_answer(key, preferred)),
         format_func=lambda key: FREQUENCIES[key][0], key=key,
     )
 
@@ -44,7 +65,8 @@ def ai_configuration():
 
 
 def guided_answers():
-    s = st.session_state
+    s = dict(st.session_state.get("qs_saved_answers", {}))
+    s.update({key: st.session_state[key] for key in GUIDED_KEYS if key in st.session_state})
     return {
         "income": s.get("qs_income", 0),
         "income_frequency": s.get("qs_income_frequency", "biweekly"),
@@ -99,27 +121,35 @@ def guided_step():
             if debt > 0:
                 if st.checkbox(
                     "I know this loan's rate and payment",
+                    value=bool(previous_answer("qs_know_debt", False)),
                     key="qs_know_debt",
                 ):
                     st.number_input(
                         "Annual interest rate (%)",
                         min_value=0.0, max_value=100.0,
-                        value=0.0, step=0.5, key="qs_debt_rate",
+                        value=float(previous_answer("qs_debt_rate", 0.0)),
+                        step=0.5, key="qs_debt_rate",
                     )
                     amount("Monthly loan payment ($)", "qs_debt_payment")
                 else:
                     st.info("We will ask you to verify the missing loan details.")
     else:
         st.write("Optional: save for an emergency fund, travel, or something important.")
-        if st.checkbox("I have a savings goal", key="qs_include_goal"):
+        if st.checkbox(
+            "I have a savings goal",
+            value=bool(previous_answer("qs_include_goal", False)),
+            key="qs_include_goal",
+        ):
             st.text_input(
-                "Goal name", value="Emergency fund", max_chars=60,
+                "Goal name", value=previous_answer("qs_goal_name", "Emergency fund"),
+                max_chars=60,
                 key="qs_goal_name",
             )
             amount("Goal target ($)", "qs_goal_target")
             st.number_input(
                 "Months until goal", min_value=1, max_value=600,
-                value=12, step=1, key="qs_goal_months",
+                value=int(previous_answer("qs_goal_months", 12)),
+                step=1, key="qs_goal_months",
             )
             a, b = st.columns(2)
             with a:
@@ -129,16 +159,20 @@ def guided_step():
 
     back, forward = st.columns(2)
     if back.button("Back", disabled=step == 0, use_container_width=True):
+        persist_step_answers()
         st.session_state.qs_step = step - 1
         st.rerun()
     if step < 3:
         if forward.button("Continue", type="primary", use_container_width=True):
+            persist_step_answers()
             st.session_state.qs_step = step + 1
             st.rerun()
     elif forward.button("Review my profile", type="primary", use_container_width=True):
         try:
+            persist_step_answers()
             drafts = guided_drafts(guided_answers())
             if drafts:
+                st.session_state.qs_revision = st.session_state.get("qs_revision", 0) + 1
                 st.session_state.qs_drafts = drafts
                 st.rerun()
             st.info("Add at least one amount, or choose My Money to add a block.")
@@ -190,6 +224,7 @@ def ai_entry():
             if not drafts:
                 st.info("No supported values found. Try guided setup instead.")
             else:
+                st.session_state.qs_revision = st.session_state.get("qs_revision", 0) + 1
                 st.session_state.qs_drafts = drafts
                 st.rerun()
         except ValueError as exc:
@@ -198,6 +233,7 @@ def ai_entry():
 
 def review_drafts():
     drafts = st.session_state.qs_drafts
+    revision = st.session_state.get("qs_revision", 0)
     st.markdown("### Review these building blocks")
     st.write(
         f"{len(drafts)} suggestions found. Correct any values and exclude "
@@ -209,7 +245,7 @@ def review_drafts():
         with st.container(border=True):
             include = st.checkbox(
                 f"Include {saved['name']}", value=True,
-                key=f"qs_include_{index}",
+                key=f"qs_{revision}_include_{index}",
             )
             selected.append(include)
             if not include:
@@ -218,7 +254,7 @@ def review_drafts():
             st.caption(BLOCK_KINDS[item["kind"]])
             item["name"] = st.text_input(
                 "Name", value=item["name"], max_chars=60,
-                key=f"qs_name_{index}",
+                key=f"qs_{revision}_name_{index}",
             )
             kind = item["kind"]
             if kind in ("income", "expense"):
@@ -227,14 +263,14 @@ def review_drafts():
                     item["amount"] = str(st.number_input(
                         "Amount per period ($)", value=float(item["amount"]),
                         min_value=0.0, max_value=1000000000.0, step=25.0,
-                        format="%.2f", key=f"qs_review_amount_{index}",
+                        format="%.2f", key=f"qs_{revision}_review_amount_{index}",
                     ))
                 with b:
                     item["frequency"] = st.selectbox(
                         "Frequency", list(FREQUENCIES),
                         index=list(FREQUENCIES).index(item["frequency"]),
                         format_func=lambda f: FREQUENCIES[f][0],
-                        key=f"qs_review_frequency_{index}",
+                        key=f"qs_{revision}_review_frequency_{index}",
                     )
                 st.caption(
                     "Monthly equivalent: "
@@ -253,7 +289,7 @@ def review_drafts():
                         item[field] = st.number_input(
                             "Months until target", min_value=1, max_value=600,
                             value=int(item[field]), step=1,
-                            key=f"qs_review_{index}_{field}",
+                            key=f"qs_{revision}_review_{index}_{field}",
                         )
                         continue
                     descriptions = {
@@ -268,14 +304,14 @@ def review_drafts():
                         value=float(item.get(field, 0)), min_value=0.0,
                         max_value=100.0 if field == "annual_rate" else 1000000000.0,
                         step=1.0, format="%.2f",
-                        key=f"qs_review_{index}_{field}",
+                        key=f"qs_{revision}_review_{index}_{field}",
                     ))
                 if kind == "account":
                     item["account_type"] = st.selectbox(
                         "Account type", list(ACCOUNT_TYPES),
                         index=list(ACCOUNT_TYPES).index(item["account_type"]),
                         format_func=lambda x: ACCOUNT_TYPES[x],
-                        key=f"qs_review_{index}_subtype",
+                        key=f"qs_{revision}_review_{index}_subtype",
                     )
                 if kind in ("account", "hysa", "roth_ira", "goal"):
                     st.caption("Default growth is 0% unless you enter an illustrative assumption.")
@@ -286,7 +322,7 @@ def review_drafts():
                 )
                 if st.checkbox(
                     "I have verified and updated these missing details",
-                    key=f"qs_verified_{index}",
+                    key=f"qs_{revision}_verified_{index}",
                 ):
                     item["missing"] = []
             edited.append(item)
