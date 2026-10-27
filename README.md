@@ -6,7 +6,7 @@
 
 ## Try the new experience
 
-Open the Streamlit app and explore **My dashboard**, **Build my profile**, **What-if Lab**, **Goals & insights**, **Export / import**, **My check-in**, and **Learn**. **New profiles start completely empty**. Choose a life situation to add your first suggested block; or deliberately load the optional fictional example from the sidebar. Suggested blocks start with fictional figures you must edit.
+Open the Streamlit app and use the **sidebar navigation** to switch between **Overview**, **Building blocks**, **What-if Lab**, **Goals & insights**, **Data & export**, **My check-in**, and **Learn**. The previous seven-tab ribbon has been removed. **New profiles start completely empty**. Choose a life situation to add your first suggested block, or deliberately load the fictional example from the sidebar. Suggested amounts are fictional and must be edited.
 
 The modular profile is built from independent **financial building blocks**:
 
@@ -27,10 +27,10 @@ Blocks can be added, renamed, edited, removed, and reordered. The expanded libra
 - **Where does my monthly income go?** Route take-home income from each paycheck to checking, savings, retirement or investment account blocks using **fixed dollar amounts or percentages**. Remaining income stays in modeled cash. Routed deposits are not counted as new income or spending. See routing destinations on the dashboard.
 - **What can I spend beyond my existing budget?** See an *estimated extra weekly spend* figure calculated from the unallocated first-month buffer. It is a planning estimate, **not verified bank money**.
 - **How might my position change?** View projected cash, other assets, loan balances and modeled net position.
-- **What happens if rent changes?** Adjust an expense in the What-if Lab. MoneyLab calculates the separate scenario and presents **specific impact alerts** for spending flexibility, cash, accounts, debt, goals and final modeled financial position, without modifying your profile.
-- **Will I reach my savings goal?** Dedicated goal blocks compare the projected earmarked balance with the target at its deadline.
-- **Can I keep my setup?** Export a profile to JSON and import it later; download month-by-month results as CSV.
-- **What should I check this week?** The **MoneyLab Check-In** gives a cautious, explainable status (needs attention, more information needed, or on track in the *modeled plan*), covers recurring obligations, reviewed inputs, goal deadlines, and loan risks. The user must explicitly confirm the current inputs before an on-track status appears.
+- **What happens if rent changes?** Adjust an expense in the What-if Lab. MoneyLab calculates the separate scenario and presents **specific impact alerts** for spending flexibility, cash, accounts, debt, goals and final modeled financial position. Name and save up to 20 expense-change scenarios for comparison or workspace export without changing your baseline.
+- **Will I reach my savings goal?** Add an emergency fund, travel savings, or a fully custom **goal block**, set the target, monthly contribution and deadline, and see its projected progress and status in Goals & insights.
+- **Can I keep my setup?** Export a version 2 workspace JSON containing the profile **and saved what-if scenarios**, import it later (older version 1 profile exports still work), and download month-by-month results as CSV.
+- **What should I check this week?** The **MoneyLab Check-In** gives a cautious, explainable status (needs attention, more information needed, or on track in the *modeled plan*) and now allows a quick update to a cash balance or recurring expense. Users can optionally enter dates for paychecks and bills to view a simple upcoming calendar. The user must explicitly review current inputs before an on-track status appears.
 - **Can I learn while using the app?** The **Learn** tab offers short lessons matched to the blocks the user adds, such as net pay, HYSA assumptions, loan interest and retirement accounts, with optional quick self-check quizzes.
 
 The old simulation remains available at `pages/2_Classic_Simulator.py`.
@@ -75,6 +75,8 @@ GitHub Actions runs tests on pushes and pull requests. Legacy cash-flow, amortiz
 - `moneylab/strategies.py` — original extra-payment comparisons.
 - `moneylab/reporting.py` — original CSV reports.
 - `moneylab/checkin.py` — conservative, explainable check-in from financial projection results.
+- `moneylab/cadence.py` — weekly/biweekly/monthly/yearly conversion and upcoming-payday/bill calendar utilities.
+- `moneylab/workspace.py` — versioned profile and saved scenario JSON storage.
 - `moneylab/learning.py` — contextual mini-lessons and self-check feedback.
 - `moneylab/insights.py` — what-if impact descriptions.
 - `moneylab/presets.py` — one-click suggested financial blocks.
@@ -93,6 +95,14 @@ GitHub Actions runs tests on pushes and pull requests. Legacy cash-flow, amortiz
 
 **Important:** Multiple checking blocks may be named as routing destinations, but the current model **pools cash for the financial projection**; it does not yet maintain independent checking account transaction ledgers. Treat the weekly spending number as an educational planning estimate, not verified account funds.
 
+## Scheduling and planning assumptions
+
+Choose weekly, **every two weeks**, monthly or yearly amounts when adding or editing an income/expense block. The monthly simulator converts to a mathematical monthly average: weekly × 52 ÷ 12, biweekly × 26 ÷ 12, monthly as entered, and yearly ÷ 12. It uses `Decimal` and rounds to cents for consistent model arithmetic. **Averaged income and bills are not actual cash arrivals or withdrawals on particular dates.** For example, a yearly $1,200 insurance bill becomes a $100 monthly *planning equivalent*; it is still one real-world yearly bill.
+
+Optionally specify the **next expected payday or bill date** in the block editor. MoneyLab shows expected upcoming events in My check-in but does **not** yet simulate individual account balances on those dates or remind you automatically. Month-end occurrences clip to shorter months. The calendar is informational and must not be used as a guarantee that sufficient money will be available when a bill is due.
+
+Saved What-if scenarios currently change one expense's *monthly equivalent*. They are compared with the current profile and stored in your Streamlit session. Export a **MoneyLab workspace (JSON)** to preserve both the profile and named scenarios. Older profile-only JSON files are compatible with imports. Saving a scenario does not apply it to the original profile.
+
 ## Financial modeling and privacy limitations
 
 **This is an educational planning prototype, not a bank balance, financial forecast or personal financial advice.**
@@ -109,9 +119,9 @@ GitHub Actions runs tests on pushes and pull requests. Legacy cash-flow, amortiz
 
 ## Roadmap
 
-**Now:** Empty-first, life-situation-guided onboarding; contextual financial lessons and quizzes; MoneyLab Check-In with review acknowledgement and conservative status; months of listed outflows covered by eligible liquid savings; starter blocks, account types, take-home income routing, multiple debts, goals, explainable what-if alerts and JSON/CSV export.
+**Now:** Clean sidebar navigation; empty-first, life-situation-guided onboarding; recurring income/expense blocks with **weekly, biweekly, monthly or yearly amounts**; optional payday/bill dates; customizable goals; short financial lessons; conservative MoneyLab Check-In with quick manual updates; spendability estimates; take-home income routing; explainable what-if alerts with named scenarios; workspace JSON/CSV exports.
 
-**Next (course milestones):** Usability testing with recent graduates, faster profile review and refresh, saved scenario comparisons, improved goal timelines, a bill/paycheck calendar, mobile-size layout and accessibility tests. Later, optional account history and notifications would require storage, consent and privacy controls.
+**Next (course milestones):** User testing with recent graduates; further mobile-size layout and accessibility improvements; goal priority settings; recurring expense exceptions; and a true date-based short-term account cash ledger. Scheduled notifications, history and persistent logins would require separate consent, security and storage design.
 
 **Later (post-course):** Optional secure profile accounts and mobile apps, transaction CSV imports, and economic context APIs.
 
