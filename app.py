@@ -47,6 +47,10 @@ money = st.Page("pages/1_My_Money.py", title="My Money", icon="💼", url_path="
 goals = st.Page("pages/2_Goals.py", title="Goals", icon="🎯", url_path="goals")
 explore = st.Page("pages/3_Explore.py", title="Explore", icon="🧪", url_path="explore")
 learn = st.Page("pages/4_Learn.py", title="Learn", icon="🎓", url_path="learn")
+quick_start = st.Page(
+    "pages/5_Quick_Start.py", title="Quick Start",
+    icon="✨", url_path="quick-start", visibility="hidden",
+)
 settings = st.Page(
     "pages/6_Settings.py", title="Settings & data",
     icon="⚙️", url_path="settings", visibility="hidden",
@@ -57,7 +61,7 @@ classic = st.Page(
 )
 
 current_page = st.navigation(
-    [home, money, goals, explore, learn, settings, classic],
+    [home, money, goals, explore, learn, quick_start, settings, classic],
     position="sidebar",
     expanded=True,
 )
