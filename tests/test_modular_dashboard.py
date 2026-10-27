@@ -39,3 +39,23 @@ def test_empty_workspace_does_not_crash():
     metrics = {metric.label: metric.value for metric in app.metric}
     assert metrics["Monthly take-home income"] == "$0.00"
     assert metrics["Unallocated monthly buffer"] == "$0.00"
+
+
+def test_user_can_add_a_financial_template():
+    app = start()
+    add = next(button for button in app.button if button.label == "Add this building block")
+    app = add.click().run()
+    assert not app.exception, [error.message for error in app.exception]
+    assert len(app.session_state["ml_blocks"]) == 11
+    assert app.session_state["ml_blocks"][-1]["kind"] == "income"
+
+
+def test_reordering_blocks_keeps_all_blocks():
+    app = start()
+    original = [item["id"] for item in app.session_state["ml_blocks"]]
+    move = next(button for button in app.button if button.label == "Move down")
+    app = move.click().run()
+    assert not app.exception, [error.message for error in app.exception]
+    moved = [item["id"] for item in app.session_state["ml_blocks"]]
+    assert moved[:2] == original[1::-1]
+    assert set(moved) == set(original)
