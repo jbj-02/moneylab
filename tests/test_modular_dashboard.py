@@ -20,8 +20,8 @@ def test_homepage_starts_empty_without_misleading_metrics():
     app = start()
     assert not errors(app), errors(app)
     assert app.session_state["ml_blocks"] == []
-    assert len(app.metric) == 0
-    assert len(app.tabs) == 5
+    assert "Monthly take-home income" not in {m.label for m in app.metric}
+    assert len(app.tabs) == 7
     assert app.sidebar.slider[0].value == 24
 
 
@@ -48,7 +48,37 @@ def test_example_profile_can_be_loaded_and_cleared():
     app = empty.click().run()
     assert not errors(app), errors(app)
     assert app.session_state["ml_blocks"] == []
-    assert len(app.metric) == 0
+    assert "Monthly take-home income" not in {m.label for m in app.metric}
+
+
+def test_onboarding_adds_only_one_suggested_block():
+    app = start()
+    button = next(
+        b for b in app.button
+        if b.label == "Add my first suggested block"
+    )
+    app = button.click().run()
+    assert not errors(app), errors(app)
+    assert len(app.session_state["ml_blocks"]) == 1
+    assert app.session_state["ml_blocks"][0]["kind"] == "income"
+
+
+def test_checkin_requires_explicit_profile_review():
+    app = start()
+    app = next(
+        button for button in app.sidebar.button
+        if button.label == "Load optional example profile"
+    ).click().run()
+    assert not errors(app), errors(app)
+    mark = next(
+        button for button in app.button
+        if button.label == "I've reviewed my entered financial information"
+    )
+    app = mark.click().run()
+    assert not errors(app), errors(app)
+    assert app.session_state["ml_reviewed_signature"]
+    assert "My check-in" in [t.label for t in app.tabs]
+    assert "Learn" in [t.label for t in app.tabs]
 
 
 def test_user_can_add_a_financial_template():
