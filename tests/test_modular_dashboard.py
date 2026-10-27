@@ -97,6 +97,8 @@ def test_review_action_and_notes_remain_on_home():
     app = mark.click().run()
     assert not errors(app), errors(app)
     assert app.session_state["ml_reviewed_signature"]
+    # The example vacation goal misses its deadline, so a reviewed profile
+    # still needs attention rather than receiving false reassurance.
     assert {m.label: m.value for m in app.metric}[
         "Additional monthly flexibility"
-    ] == "$905.00"
+    ] == "Review needed"
