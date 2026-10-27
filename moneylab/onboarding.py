@@ -62,10 +62,13 @@ def parse_drafts(items):
         draft = {"kind": kind, "name": name.strip(), "missing": []}
         fields = REVIEW_FIELDS[kind]
         if kind in ("income", "expense"):
-            freq = item.get("frequency") or "monthly"
+            supplied_frequency = item.get("frequency")
+            freq = supplied_frequency or "monthly"
             if freq not in FREQUENCIES:
                 raise ValueError("Unsupported pay or expense frequency.")
             draft["frequency"] = freq
+            if supplied_frequency is None:
+                draft["missing"].append("frequency")
             value = _decimal(item.get("amount"), "Amount")
             if value is None:
                 draft["missing"].append("amount")
