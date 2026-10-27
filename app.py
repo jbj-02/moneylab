@@ -209,6 +209,31 @@ with tabs[0]:
         ):
             st.info("Planned savings transfers are not affordable this month.")
 
+        routed_deposits = result["monthly_records"][1]["direct_deposits"]
+        if routed_deposits:
+            st.subheader("Your monthly income destinations")
+            account_names = {item["id"]: item["name"] for item in blocks}
+            st.dataframe(
+                pd.DataFrame([
+                    {"Destination": account_names.get(ident, ident),
+                     "Monthly routed deposit": float(amount)}
+                    for ident, amount in routed_deposits.items()
+                ]),
+                hide_index=True,
+                use_container_width=True,
+                column_config={
+                    "Monthly routed deposit": st.column_config.NumberColumn(
+                        "Monthly routed deposit", format="$%.2f"
+                    )
+                },
+            )
+            st.caption(
+                "Routing shows where you directed take-home pay. Any remainder "
+                "stays in modeled cash. This prototype pools checking/cash for "
+                "spending projections rather than tracking every checking "
+                "account's transactions separately."
+            )
+
         st.subheader("Projected financial position")
         st.line_chart(as_chart(result), height=330)
         st.caption(
