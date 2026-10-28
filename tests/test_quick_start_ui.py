@@ -113,7 +113,8 @@ def test_quick_start_is_on_sidebar_for_every_financial_profile():
     app = next(b for b in app.sidebar.button
                if b.label == "Load optional example profile").click().run()
     assert len(app.session_state["ml_blocks"]) == 10
+    # With an existing profile, Home still offers Quick Start right at top.
     assert any(
-        link.label == "✨ Quick Start · set up or add finances"
-        for link in app.sidebar.page_link
+        button.label == "✨ Quick Start · add more finances"
+        for button in app.button
     )
