@@ -9,6 +9,7 @@ from moneylab.ai_setup import MAX_INPUT_CHARS, suggest_financial_blocks
 from moneylab.blocks import ACCOUNT_TYPES, BLOCK_KINDS
 from moneylab.cadence import FREQUENCIES, monthly_equivalent
 from moneylab.onboarding import approve_drafts, guided_drafts
+from moneylab.free_setup import suggest_blocks_from_text
 
 STEPS = ("Income", "Everyday spending", "Savings and debt", "Your goal")
 GUIDED_KEYS = (
@@ -180,6 +181,45 @@ def guided_step():
             st.error(str(exc))
 
 
+
+def smart_paste_entry():
+    """Free on-server parser. Unlike cloud AI it makes no external requests."""
+    st.markdown("### Tell MoneyLab about your finances")
+    st.write(
+        "Instead of adding blocks one by one, paste a short description. "
+        "MoneyLab will identify common amounts and propose blocks for your review."
+    )
+    st.caption(
+        "Free and private: this uses simple Python text rules, **not cloud AI**. "
+        "Your description is not sent to an AI company."
+    )
+    example = (
+        "My take-home pay is $1,800 biweekly, my rent is $1,200 monthly, "
+        "groceries are $100 a week, and checking is $500."
+    )
+    description = st.text_area(
+        "Your financial description",
+        placeholder=example,
+        max_chars=2200, height=145, key="qs_smart_text",
+    )
+    st.caption(
+        "Works best with amounts and frequencies in short clauses. "
+        "Unknown rates, take-home pay and schedules will be flagged for confirmation."
+    )
+    if st.button(
+        "Find my building blocks", key="qs_smart_submit", type="primary",
+        disabled=len(description.strip()) < 10,
+    ):
+        try:
+            drafts, ignored = suggest_blocks_from_text(description)
+            st.session_state.qs_revision = st.session_state.get("qs_revision", 0) + 1
+            st.session_state.qs_drafts = drafts
+            st.session_state.qs_free_ignored = ignored
+            st.rerun()
+        except ValueError as exc:
+            st.error(str(exc))
+
+
 def ai_entry():
     active, api_key = ai_configuration()
     st.markdown("### Describe your financial situation")
@@ -239,6 +279,15 @@ def review_drafts():
         f"{len(drafts)} suggestions found. Correct any values and exclude "
         "anything that does not apply. **Nothing is saved until you approve.**"
     )
+    if st.session_state.get("qs_free_ignored"):
+        ignored = st.session_state["qs_free_ignored"]
+        with st.expander(f"{len(ignored)} text fragments not recognized"):
+            st.write(
+                "These details were not turned into financial blocks. "
+                "Please double-check that anything important is represented."
+            )
+            for fragment in ignored[:10]:
+                st.write(f"• {fragment}")
     edited, selected = [], []
     for index, saved in enumerate(drafts):
         item = deepcopy(saved)
@@ -343,12 +392,16 @@ def review_drafts():
             st.session_state.qs_drafts = None
             st.session_state.qs_step = 0
             st.session_state.pop("qs_ai_text", None)
+            st.session_state.pop("qs_smart_text", None)
+            st.session_state.pop("qs_free_ignored", None)
             st.switch_page("pages/1_My_Money.py")
         except ValueError as exc:
             st.error(f"No blocks were added: {exc}")
     if st.button("Discard suggestions", key="qs_discard"):
         st.session_state.qs_drafts = None
         st.session_state.pop("qs_ai_text", None)
+        st.session_state.pop("qs_smart_text", None)
+        st.session_state.pop("qs_free_ignored", None)
         st.rerun()
 
 
@@ -356,18 +409,22 @@ def render_quick_start():
     st.title("MoneyLab Quick Start")
     st.caption("Start with a few answers. Add several blocks at once.")
     st.write(
-        "Choose guided questions or optional AI suggestions. "
-        "You can edit and approve everything before updating your profile."
+        "Start for free: type your finances naturally or answer guided "
+        "questions. Optional cloud AI is available only if configured. "
+        "All paths include a review before saving."
     )
     if st.session_state.get("qs_drafts") is not None:
         review_drafts()
         return
     path = st.radio(
         "Choose your setup method",
-        ["Guided setup · no AI", "AI-assisted setup"],
+        ["Smart paste · free & private", "Guided setup · no AI",
+         "AI-assisted setup"],
         horizontal=True, key="qs_method",
     )
-    if path.startswith("Guided"):
+    if path.startswith("Smart"):
+        smart_paste_entry()
+    elif path.startswith("Guided"):
         guided_step()
     else:
         ai_entry()
