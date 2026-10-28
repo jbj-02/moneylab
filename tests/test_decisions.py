@@ -87,7 +87,7 @@ def test_large_new_commitment_flags_new_unfunded_shortfall():
 def test_goal_impact_is_derived_from_modeled_scenario_not_guessed():
     blocks = basic() + [goal()]
     base = project_blocks(blocks, 12)
-    r = decision_check(blocks, cost=1950, cost_type="recurring",
+    r = decision_check(blocks, cost=1980, cost_type="recurring",
                        months=12, reviewed=True)
     assert r["comparable"]
     assert r["goals_affected"]
