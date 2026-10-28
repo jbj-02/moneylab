@@ -244,6 +244,22 @@ def compare_moving(values, *, existing_goals=None, reviewed=False,
         )
     if model["fundable"]:
         before, after = model["baseline"], model["proposed"]
+        if any(
+            row["unfunded_shortfall"] > ZERO
+            for row in after["monthly_records"][1:25]
+        ):
+            warnings.append(
+                "One or more modeled months would end with a negative checking "
+                "balance. This is an unfunded cash shortfall, not an approved "
+                "overdraft or an assumed transfer from savings."
+            )
+        if upfront > ZERO:
+            warnings.append(
+                "Security deposits are treated as immediate cash outflows; "
+                "any possible refund after the lease is not modeled. "
+                "If a first month's rent is prepaid, avoid counting it again "
+                "in the same month's recurring payment."
+            )
         b_goals = {g["id"]: g for g in before["goals"]}
         for goal in after["goals"]:
             old = b_goals[goal["id"]]
