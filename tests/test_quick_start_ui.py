@@ -22,10 +22,17 @@ def click(app, label):
     return next(button for button in app.button if button.label == label).click().run()
 
 
+def choose_guided(app):
+    control = next(x for x in app.radio if x.label == "Choose your setup method")
+    return control.set_value("Guided setup · no AI").run()
+
+
 def test_quick_start_is_accessible_and_guided_by_default():
     app = start_quick_start()
     assert not errors(app), errors(app)
     assert any("MoneyLab Quick Start" in title.value for title in app.title)
+    assert any(b.label == "Find my building blocks" for b in app.button)
+    app = choose_guided(app)
     assert any("Step 1 of 4" in x.value for x in app.markdown)
     assert app.session_state["ml_blocks"] == []
 
@@ -40,7 +47,7 @@ def test_ai_is_optional_and_no_key_is_safe():
 
 
 def test_guided_wizard_batches_income_and_rent_on_approval():
-    app = start_quick_start()
+    app = choose_guided(start_quick_start())
     paycheck = next(x for x in app.number_input
                     if x.label == "Take-home pay each pay period ($)")
     app = paycheck.set_value(1800.00).run()
@@ -63,7 +70,7 @@ def test_guided_wizard_batches_income_and_rent_on_approval():
 
 
 def test_users_can_discard_preview_without_changing_finances():
-    app = start_quick_start()
+    app = choose_guided(start_quick_start())
     app = next(x for x in app.number_input
                if x.label == "Take-home pay each pay period ($)").set_value(1500).run()
     app = click(app, "Continue")
