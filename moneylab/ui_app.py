@@ -377,6 +377,19 @@ def render_home():
         )
         return
 
+    with st.container(border=True):
+        st.markdown("#### Want to add more to your financial picture?")
+        st.write(
+            "Quick Start can add several financial blocks at once using "
+            "guided questions or free text-to-block suggestions."
+        )
+        if st.button(
+            "✨ Quick Start · add more finances",
+            key="ml_existing_profile_quick_start",
+            type="primary",
+        ):
+            st.switch_page("pages/5_Quick_Start.py")
+
     st.markdown("#### Your check-in")
     show_checkin_status(checkin)
     if checkin["attention"]:
@@ -524,10 +537,22 @@ def render_my_money():
         if st.button("＋ Add a block", type="primary", use_container_width=True):
             add_block_dialog()
 
+    with st.container(border=True):
+        st.markdown("#### Save time with Quick Start")
+        st.caption(
+            "Add multiple income, expense, savings, debt or goal blocks together. "
+            "Guided questions and free private text extraction are available."
+        )
+        if st.button(
+            "✨ Quick Start · add multiple blocks",
+            key="ml_money_quick_start", type="primary",
+        ):
+            st.switch_page("pages/5_Quick_Start.py")
+
     if not blocks:
         st.info(
-            "Nothing here yet. Choose **Add a block** to start with an income, "
-            "expense, account, debt or savings goal."
+            "Nothing here yet. Use Quick Start to add several blocks or "
+            "choose Add a block to enter them individually."
         )
     else:
         groups = {
@@ -546,15 +571,6 @@ def render_my_money():
             for block in members:
                 block_card(block, all_ids.index(block["id"]), len(blocks))
 
-    st.markdown("#### Faster setup")
-    st.write(
-        "Want to add income, regular expenses, accounts and a goal together? "
-        "Quick Start prepares a set of blocks for you to review."
-    )
-    if st.button(
-        "✨ Quick Start · add multiple blocks", key="ml_money_quick_start",
-    ):
-        st.switch_page("pages/5_Quick_Start.py")
     st.markdown("#### Add something common")
     shortcuts = [
         ("Paycheck", "takehome"),
