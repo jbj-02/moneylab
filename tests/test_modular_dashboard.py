@@ -126,9 +126,11 @@ def test_decision_check_simulates_one_time_purchase_with_example():
     app = navigate(app, "3_Explore.py")
     assert not errors(app), errors(app)
     assert any(b.label == "Check this decision" for b in app.button)
+    original_blocks = app.session_state["ml_blocks"].copy()
     run = next(b for b in app.button if b.label == "Check this decision")
     app = run.click().run()
     assert not errors(app), errors(app)
+    assert app.session_state["ml_blocks"] == original_blocks
     assert any(x.label == "Checking immediately after" for x in app.metric)
     assert any(x.label.startswith("Net position change") for x in app.metric)
 
@@ -144,3 +146,21 @@ def test_reserve_check_and_goal_check_render_in_decisions():
     app = selector.set_value("🎯 How do I reach a goal?").run()
     assert not errors(app), errors(app)
     assert any(x.label == "Planned monthly contribution" for x in app.metric)
+
+
+def test_decision_check_offers_relevant_learning_without_changing_finances():
+    app = load_example(start())
+    app = navigate(app, "3_Explore.py")
+    blocks = app.session_state["ml_blocks"].copy()
+    button = next(b for b in app.button
+                  if b.label == "Learn the concept behind this decision")
+    app = button.click().run()
+    assert not errors(app), errors(app)
+    assert app.session_state["ml_lesson"] == "budget"
+    assert app.session_state["ml_blocks"] == blocks
+
+
+def test_decisions_empty_profile_recommends_setup():
+    app = navigate(start(), "3_Explore.py")
+    assert not errors(app), errors(app)
+    assert any(b.label == "Start my profile" for b in app.button)
