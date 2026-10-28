@@ -37,15 +37,16 @@ The old simulation remains available at `pages/2_Classic_Simulator.py`.
 
 ## Quick Start — set up a profile without adding every block yourself
 
-**Start on Home → “Set up my finances in a few steps”**, or open **My Money → “Quick Start · add multiple blocks.”** A focused setup page offers:
+**Quick Start is now visible in the main navigation, in an always-present sidebar shortcut, and on Home (including existing profiles).** You can also use **My Money → Quick Start · add multiple blocks**. A focused setup page offers:
 
+- **Smart paste (free and private, default).** Enter a short description such as `My take-home pay is $1,800 biweekly, rent $1,200 monthly, groceries $100 weekly, checking $500.` A deterministic local Python extractor recognizes basic categories and frequency patterns **without external requests, accounts, quotas, models, or API keys**. It is not a language model; it deliberately flags unknown or ambiguous information for confirmation, and cannot understand every phrasing.
 - **Guided setup (no AI, always available).** Four small steps gather take-home income, rent/groceries and other expenses, cash/savings and optional loan information, plus an optional goal. Weekly, biweekly, monthly and yearly amounts are converted by the existing tested financial engine.
 - **Review and approve.** MoneyLab previews every proposed block. You can edit amounts/frequency/names, leave individual entries out, or discard all drafts. The current profile is never changed until you click **Add selected blocks to my profile**. When information is missing, the preview identifies it and requires explicit confirmation rather than silently inventing a loan rate, balance or payment.
 - **Optional AI-assisted setup.** On an explicitly opted-in request, OpenAI can extract a set of draft blocks from a plain-language description. The AI **never computes forecasts, imports transactions, or writes directly to a profile**; all data goes through MoneyLab's own validation and the same review/approval screen. If AI is not configured, the non-AI wizard still works.
 
 ### Enable optional AI setup on Streamlit Community Cloud
 
-AI features are deliberately **disabled by default**. The app owner must configure the following in their Streamlit Community Cloud app's **Settings → Secrets** area (do **not** commit real values to GitHub):
+**You do not need a key for Smart paste or guided setup.** Only the optional third-party **cloud AI** path is disabled by default; it remains available for a later experiment if the owner wishes to configure a provider. To enable the existing OpenAI connector, the owner must configure the following in their Streamlit Community Cloud app's **Settings → Secrets** area (do **not** commit real values to GitHub):
 
 ```toml
 OPENAI_API_KEY = "YOUR_PRIVATE_OPENAI_API_KEY"
