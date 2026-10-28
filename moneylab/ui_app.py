@@ -341,11 +341,41 @@ def block_card(block, index, total):
 def render_home():
     blocks, result, summary, months, _, checkin, _ = context()
     st.title("Your financial home")
-    st.caption("Understand your money. Enjoy your life.")
+    st.caption("Make your next money decision with a clearer picture.")
+    st.markdown("### What are you trying to figure out?")
+    left, right = st.columns(2, gap="medium")
+    with left:
+        if st.button(
+            "🏡 Can I afford to move out?", type="primary",
+            use_container_width=True, key="home_decision_move",
+        ):
+            st.switch_page("pages/7_Moving_Out_Alpha.py")
+        if st.button(
+            "🛟 How financially prepared am I?",
+            use_container_width=True, key="home_decision_reserves",
+        ):
+            st.session_state.dc_decision_type = "🛟 How prepared am I?"
+            st.switch_page("pages/3_Explore.py")
+    with right:
+        if st.button(
+            "💳 Can I take on a new expense?",
+            use_container_width=True, key="home_decision_expense",
+        ):
+            st.session_state.dc_decision_type = "💳 Can I take on a cost?"
+            st.switch_page("pages/3_Explore.py")
+        if st.button(
+            "🧭 I want to explore my finances",
+            use_container_width=True, key="home_decision_explore",
+        ):
+            st.switch_page("pages/5_Quick_Start.py")
+    st.caption(
+        "No bank connection needed. Start with fictional figures or "
+        "enter a few numbers to explore a decision."
+    )
 
     if not blocks:
         st.markdown(
-            "### Your money journey starts here"
+            "### Want a fuller financial picture?"
         )
         st.write(
             "You don't need to know everything about personal finance to "
