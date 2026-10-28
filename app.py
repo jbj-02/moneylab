@@ -45,7 +45,7 @@ if "ml_saved_scenarios" not in st.session_state:
 home = st.Page("pages/0_Home.py", title="Home", icon="🏠", default=True)
 money = st.Page("pages/1_My_Money.py", title="My Money", icon="💼", url_path="money")
 goals = st.Page("pages/2_Goals.py", title="Goals", icon="🎯", url_path="goals")
-explore = st.Page("pages/3_Explore.py", title="Explore", icon="🧪", url_path="explore")
+explore = st.Page("pages/3_Explore.py", title="Decisions", icon="🧭", url_path="explore")
 learn = st.Page("pages/4_Learn.py", title="Learn", icon="🎓", url_path="learn")
 quick_start = st.Page(
     "pages/5_Quick_Start.py", title="Quick Start",
