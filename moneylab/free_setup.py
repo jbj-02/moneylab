@@ -65,11 +65,17 @@ def _money_values(text):
     """Extract monetary-looking tokens while excluding percent figures."""
     found = []
     for match in _MONEY_RE.finditer(text):
-        after = text[match.end():match.end() + 4]
+        after = text[match.end():match.end() + 16]
         if after.lstrip().startswith("%"):
             continue
         before = text[max(0, match.start() - 1):match.start()]
-        if before.isalpha():
+        if before.isalpha() or text[:match.start()].rstrip().endswith("-"):
+            continue
+        # "every 2 weeks" and "in 12 months" describe a cadence or
+        # deadline, not an income amount. Don't mistake them for dollars.
+        if "$" not in match.group(0) and re.match(
+            r"\s*(?:days?|weeks?|months?|years?)\b", after, re.I,
+        ):
             continue
         num = Decimal(match.group("amount").replace(",", ""))
         if match.group("suffix"):
@@ -138,7 +144,15 @@ def suggest_blocks_from_text(description):
         raise ValueError("Enter 10–2,200 characters describing your finances.")
     clauses = []
     for part in _SEGMENTS.split(description.strip()):
-        clauses.extend(_SPLIT_CATEGORY.split(part))
+        for clause in _SPLIT_CATEGORY.split(part):
+            # A continuation such as "it is $1,800" may belong to
+            # "my net paycheck every 2 weeks" in the previous clause.
+            if (clauses and _category(clauses[-1]) is not None
+                    and not _money_values(clauses[-1])
+                    and _category(clause) is None and _money_values(clause)):
+                clauses[-1] += " " + clause
+            else:
+                clauses.append(clause)
     raw, skipped = [], []
     for clause in clauses:
         text = clause.strip(" .!?:")
