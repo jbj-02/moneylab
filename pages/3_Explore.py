@@ -1,5 +1,5 @@
-"""MoneyLab explore screen."""
+"""Decision Check: everyday tradeoffs, reserve readiness and savings goals."""
 
-from moneylab.ui_app import render_explore
+from moneylab.decision_ui import render_decision_page
 
-render_explore()
+render_decision_page()
