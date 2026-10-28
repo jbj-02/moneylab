@@ -34,7 +34,9 @@ def test_home_starts_empty_and_uses_native_navigation():
         text.value for text in app.markdown
     ] or any("Your money journey" in text.value for text in app.markdown)
     assert len(app.sidebar.radio) == 0
-    assert len(app.sidebar.page_link) == 2
+    assert len(app.sidebar.page_link) == 3
+    assert any(x.label == "✨ Quick Start · set up or add finances"
+               for x in app.sidebar.page_link)
     assert len(app.sidebar.slider) == 1
 
 
@@ -46,6 +48,7 @@ def test_sample_profile_and_home_metrics():
     assert metrics["Monthly take-home"] == "$3,800.00"
     assert metrics["Additional monthly flexibility"] == "Review needed"
     assert any("check-in" in text.value.lower() for text in app.markdown)
+    assert any(b.label == "✨ Quick Start · add more finances" for b in app.button)
 
 
 def test_my_money_shows_existing_blocks():
@@ -55,6 +58,8 @@ def test_my_money_shows_existing_blocks():
     assert any("My Money" in t.value for t in app.title)
     assert any("Take-home salary" in m.value for m in app.markdown)
     assert any(b.label == "＋ Add a block" for b in app.button)
+    assert any(b.label == "✨ Quick Start · add multiple blocks"
+               for b in app.button)
 
 
 def test_goals_are_editable_blocks_with_clear_progress():
