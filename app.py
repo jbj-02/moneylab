@@ -49,7 +49,7 @@ explore = st.Page("pages/3_Explore.py", title="Explore", icon="🧪", url_path="
 learn = st.Page("pages/4_Learn.py", title="Learn", icon="🎓", url_path="learn")
 quick_start = st.Page(
     "pages/5_Quick_Start.py", title="Quick Start",
-    icon="✨", url_path="quick-start", visibility="hidden",
+    icon="✨", url_path="quick-start",
 )
 settings = st.Page(
     "pages/6_Settings.py", title="Settings & data",
@@ -61,7 +61,7 @@ classic = st.Page(
 )
 
 current_page = st.navigation(
-    [home, money, goals, explore, learn, quick_start, settings, classic],
+    [home, quick_start, money, goals, explore, learn, settings, classic],
     position="sidebar",
     expanded=True,
 )
@@ -78,6 +78,10 @@ def clear_financial_profile():
 
 with st.sidebar:
     st.caption("UNDERSTAND YOUR MONEY. ENJOY YOUR LIFE.")
+    st.page_link(
+        quick_start, label="✨ Quick Start · set up or add finances",
+        use_container_width=True,
+    )
     with st.expander("Planning horizon & examples"):
         st.slider(
             "Projection months", 1, 120, 24,
