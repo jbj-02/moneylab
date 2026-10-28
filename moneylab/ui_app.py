@@ -19,6 +19,7 @@ from moneylab.blocks import (
 )
 from moneylab.cadence import FREQUENCIES, monthly_equivalent, upcoming_events
 from moneylab.checkin import build_checkin
+from moneylab.decisions import next_best_step, goal_next_step
 from moneylab.insights import scenario_impacts
 from moneylab.learning import LESSONS, check_answer, recommended_lesson_ids
 from moneylab.presets import PRESET_CATALOG, preset_block
@@ -390,16 +391,36 @@ def render_home():
         ):
             st.switch_page("pages/5_Quick_Start.py")
 
+    st.markdown("#### One useful next step")
+    recommendation = next_best_step(
+        blocks, months=months, reviewed=checkin["reviewed"],
+    )
+    with st.container(border=True):
+        st.markdown(f"**{recommendation['title']}**")
+        st.write(recommendation["why"])
+        target = recommendation["action"]
+        label = (
+            "Review my figures" if target == "review" else
+            "Open Quick Start" if target == "quick_start" else
+            "Explore a decision" if target == "decisions" else
+            "Review my goals" if target == "goals" else
+            "Open My Money"
+        )
+        if st.button(label, type="primary", key="ml_home_next_step"):
+            if target == "review":
+                st.session_state.ml_expand_review = True
+                st.rerun()
+            else:
+                page = {
+                    "quick_start": "pages/5_Quick_Start.py",
+                    "decisions": "pages/3_Explore.py",
+                    "goals": "pages/2_Goals.py",
+                    "my_money": "pages/1_My_Money.py",
+                }[target]
+                st.switch_page(page)
+
     st.markdown("#### Your check-in")
     show_checkin_status(checkin)
-    if checkin["attention"]:
-        st.write(f"**Most important thing to review:** {checkin['attention'][0]}")
-    elif checkin["missing"]:
-        st.write(f"**Next step:** {checkin['missing'][0]}")
-    elif not checkin["reviewed"]:
-        st.write("**Next step:** Review your figures to see what the model can tell you.")
-    else:
-        st.write("**Next step:** Keep your plan current as your life changes.")
 
     a, b, c = st.columns(3)
     a.metric("Monthly take-home", dollars(summary["monthly_income"]))
@@ -415,9 +436,9 @@ def render_home():
         "after recorded costs and affordable planned transfers, not verified bank money."
     )
 
-    st.markdown("#### Your next step")
-    if st.button("Review or update my finances", key="home_review", type="primary"):
+    if st.button("Review or update my finances", key="home_review"):
         st.session_state.ml_expand_review = True
+        st.rerun()
     if st.button("Add another building block", key="home_add_block"):
         add_block_dialog()
     if result["goals"]:
@@ -741,16 +762,31 @@ def render_goals():
                     f"Projected {dollars(projected)} at the deadline — "
                     f"{dollars(outcome['gap_at_deadline'])} below your target."
                 )
-                if goal["target_months"] > 0:
-                    required = (
-                        max(target - saved, Decimal("0.00"))
-                        / Decimal(goal["target_months"])
-                    ).quantize(Decimal("0.01"))
+                with st.expander("What could help reach this goal?"):
+                    coaching = goal_next_step(
+                        blocks, goal["id"], months=months,
+                        reviewed=st.session_state.get("ml_reviewed_signature")
+                        == profile_to_json(blocks),
+                    )
+                    if coaching["feasible_with_buffer"]:
+                        st.write(
+                            f"Try **{dollars(coaching['additional_monthly'])} more "
+                            f"per month** (total planned contribution "
+                            f"{dollars(coaching['proposed_contribution'])}/month). "
+                            "This meets the goal's deadline in MoneyLab's "
+                            "current model without exceeding the first month's "
+                            "modeled unallocated buffer."
+                        )
+                    else:
+                        st.write(
+                            "An additional transfer within the first month's "
+                            "recorded unallocated budget does not reach this goal. "
+                            "Explore extending its deadline, changing the "
+                            "target, or reviewing other spending."
+                        )
                     st.caption(
-                        f"For orientation only: without growth, the difference "
-                        f"between the target and current balance averages "
-                        f"about {dollars(required)} per month. "
-                        "Available income may limit contributions."
+                        "This is a modeled what-if estimate, not verified "
+                        "affordability or an automatic account transfer."
                     )
     with st.expander("How MoneyLab projects goals"):
         st.write(
@@ -761,9 +797,12 @@ def render_goals():
             "even when your dashboard chart uses a shorter horizon."
         )
 
-def render_explore():
+def render_explore(embedded=False):
     blocks, result, summary, months, saved_scenarios, _, _ = context()
-    st.title("Explore a decision")
+    if embedded:
+        st.subheader("Change an existing expense")
+    else:
+        st.title("Explore a decision")
     st.caption("See what changes before you make a real-world commitment.")
     expenses = [item for item in blocks if item["kind"] == "expense"]
     if not expenses:
