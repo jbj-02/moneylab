@@ -176,7 +176,7 @@ def compare_moving(values, *, existing_goals=None, reviewed=False,
         raise ValueError("Only existing savings goal blocks may be reused.")
     if len(goals) + 4 > 50:
         raise ValueError("Too many savings goals for this scenario.")
-    horizon = max(24, *(goal["target_months"] for goal in goals))
+    horizon = max([24] + [goal["target_months"] for goal in goals])
     model = _projections(
         {**validated, "use_savings_for_upfront": use_savings_for_upfront},
         horizon, goals,
