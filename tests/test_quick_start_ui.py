@@ -82,3 +82,38 @@ def test_users_can_discard_preview_without_changing_finances():
     assert not errors(app), errors(app)
     assert app.session_state["qs_drafts"] is None
     assert app.session_state["ml_blocks"] == []
+
+
+def test_private_smart_paste_adds_several_blocks_without_ai_key():
+    app = start_quick_start()
+    assert not errors(app), errors(app)
+    assert app.session_state["qs_method"] == "Smart paste · free & private"
+    description = (
+        "My take-home pay is $1,800 biweekly, my rent is $1,200 monthly, "
+        "groceries are $100 weekly, and checking is $500."
+    )
+    smart = next(item for item in app.text_area
+                 if item.label == "Your financial description")
+    app = smart.set_value(description).run()
+    app = click(app, "Find my building blocks")
+    assert not errors(app), errors(app)
+    assert app.session_state["ml_blocks"] == []
+    assert len(app.session_state["qs_drafts"]) == 4
+    app = click(app, "Add selected blocks to my profile")
+    assert not errors(app), errors(app)
+    assert len(app.session_state["ml_blocks"]) == 4
+
+
+def test_quick_start_is_on_sidebar_for_every_financial_profile():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=20).run()
+    assert any(
+        link.label == "✨ Quick Start · set up or add finances"
+        for link in app.sidebar.page_link
+    )
+    app = next(b for b in app.sidebar.button
+               if b.label == "Load optional example profile").click().run()
+    assert len(app.session_state["ml_blocks"]) == 10
+    assert any(
+        link.label == "✨ Quick Start · set up or add finances"
+        for link in app.sidebar.page_link
+    )
