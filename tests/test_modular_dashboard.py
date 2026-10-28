@@ -163,7 +163,8 @@ def test_decision_check_offers_relevant_learning_without_changing_finances():
     assert app.session_state["ml_blocks"] == blocks
 
 
-def test_decisions_empty_profile_recommends_setup():
+def test_decisions_empty_profile_supports_minimal_inputs():
     app = navigate(start(), "3_Explore.py")
     assert not errors(app), errors(app)
-    assert any(b.label == "Start my profile" for b in app.button)
+    assert any(b.label == "Check with these assumptions" for b in app.button)
+    assert app.session_state["ml_blocks"] == []
