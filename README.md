@@ -6,7 +6,7 @@
 
 ## Try the new experience
 
-**MoneyLab Decision Check:** The app's five main destinations are Home, Quick Start, My Money, Goals, **Decisions**, and Learn. Decisions keeps the existing expense What-if Lab under an advanced option. Native Streamlit navigation replaces the seven-section radio menu. **Settings & data** and the original **Classic Simulator** remain accessible as secondary sidebar links. New workspaces start empty. **Quick Start is now the primary onboarding path:** answer four questions and review multiple suggested blocks at once. You can also add blocks individually. Example figures are fictional and should be edited.
+**MoneyLab Decision Check:** The app's main destinations are Home, Quick Start, My Money, Goals, **Decisions**, and Learn. Decisions keeps the existing expense What-if Lab under an advanced option. Native Streamlit navigation replaces the seven-section radio menu. **Settings & data** and the original **Classic Simulator** remain accessible as secondary sidebar links. New workspaces start empty. **Quick Start is now the primary onboarding path:** answer four questions and review multiple suggested blocks at once. You can also add blocks individually. Example figures are fictional and should be edited.
 
 The modular profile is built from independent **financial building blocks**:
 
