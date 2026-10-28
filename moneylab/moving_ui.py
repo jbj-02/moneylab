@@ -198,6 +198,13 @@ def _render_result(report):
             "then—only if you opt in—from savings."
         )
         st.write(
+            "Security deposits are treated as upfront cash reductions; "
+            "any eventual refund is excluded. If first month's rent is "
+            "already prepaid, this simplified model may double-count it "
+            "in the first month's recurring rent. Do not treat the "
+            "longer-run figures as a precise lease cash schedule."
+        )
+        st.write(
             "Month 6, 12 and 24 comparisons reuse MoneyLab's validated Decimal "
             "monthly projection engine. The model assumes constant income and "
             "monthly-average expenses, zero savings-account yield for this "
@@ -288,8 +295,8 @@ def render():
             rent = _money("rent", "Your share of the new rent ($/month)", required=True)
             deposit = _money(
                 "security_deposit", "Security deposit and fees ($)",
-                help_text="Include any upfront fees that you won't get back "
-                          "during the comparison period.",
+                help_text="Enter cash needed upfront. MoneyLab conservatively "
+                          "does not model a future deposit refund.",
             )
         with b:
             moving = _money("moving_cost", "Moving / transport costs ($)")
