@@ -103,7 +103,7 @@ def build_checkin(blocks, projection, reviewed=False):
         )
     if attention:
         actions.append(
-            "Test adjustments in the What-if Lab before changing your real-world plan."
+            "Explore a tradeoff in Decisions before changing your real-world plan."
         )
     if not projection["goals"] and not missing:
         actions.append(
