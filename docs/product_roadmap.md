@@ -46,6 +46,31 @@ A spreadsheet can add up a budget. MoneyLab's intended value is the
 - JSON profile download/import and CSV financial projections
 - Original Classic Simulator and existing Colab notebook remain available
 
+## Decision Check 1.0 (implemented)
+
+The app now answers **"What can I do with my money, and what might I give up?"**
+with deterministic, test-backed scenarios rather than generic AI advice.
+
+- Home selects one explainable *Next Best Step* by examining missing/reviewed
+  inputs, recorded income gaps, modeled cash shortfalls, debt-interest risks,
+  savings-goal deadlines and optional reserve coverage.
+- **Decisions → Can I take on a cost?** compares a one-time cash purchase or
+  a weekly/biweekly/monthly/yearly recurring commitment. It exposes changes
+  in modeled monthly flexibility, future cash and net position, and goal
+  impacts. It never invents financing or transfers from restricted accounts.
+- **Decisions → How prepared am I?** compares eligible liquid funds with a
+  user-selected number of months of *recorded* outflows. It shows a gap and
+  simple extra monthly savings math without asserting savings affordability.
+- **Decisions → How do I reach a goal?** searches for the minimum modeled
+  extra monthly goal contribution constrained by first-month unallocated
+  budget. Goal cards in Goals expose the same explanation.
+- **Decisions → Explore an existing expense** preserves the prior named
+  What-if Lab and its existing functionality.
+- All results are planning estimates dependent on manual financial inputs.
+  They never claim to verify real cash availability or daily bill timing.
+  The implementation is in \`moneylab/decisions.py\` and
+  \`moneylab/decision_ui.py\`, with UI and numerical regression tests.
+
 ## Safety and trust requirements
 
 - An **on-track** label must require an explicitly reviewed set of income,
@@ -78,12 +103,13 @@ A spreadsheet can add up a budget. MoneyLab's intended value is the
   monthly averages, carefully labeled when dates are unknown
 - User-controlled notifications only after actual scheduling and consent
 
-### Stage C — Decision coaching
-- Named What-if Lab scenarios and multi-variable changes
-- More actionable goal-shortfall explanations, with transparent math
-- One-time costs (moving, repairs, car purchase)
-- Educational simulations for debt payoff and liquidity tradeoffs
-- Accessible "why?" explanations linking from each warning to relevant lessons
+### Stage C — Extend Decision Check after user validation
+- Expand current single-cost comparisons to *multi-variable* decisions (e.g. rent plus utilities plus move-in deposit)
+- Distinguish estimates of necessary costs from optional spending using user-entered priorities
+- Add a real dated cash ledger so a yearly bill or payday can be tested on its actual date
+- Provide educational debt-payoff and liquidity tradeoff scenarios
+- Test whether users understand the *limitations* of Decision Check before adding stronger conclusions
+- Optional versioned profile history with explicit storage, consent and deletion controls
 
 ### Much later, optional
 - Native iOS application backed by tested Python financial APIs
