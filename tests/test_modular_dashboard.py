@@ -72,9 +72,13 @@ def test_goals_are_editable_blocks_with_clear_progress():
     assert any(b.label == "Edit goal" for b in app.button)
 
 
-def test_explore_displays_impact_and_saved_scenarios():
+def test_decisions_page_keeps_advanced_whatif_available():
     app = load_example(start())
     app = navigate(app, "3_Explore.py")
+    assert not errors(app), errors(app)
+    assert any("MoneyLab Decision Check" in title.value for title in app.title)
+    kinds = next(r for r in app.radio if r.label == "What would you like to figure out?")
+    app = kinds.set_value("🔍 Explore an existing expense").run()
     assert not errors(app), errors(app)
     assert any("What would be different" in m.value for m in app.markdown)
     assert any(b.label == "Save scenario" for b in app.button)
@@ -107,3 +111,36 @@ def test_review_action_and_notes_remain_on_home():
     assert {m.label: m.value for m in app.metric}[
         "Additional monthly flexibility"
     ] == "Review needed"
+
+
+def test_home_explains_single_next_step():
+    app = load_example(start())
+    assert not errors(app), errors(app)
+    assert any("One useful next step" in item.value for item in app.markdown)
+    assert any("Confirm your financial inputs" in item.value for item in app.markdown)
+    assert any(b.label == "Review my figures" for b in app.button)
+
+
+def test_decision_check_simulates_one_time_purchase_with_example():
+    app = load_example(start())
+    app = navigate(app, "3_Explore.py")
+    assert not errors(app), errors(app)
+    assert any(b.label == "Check this decision" for b in app.button)
+    run = next(b for b in app.button if b.label == "Check this decision")
+    app = run.click().run()
+    assert not errors(app), errors(app)
+    assert any(x.label == "Checking immediately after" for x in app.metric)
+    assert any(x.label.startswith("Net position change") for x in app.metric)
+
+
+def test_reserve_check_and_goal_check_render_in_decisions():
+    app = load_example(start())
+    app = navigate(app, "3_Explore.py")
+    selector = next(r for r in app.radio if r.label == "What would you like to figure out?")
+    app = selector.set_value("🛟 How prepared am I?").run()
+    assert not errors(app), errors(app)
+    assert any(x.label == "Months of listed outflows" for x in app.metric)
+    selector = next(r for r in app.radio if r.label == "What would you like to figure out?")
+    app = selector.set_value("🎯 How do I reach a goal?").run()
+    assert not errors(app), errors(app)
+    assert any(x.label == "Planned monthly contribution" for x in app.metric)
