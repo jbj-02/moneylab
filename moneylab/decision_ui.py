@@ -291,24 +291,172 @@ def _goal_check(blocks, months, reviewed):
         st.switch_page("pages/2_Goals.py")
 
 
+def _empty_profile_decision(choice):
+    """A low-input decision preview, without requiring full Quick Start.
+
+    The preview is explicitly incomplete and never saves synthetic blocks.
+    """
+    from moneylab.blocks import project_blocks
+    st.info(
+        "You can test a decision without making a profile. "
+        "These figures are **incomplete assumptions**, not a verified budget. "
+        "You can refine your financial picture later."
+    )
+    if choice in (DECISIONS[2], DECISIONS[3]):
+        st.write(
+            "For goal coaching or editing a recorded expense, first add "
+            "the relevant financial blocks."
+        )
+        if st.button("Set up only what I need", key="dc_quick_setup"):
+            st.switch_page("pages/5_Quick_Start.py")
+        return
+    with st.form("dc_no_profile_form", border=False):
+        income = st.number_input(
+            "Take-home pay each month ($)", value=None,
+            min_value=0.0, max_value=10000000.0,
+            step=50.0, format="%.2f",
+            placeholder="Optional for emergency comparison",
+        )
+        spending = st.number_input(
+            "Recorded monthly expenses ($)", value=None,
+            min_value=0.0, max_value=10000000.0,
+            step=50.0, format="%.2f",
+            placeholder="Required",
+            help="Include rent, groceries, insurance, bills and minimum loan payments.",
+        )
+        checking = st.number_input(
+            "Checking / cash balance ($)", value=None,
+            min_value=0.0, max_value=10000000.0, step=50.0,
+            format="%.2f", placeholder="Required",
+        )
+        savings = None
+        if choice == DECISIONS[1]:
+            savings = st.number_input(
+                "Accessible savings balance ($)", value=None,
+                min_value=0.0, max_value=10000000.0,
+                step=50.0, format="%.2f",
+                placeholder="Optional",
+            )
+        expense = None
+        kind = "one_time"
+        if choice == DECISIONS[0]:
+            kind = st.radio(
+                "New cost", ("one_time", "recurring"), horizontal=True,
+                format_func=lambda x: (
+                    "One-time purchase" if x == "one_time"
+                    else "Monthly commitment"
+                ),
+            )
+            expense = st.number_input(
+                "Proposed additional cost ($)", value=None,
+                min_value=0.0, max_value=10000000.0,
+                step=25.0, format="%.2f", placeholder="Required",
+            )
+        submit = st.form_submit_button(
+            "Check with these assumptions", type="primary",
+            use_container_width=True,
+        )
+    if not submit:
+        st.caption(
+            "Unentered bills, irregular expenses, income changes, "
+            "and exact payment dates are not modeled."
+        )
+        return
+    if spending is None or checking is None:
+        st.error("Enter the monthly expenses and available checking/cash.")
+        return
+    if choice == DECISIONS[0] and (
+        income is None or income <= 0 or expense is None or expense <= 0
+    ):
+        st.error("Add positive take-home income and the new cost.")
+        return
+    blocks = [
+        {"id": "temp_costs", "kind": "expense", "name": "Entered costs",
+         "monthly_amount": str(spending)},
+        {"id": "temp_cash", "kind": "cash", "name": "Entered checking",
+         "balance": str(checking)},
+    ]
+    if income is not None and income > 0:
+        blocks.append({
+            "id": "temp_income", "kind": "income",
+            "name": "Entered take-home pay", "monthly_amount": str(income),
+        })
+    if savings is not None and savings > 0:
+        blocks.append({
+            "id": "temp_savings", "kind": "hysa", "name": "Entered savings",
+            "balance": str(savings),
+            "monthly_contribution": 0, "annual_rate": 0,
+        })
+    if choice == DECISIONS[0]:
+        report = decision_check(
+            blocks, cost=expense, cost_type=kind, reviewed=False,
+        )
+        if not report["comparable"]:
+            st.warning(report["reason"])
+            st.metric("Recorded checking available", dollars(report["available_checking"]))
+            return
+        st.markdown("### Your preliminary result")
+        before = report["monthly_buffer_before"]
+        after = report["monthly_buffer_after"]
+        if kind == "one_time":
+            st.metric(
+                "Checking after this one-time cost",
+                dollars(report["remaining_checking_now"]),
+            )
+            st.write(
+                f"The purchase would use {dollars(report['cost'])} of the "
+                "checking/cash amount entered."
+            )
+        else:
+            st.metric(
+                "Monthly flexibility after the new cost",
+                dollars(after), delta=dollars(after - before),
+            )
+        if report["needs_attention"]:
+            st.warning(
+                "This hypothetical cost introduces a modeled warning. "
+                "Include more expenses before interpreting it."
+            )
+        st.caption(
+            "No savings goals, annual bills, outstanding loans, or other "
+            "accounts were assumed unless included in your expense total. "
+            "This is an educational comparison, not approval to spend."
+        )
+    else:
+        report = emergency_readiness(blocks, reviewed=False)
+        if not report["evaluable"]:
+            st.info(report["reason"])
+            return
+        st.markdown("### Your preliminary liquid-savings picture")
+        st.metric("Months of recorded expenses covered",
+                  str(report["coverage_months"]))
+        st.metric(
+            "Difference to a sample three-month target",
+            dollars(report["gap"]),
+        )
+        st.caption(
+            "This sample target is adjustable with a complete profile. "
+            "It is not a universal recommendation, and missing expenses "
+            "may overstate your apparent reserves."
+        )
+
+
 def render_decision_page():
     blocks, result, summary, months, _, checkin, _ = context()
     reviewed = checkin["reviewed"]
     st.title("MoneyLab Decision Check")
     st.caption("Understand the tradeoff behind your next money decision.")
     if not blocks:
-        st.info(
-            "Add a few financial details first so MoneyLab can compare decisions "
-            "against your situation rather than a fictional example."
-        )
-        if st.button("Start my profile", type="primary", key="dc_start_setup"):
-            st.switch_page("pages/5_Quick_Start.py")
-        return
-    _context_note(blocks, reviewed)
+        st.caption("Start with a few relevant numbers. A full profile is optional.")
+    else:
+        _context_note(blocks, reviewed)
     choice = st.radio(
         "What would you like to figure out?",
         DECISIONS, key="dc_decision_type",
     )
+    if not blocks:
+        _empty_profile_decision(choice)
+        return
     if choice == DECISIONS[0]:
         _cost_check(blocks, months, reviewed)
     elif choice == DECISIONS[1]:

@@ -30,9 +30,12 @@ def test_home_starts_empty_and_uses_native_navigation():
     app = start()
     assert not errors(app), errors(app)
     assert app.session_state["ml_blocks"] == []
-    assert "Your money journey starts here" in [
-        text.value for text in app.markdown
-    ] or any("Your money journey" in text.value for text in app.markdown)
+    assert any("What are you trying to figure out?" in text.value
+               for text in app.markdown)
+    assert any(b.label == "🏡 Can I afford to move out?" for b in app.button)
+    assert any(b.label == "💳 Can I take on a new expense?" for b in app.button)
+    assert any(b.label == "🛟 How financially prepared am I?" for b in app.button)
+    assert any(b.label == "🧭 I want to explore my finances" for b in app.button)
     assert len(app.sidebar.radio) == 0
     assert len(app.sidebar.page_link) == 3
     assert any(x.label == "✨ Quick Start · set up or add finances"
@@ -160,7 +163,8 @@ def test_decision_check_offers_relevant_learning_without_changing_finances():
     assert app.session_state["ml_blocks"] == blocks
 
 
-def test_decisions_empty_profile_recommends_setup():
+def test_decisions_empty_profile_supports_minimal_inputs():
     app = navigate(start(), "3_Explore.py")
     assert not errors(app), errors(app)
-    assert any(b.label == "Start my profile" for b in app.button)
+    assert any(b.label == "Check with these assumptions" for b in app.button)
+    assert app.session_state["ml_blocks"] == []

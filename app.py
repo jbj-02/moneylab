@@ -31,7 +31,23 @@ st.markdown(
       [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
         gap: .65rem;
       }
-      div[data-testid="stButton"] button {border-radius: 10px;}
+      div[data-testid="stButton"] button {
+        border-radius: 10px;
+        min-height: 2.75rem;
+      }
+      div[data-testid="stButton"] button:focus-visible,
+      div[data-testid="stLinkButton"] a:focus-visible {
+        outline: 3px solid var(--primary-color, #4472c4);
+        outline-offset: 3px;
+      }
+      @media (max-width: 768px) {
+        .block-container {
+          padding: 1rem 1rem 3.5rem;
+          max-width: 100%;
+        }
+        [data-testid="stMetric"] {padding: .75rem;}
+        [data-testid="stMetricValue"] {font-size: 1.45rem;}
+      }
     </style>
     """,
     unsafe_allow_html=True,
@@ -41,6 +57,8 @@ if "ml_blocks" not in st.session_state:
     st.session_state.ml_blocks = []
 if "ml_saved_scenarios" not in st.session_state:
     st.session_state.ml_saved_scenarios = []
+
+moving_alpha = st.Page("pages/7_Moving_Out_Alpha.py", title="Move Out", icon="🏡", url_path="moving-alpha")
 
 home = st.Page("pages/0_Home.py", title="Home", icon="🏠", default=True)
 money = st.Page("pages/1_My_Money.py", title="My Money", icon="💼", url_path="money")
@@ -61,7 +79,7 @@ classic = st.Page(
 )
 
 current_page = st.navigation(
-    [home, quick_start, money, goals, explore, learn, settings, classic],
+    [home, moving_alpha, explore, quick_start, money, goals, learn, settings, classic],
     position="sidebar",
     expanded=True,
 )
