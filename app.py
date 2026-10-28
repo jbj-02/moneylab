@@ -31,7 +31,23 @@ st.markdown(
       [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
         gap: .65rem;
       }
-      div[data-testid="stButton"] button {border-radius: 10px;}
+      div[data-testid="stButton"] button {
+        border-radius: 10px;
+        min-height: 2.75rem;
+      }
+      div[data-testid="stButton"] button:focus-visible,
+      div[data-testid="stLinkButton"] a:focus-visible {
+        outline: 3px solid var(--primary-color, #4472c4);
+        outline-offset: 3px;
+      }
+      @media (max-width: 768px) {
+        .block-container {
+          padding: 1rem 1rem 3.5rem;
+          max-width: 100%;
+        }
+        [data-testid="stMetric"] {padding: .75rem;}
+        [data-testid="stMetricValue"] {font-size: 1.45rem;}
+      }
     </style>
     """,
     unsafe_allow_html=True,
