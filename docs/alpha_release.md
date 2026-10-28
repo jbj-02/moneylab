@@ -1,6 +1,6 @@
 # MoneyLab alpha — decision-first testing guide
 
-**Branch:** \`alpha/decision-first-testing\` • **Draft PR:** [#1](https://github.com/jbj-02/moneylab/pull/1) • **Target:** do not merge until manual browser/device review.
+**Branch:** `alpha/decision-first-testing` • **Draft PR:** [#1](https://github.com/jbj-02/moneylab/pull/1) • **Target:** do not merge until manual browser/device review.
 
 ## Product intent and implementation decisions
 
@@ -13,11 +13,11 @@ does not require a bank account, account signup, cloud AI, or payment.
 
 ### What was retained from the first PR
 
-The existing \`pages/7_Moving_Out_Alpha.py\` route and \`moving-alpha\` URL
+The existing `pages/7_Moving_Out_Alpha.py` route and `moving-alpha` URL
 were reused; the untested, inline financial logic was replaced by a thin
-page wrapper calling \`moneylab/moving_ui.py\`. The comparison logic now lives
-in the pure, tested \`moneylab/moving.py\` module and calls the existing
-Decimal \`project_blocks\` engine. No production-branch merge was performed.
+page wrapper calling `moneylab/moving_ui.py`. The comparison logic now lives
+in the pure, tested `moneylab/moving.py` module and calls the existing
+Decimal `project_blocks` engine. No production-branch merge was performed.
 
 ### First-time journey
 
@@ -58,7 +58,7 @@ those blocks through Quick Start/My Money.
 - **Liquid comparisons:** Checking/cash plus non-earmarked savings; a
   negative projected cash position represents an unfunded shortfall.
   Goals are calculated and displayed separately.
-- **Profile separation:** The comparison never edits \`ml_blocks\`. Users
+- **Profile separation:** The comparison never edits `ml_blocks`. Users
   may optionally import *goal blocks only*; existing income, cash, debt
   and other account blocks are not mixed into the manual inputs (which
   would double-count financial information).
@@ -86,7 +86,7 @@ those blocks through Quick Start/My Money.
   is not proof of complete financial accounts.
 - The scenario is a simulation, not a bank balance forecast. Negative
   checking balances are cash shortfalls, not approved overdrafts.
-- \`st.session_state\` is temporary server-side session state, not durable
+- `st.session_state` is temporary server-side session state, not durable
   encrypted user storage. Workspaces persist only when explicitly
   exported to the user's device and later reimported.
 - The feedback link uses a **public GitHub issue** and requires a GitHub
@@ -101,13 +101,13 @@ those blocks through Quick Start/My Money.
 
 Run locally:
 
-\`\`\`sh
+```sh
 git fetch origin
 git switch alpha/decision-first-testing
 python -m pip install -r requirements.txt
 python -m pytest -q
 python -m streamlit run app.py
-\`\`\`
+```
 
 GitHub Actions on this branch runs the full pytest suite, including:
 financial invariants, empty and incomplete inputs, large and invalid
@@ -140,9 +140,9 @@ For a real browser and mobile-device check before merging:
 
 Create a **separate** Streamlit Community Cloud app using:
 
-- Repository: \`jbj-02/moneylab\`
-- Branch: \`alpha/decision-first-testing\`
-- Entry point: \`app.py\`
+- Repository: `jbj-02/moneylab`
+- Branch: `alpha/decision-first-testing`
+- Entry point: `app.py`
 
 Do not reconfigure the existing production app to this branch and do not
 merge PR #1 until the staged UI has been visually checked with sample data
