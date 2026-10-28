@@ -42,6 +42,8 @@ if "ml_blocks" not in st.session_state:
 if "ml_saved_scenarios" not in st.session_state:
     st.session_state.ml_saved_scenarios = []
 
+moving_alpha = st.Page("pages/7_Moving_Out_Alpha.py", title="Moving Out Alpha", icon="🏡", url_path="moving-alpha")
+
 home = st.Page("pages/0_Home.py", title="Home", icon="🏠", default=True)
 money = st.Page("pages/1_My_Money.py", title="My Money", icon="💼", url_path="money")
 goals = st.Page("pages/2_Goals.py", title="Goals", icon="🎯", url_path="goals")
@@ -61,7 +63,7 @@ classic = st.Page(
 )
 
 current_page = st.navigation(
-    [home, quick_start, money, goals, explore, learn, settings, classic],
+    [moving_alpha, home, quick_start, money, goals, explore, learn, settings, classic],
     position="sidebar",
     expanded=True,
 )
@@ -78,6 +80,7 @@ def clear_financial_profile():
 
 with st.sidebar:
     st.caption("UNDERSTAND YOUR MONEY. ENJOY YOUR LIFE.")
+    st.page_link(moving_alpha, label="🏡 Try Moving Out Alpha", use_container_width=True)
     st.page_link(
         quick_start, label="✨ Quick Start · set up or add finances",
         use_container_width=True,
