@@ -6,7 +6,7 @@
 
 ## Try the new experience
 
-**UX Refresh:** The app now has **five primary destinations: Home, My Money, Goals, Explore, and Learn**. Native Streamlit navigation replaces the seven-section radio menu. **Settings & data** and the original **Classic Simulator** remain accessible as secondary sidebar links. New workspaces start empty. **Quick Start is now the primary onboarding path:** answer four questions and review multiple suggested blocks at once. You can also add blocks individually. Example figures are fictional and should be edited.
+**MoneyLab Decision Check:** The app's five main destinations are Home, Quick Start, My Money, Goals, **Decisions**, and Learn. Decisions keeps the existing expense What-if Lab under an advanced option. Native Streamlit navigation replaces the seven-section radio menu. **Settings & data** and the original **Classic Simulator** remain accessible as secondary sidebar links. New workspaces start empty. **Quick Start is now the primary onboarding path:** answer four questions and review multiple suggested blocks at once. You can also add blocks individually. Example figures are fictional and should be edited.
 
 The modular profile is built from independent **financial building blocks**:
 
@@ -57,6 +57,21 @@ The server makes bounded calls to the OpenAI Responses API using a supported com
 
 **Public-deployment caution:** A three-request limit per browser session, a description length limit and bounded output help reduce accidental usage, but are **not** secure per-user rate limiting. Before enabling AI for an unrestricted public audience, add real authentication / per-user quotas, spending limits, abuse monitoring and a privacy review. Financial descriptions submitted to AI are transmitted to an external service and subject to that service's data policies. Do not solicit banking credentials, account numbers or personally identifying information.
 
+## Decision Check — why the financial data matters
+
+**Home now prioritizes a single next step.** The app looks at missing inputs, whether they've been reviewed, modeled monthly income gaps, cash shortfalls, underfunded loan interest, savings goals and a user-adjustable illustrative liquid-reserve target. These rules are deterministic and explain their rationale; there is no hidden financial wellness score.
+
+Open the **Decisions** page to explore four paths:
+
+1. **Can I take on a cost?** Compare an immediate one-time checking/cash purchase or a new weekly, biweekly, monthly or yearly commitment. MoneyLab runs the existing projection engine with the hypothetical change, displays monthly flexibility and projected effects, flags increases in modeled cash shortfalls, and checks which *assessed* savings goals are affected. One-time payments deduct only recorded checking/cash, not retirement accounts, goals, unspecified bank transfers, savings withdrawals or imagined borrowing. The comparison never modifies the original profile.
+2. **How prepared am I?** Choose your own target of months of *recorded* outflows and a savings timeframe. The app shows eligible liquid funds, target shortfall and the arithmetic average monthly extra savings needed. It checks whether that amount fits in the modeled first-month unallocated budget; it does not assert that future deposits are achievable.
+3. **How do I reach a goal?** Use a tested cent-level scenario search to find the smallest additional *monthly* goal contribution within the first month's recorded unallocated budget that would reach the deadline in the current fixed-rate model. Where no adjustment fits, the app suggests reviewing the timeline or assumptions rather than inventing money. Goals also show this coaching directly on their cards.
+4. **Explore an existing expense.** The previous What-if Lab remains fully available, including saved scenario comparisons.
+
+The app **does not make a definitive affordability judgment**. MoneyLab's estimates depend on manually entered take-home pay, financial accounts, obligations, and consistent monthly averages. It does not model exact bill/paycheck timing, taxes, unexpected costs, credit approvals, live transactions or guaranteed investment growth. Missing core entries and unreviewed profiles are clearly marked preliminary. Retirement, HSA, 529, CD and earmarked goal balances aren't treated as immediately spendable emergency savings.
+
+**Test the feature:** Load the *fictional example profile* from the sidebar, open Decisions, and compare a $200 recurring monthly cost with the baseline. Then try a one-time purchase, the emergency readiness calculator, and the savings-goal contribution coach.
+
 ## Install and run
 
 Use Python 3.12 or newer.
@@ -100,6 +115,8 @@ GitHub Actions runs tests on pushes and pull requests. Legacy cash-flow, amortiz
 - `moneylab/strategies.py` — original extra-payment comparisons.
 - `moneylab/reporting.py` — original CSV reports.
 - `moneylab/checkin.py` — conservative, explainable check-in from financial projection results.
+- `moneylab/decisions.py` — pure, validated decision comparisons, reserve gaps, goal contribution search and next-step ranking.
+- `moneylab/decision_ui.py` — decision-first Streamlit interface replacing the old Explore landing screen.
 - `moneylab/cadence.py` — weekly/biweekly/monthly/yearly conversion and upcoming-payday/bill calendar utilities.
 - `moneylab/workspace.py` — versioned profile and saved scenario JSON storage.
 - `moneylab/learning.py` — contextual mini-lessons and self-check feedback.
