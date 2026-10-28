@@ -322,6 +322,21 @@ def render_decision_page():
         )
         render_explore(embedded=True)
     st.divider()
+    with st.expander("Before deciding, check for missing costs"):
+        st.write(
+            "Many first-time budgets miss electricity, heating, phone plans, "
+            "insurance, transportation, subscriptions, minimum debt payments, "
+            "medical spending, and annual or irregular bills such as car repairs "
+            "and registration. MoneyLab does not know what you have omitted."
+        )
+        st.caption(
+            "You can add weekly, biweekly, monthly or yearly expense blocks "
+            "in My Money. An annual bill is divided into a monthly planning "
+            "average, but MoneyLab does not track its actual cash due date "
+            "in these scenarios."
+        )
+        if st.button("Add or review my expenses", key="dc_review_expenses"):
+            st.switch_page("pages/1_My_Money.py")
     with st.expander("Why this isn't a definitive affordability answer"):
         st.write(
             "MoneyLab uses financial figures you entered manually. It does not "
@@ -329,4 +344,10 @@ def render_decision_page():
             "account balance, or unplanned cost. Its results are educational "
             "scenario comparisons, not promises or individualized financial advice."
         )
-        st.page_link("pages/4_Learn.py", label="Learn the concepts behind these decisions")
+    lesson = (
+        "budget" if choice in (DECISIONS[0], DECISIONS[3]) else
+        "savings" if choice == DECISIONS[1] else "goals"
+    )
+    if st.button("Learn the concept behind this decision", key="dc_learn_context"):
+        st.session_state.ml_lesson = lesson
+        st.switch_page("pages/4_Learn.py")
