@@ -4,6 +4,14 @@
 
 [![Python checks](https://github.com/jbj-02/moneylab/actions/workflows/tests.yml/badge.svg)](https://github.com/jbj-02/moneylab/actions/workflows/tests.yml)
 
+## Decision-first alpha in progress
+
+**This is the review branch for [draft PR #1](https://github.com/jbj-02/moneylab/pull/1), not a production release.** The existing public Streamlit deployment remains on `main` and does not yet include these alpha changes.
+
+The alpha leads with **"What are you trying to figure out?"** on Home. The flagship **Move Out** experience compares current and proposed living costs and upfront cash requirements, with results for 6, 12 and 24 months, optional goal effects and CSV export. Users can start with a fictional example, change their assumptions and compare without creating a financial profile. Existing Quick Start, Smart Paste, My Money, Goals, Decision Check and exports remain available.
+
+See [Alpha release and QA guide](docs/alpha_release.md) for safeguards, limitations, manual device checks and instructions to deploy a separate staging app from `alpha/decision-first-testing`.
+
 ## Try the new experience
 
 **MoneyLab Decision Check:** The app's main destinations are Home, Quick Start, My Money, Goals, **Decisions**, and Learn. Decisions keeps the existing expense What-if Lab under an advanced option. Native Streamlit navigation replaces the seven-section radio menu. **Settings & data** and the original **Classic Simulator** remain accessible as secondary sidebar links. New workspaces start empty. **Quick Start is now the primary onboarding path:** answer four questions and review multiple suggested blocks at once. You can also add blocks individually. Example figures are fictional and should be edited.
