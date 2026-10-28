@@ -374,52 +374,27 @@ def render_home():
     )
 
     if not blocks:
-        st.markdown(
-            "### Want a fuller financial picture?"
-        )
+        st.markdown("### Want a fuller financial picture?")
         st.write(
-            "You don't need to know everything about personal finance to "
-            "get started. Answer a few questions and MoneyLab will build "
-            "several editable financial blocks for you."
+            "You can explore decisions without a profile. If you'd also "
+            "like ongoing goals and a financial check-in, add several "
+            "blocks at once through our guided Quick Start."
         )
         if st.button(
             "✨ Set up my finances in a few steps",
-            type="primary", key="ml_home_quick_start",
+            key="ml_home_quick_start",
         ):
             st.switch_page("pages/5_Quick_Start.py")
-        st.caption("Or start with one building block below.")
-        situations = {
-            "I just got paid": "takehome",
-            "I'm thinking of moving": "rent",
-            "I want to start saving": "hysa",
-            "I have student loans": "student",
-            "I want to start investing": "roth",
-            "I want to organize my finances": "checking",
-        }
-        choice = st.selectbox(
-            "What brings you here?", list(situations),
-            key="ml_first_situation",
-        )
-        if st.button("Start with this", type="primary"):
-            add_block_dialog(preset=situations[choice])
+        if st.button(
+            "Add a single financial block",
+            key="ml_home_add_manual",
+        ):
+            add_block_dialog()
         st.caption(
-            "Suggested examples are fictional and fully editable. "
-            "Your information is not automatically saved to an account."
+            "Sample figures are fictional. Nothing is imported or saved "
+            "automatically, and no bank account is required."
         )
         return
-
-    with st.container(border=True):
-        st.markdown("#### Want to add more to your financial picture?")
-        st.write(
-            "Quick Start can add several financial blocks at once using "
-            "guided questions or free text-to-block suggestions."
-        )
-        if st.button(
-            "✨ Quick Start · add more finances",
-            key="ml_existing_profile_quick_start",
-            type="primary",
-        ):
-            st.switch_page("pages/5_Quick_Start.py")
 
     st.markdown("#### One useful next step")
     recommendation = next_best_step(
@@ -471,6 +446,11 @@ def render_home():
         st.rerun()
     if st.button("Add another building block", key="home_add_block"):
         add_block_dialog()
+    if st.button(
+        "✨ Quick Start · add more finances",
+        key="ml_existing_profile_quick_start",
+    ):
+        st.switch_page("pages/5_Quick_Start.py")
     if result["goals"]:
         st.markdown("#### Your goals")
         for goal in result["goals"][:3]:
