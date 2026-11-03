@@ -340,7 +340,7 @@ def block_card(block, index, total):
 
 def render_home():
     blocks, result, summary, months, _, checkin, _ = context()
-    st.title("Your financial home")
+    st.title("MoneyLab")
     st.caption("Make your next money decision with a clearer picture.")
     from moneylab.smart_decision_ui import render_smart_decision_entry
     render_smart_decision_entry("home")
