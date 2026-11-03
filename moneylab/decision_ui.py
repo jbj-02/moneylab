@@ -296,7 +296,6 @@ def _empty_profile_decision(choice):
 
     The preview is explicitly incomplete and never saves synthetic blocks.
     """
-    from moneylab.blocks import project_blocks
     st.info(
         "You can test a decision without making a profile. "
         "These figures are **incomplete assumptions**, not a verified budget. "
@@ -316,6 +315,7 @@ def _empty_profile_decision(choice):
             min_value=0.0, max_value=10000000.0,
             step=50.0, format="%.2f",
             placeholder="Optional for emergency comparison",
+            key="dc_guest_income",
         )
         spending = st.number_input(
             "Recorded monthly expenses ($)", value=None,
@@ -323,11 +323,13 @@ def _empty_profile_decision(choice):
             step=50.0, format="%.2f",
             placeholder="Required",
             help="Include rent, groceries, insurance, bills and minimum loan payments.",
+            key="dc_guest_spending",
         )
         checking = st.number_input(
             "Checking / cash balance ($)", value=None,
             min_value=0.0, max_value=10000000.0, step=50.0,
             format="%.2f", placeholder="Required",
+            key="dc_guest_checking",
         )
         savings = None
         if choice == DECISIONS[1]:
@@ -336,6 +338,7 @@ def _empty_profile_decision(choice):
                 min_value=0.0, max_value=10000000.0,
                 step=50.0, format="%.2f",
                 placeholder="Optional",
+                key="dc_guest_savings",
             )
         expense = None
         kind = "one_time"
@@ -344,14 +347,25 @@ def _empty_profile_decision(choice):
                 "New cost", ("one_time", "recurring"), horizontal=True,
                 format_func=lambda x: (
                     "One-time purchase" if x == "one_time"
-                    else "Monthly commitment"
-                ),
+                    else "Recurring commitment"
+                ), key="dc_guest_cost_kind",
             )
             expense = st.number_input(
                 "Proposed additional cost ($)", value=None,
                 min_value=0.0, max_value=10000000.0,
                 step=25.0, format="%.2f", placeholder="Required",
+                key="dc_guest_cost",
             )
+            cadence = "monthly"
+            if kind == "recurring":
+                cadence = st.selectbox(
+                    "How often will the cost recur?",
+                    list(FREQUENCIES), index=list(FREQUENCIES).index(
+                        st.session_state.get("dc_guest_frequency", "monthly")
+                    ),
+                    format_func=lambda item: FREQUENCIES[item][0],
+                    key="dc_guest_frequency",
+                )
         submit = st.form_submit_button(
             "Check with these assumptions", type="primary",
             use_container_width=True,
@@ -390,6 +404,7 @@ def _empty_profile_decision(choice):
     if choice == DECISIONS[0]:
         report = decision_check(
             blocks, cost=expense, cost_type=kind, reviewed=False,
+            frequency=cadence,
         )
         if not report["comparable"]:
             st.warning(report["reason"])
@@ -446,6 +461,9 @@ def render_decision_page():
     reviewed = checkin["reviewed"]
     st.title("MoneyLab Decision Check")
     st.caption("Understand the tradeoff behind your next money decision.")
+    from moneylab.smart_decision_ui import render_smart_decision_entry
+    with st.expander("✨ Describe a decision in your own words"):
+        render_smart_decision_entry("decisions")
     if not blocks:
         st.caption("Start with a few relevant numbers. A full profile is optional.")
     else:
