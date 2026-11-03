@@ -30,7 +30,7 @@ def test_home_starts_empty_and_uses_native_navigation():
     app = start()
     assert not errors(app), errors(app)
     assert app.session_state["ml_blocks"] == []
-    assert any("What are you trying to figure out?" in text.value
+    assert any("Or choose a decision to explore" in text.value
                for text in app.markdown)
     assert any(b.label == "🏡 Can I afford to move out?" for b in app.button)
     assert any(b.label == "💳 Can I take on a new expense?" for b in app.button)
