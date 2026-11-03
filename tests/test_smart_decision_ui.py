@@ -118,10 +118,11 @@ def test_guest_recurring_decision_runs_calculation_with_reviewed_values():
     assert not errors(app), errors(app)
     spending = next(x for x in app.number_input
                     if x.label == "Recorded monthly expenses ($)")
-    app = spending.set_value(1000.00).run()
+    spending.set_value(1000.00)
     checking = next(x for x in app.number_input
                     if x.label == "Checking / cash balance ($)")
-    app = checking.set_value(1000.00).run()
+    checking.set_value(1000.00)
+    # Forms buffer inputs; submit both edits in the SAME AppTest run.
     submit = next(b for b in app.button
                   if b.label == "Check with these assumptions")
     app = submit.click().run()
@@ -137,5 +138,7 @@ def test_personal_profile_reset_requires_confirming_checkbox():
                 if b.label == "Load optional example profile")
     app = load.click().run()
     assert len(app.session_state["ml_blocks"]) == 10
-    assert app.session_state["ml_confirm_reset"] is False
+    confirmation = next(x for x in app.sidebar.checkbox
+                        if x.label == "I want to clear my current profile")
+    assert confirmation.value is False
     assert len(app.session_state["ml_blocks"]) == 10
