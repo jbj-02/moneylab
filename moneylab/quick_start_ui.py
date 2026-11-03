@@ -409,24 +409,22 @@ def render_quick_start():
     st.title("MoneyLab Quick Start")
     st.caption("Start with a few answers. Add several blocks at once.")
     st.write(
-        "Start for free: type your finances naturally or answer guided "
-        "questions. Optional cloud AI is available only if configured. "
-        "All paths include a review before saving."
+        "Type your finances in plain language or follow four short steps. "
+        "You can review every suggested block before saving."
     )
     if st.session_state.get("qs_drafts") is not None:
         review_drafts()
         return
     path = st.radio(
         "Choose your setup method",
-        ["Smart paste · free & private", "Guided setup · no AI",
-         "AI-assisted setup"],
+        ["Smart paste · free & private", "Guided setup · no AI"],
         horizontal=True, key="qs_method",
     )
     if path.startswith("Smart"):
         smart_paste_entry()
-    elif path.startswith("Guided"):
-        guided_step()
     else:
+        guided_step()
+    with st.expander("Optional experimental cloud AI setup"):
         ai_entry()
     st.divider()
     if st.button("I'd rather build blocks individually", key="qs_manual"):
