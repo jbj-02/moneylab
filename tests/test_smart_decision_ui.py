@@ -57,7 +57,7 @@ def test_gross_salary_never_becomes_takehome_and_not_saved():
     assert not errors(app), errors(app)
     assert "income" in app.session_state["smart_draft"]["missing"]
     assert app.session_state["ml_blocks"] == []
-    assert any("not" in w.message or "not" in w.value for w in app.warning)
+    assert any("not" in w.value for w in app.warning)
 
 
 def test_unsupported_language_does_not_open_financial_scenario():
