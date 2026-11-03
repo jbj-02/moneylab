@@ -342,7 +342,9 @@ def render_home():
     blocks, result, summary, months, _, checkin, _ = context()
     st.title("Your financial home")
     st.caption("Make your next money decision with a clearer picture.")
-    st.markdown("### What are you trying to figure out?")
+    from moneylab.smart_decision_ui import render_smart_decision_entry
+    render_smart_decision_entry("home")
+    st.markdown("### Or choose a decision to explore")
     left, right = st.columns(2, gap="medium")
     with left:
         if st.button(
