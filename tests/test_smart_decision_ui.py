@@ -105,3 +105,39 @@ def test_existing_profile_not_overwritten_by_smart_scenario():
     assert app.session_state["ml_blocks"] == original
     assert app.session_state["dc_cost_kind"] == "One-time purchase"
     assert app.session_state["dc_cost_value"] == 3000.0
+
+
+def test_guest_recurring_decision_runs_calculation_with_reviewed_values():
+    app = enter_smart_request(
+        start(), "I want a gym membership that costs $45 per month. "
+                 "My net take-home pay is $3,000 monthly.",
+    )
+    button = next(b for b in app.button
+                  if b.label == "Open my decision with these values")
+    app = button.click().run()
+    assert not errors(app), errors(app)
+    spending = next(x for x in app.number_input
+                    if x.label == "Recorded monthly expenses ($)")
+    app = spending.set_value(1000.00).run()
+    checking = next(x for x in app.number_input
+                    if x.label == "Checking / cash balance ($)")
+    app = checking.set_value(1000.00).run()
+    submit = next(b for b in app.button
+                  if b.label == "Check with these assumptions")
+    app = submit.click().run()
+    assert not errors(app), errors(app)
+    metrics = {m.label: m.value for m in app.metric}
+    assert metrics["Monthly flexibility after the new cost"] == "$1,955.00"
+    assert app.session_state["ml_blocks"] == []
+
+
+def test_personal_profile_reset_requires_confirming_checkbox():
+    app = start()
+    load = next(b for b in app.sidebar.button
+                if b.label == "Load optional example profile")
+    app = load.click().run()
+    assert len(app.session_state["ml_blocks"]) == 10
+    clear = next(b for b in app.sidebar.button
+                 if b.label == "Start with an empty profile")
+    assert clear.disabled
+    assert len(app.session_state["ml_blocks"]) == 10
