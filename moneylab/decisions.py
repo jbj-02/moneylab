@@ -10,6 +10,7 @@ from decimal import Decimal, ROUND_CEILING
 from moneylab.blocks import MAX_BLOCKS, project_blocks, validate_blocks
 from moneylab.cadence import monthly_equivalent
 from moneylab.checkin import build_checkin
+from moneylab.scenario_changes import apply_scenario_changes
 
 ZERO = Decimal("0.00")
 CENT = Decimal("0.01")
@@ -31,36 +32,23 @@ def amount(value, label="Cost"):
 
 
 def _new_expense(blocks, recurring_monthly):
-    if len(blocks) >= MAX_BLOCKS:
-        raise ValueError("The profile is at its block limit.")
-    used = {item["id"] for item in blocks}
-    ident = "decision_cost"
-    index = 1
-    while ident in used:
-        ident = f"decision_cost_{index}"
-        index += 1
-    return [*blocks, {
-        "id": ident, "kind": "expense",
+    """Apply an additional commitment without changing the original blocks."""
+    return apply_scenario_changes(blocks, [{
+        "operation": "add_monthly_expense",
+        "amount": recurring_monthly,
         "name": "Decision Check: hypothetical commitment",
-        "monthly_amount": str(recurring_monthly),
-    }]
+    }])
 
 
 def _cash_purchase(blocks, price):
-    """Deduct a one-time amount from cash blocks; refuse unsupported funding."""
+    """Deduct from checking only; never infer a savings transfer or borrowing."""
     available = sum((b["balance"] for b in blocks if b["kind"] == "cash"), ZERO)
     if price > available:
         return None, available
-    remaining = price
-    updated = []
-    for item in blocks:
-        entry = dict(item)
-        if entry["kind"] == "cash" and remaining > ZERO:
-            portion = min(entry["balance"], remaining)
-            entry["balance"] -= portion
-            remaining -= portion
-        updated.append(entry)
-    return updated, available
+    return apply_scenario_changes(blocks, [{
+        "operation": "one_time_cash", "amount": price,
+        "allow_hysa": False,
+    }]), available
 
 
 def decision_check(blocks, *, cost, cost_type, months=24, frequency="monthly",
