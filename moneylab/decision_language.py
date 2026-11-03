@@ -34,7 +34,7 @@ _UNSUPPORTED = re.compile(
     r"rent vs buy a home|stock recommendations)\b", re.I,
 )
 _CLAUSES = re.compile(
-    r"(?<!\d)[,;.!?\n](?!\d)|"
+    r",(?!\d)|[;!?\n]|\.(?!\d)|"
     r"\s+\b(?:and|but)\b(?=\s+(?:(?:i|my|we|the|our|a|an|have)\s+){0,3}"
     r"(?:make|earn|take|pay|spend|have|saved|got|rent|housing|"
     r"checking|savings|cash|utilities|internet|deposit|"
