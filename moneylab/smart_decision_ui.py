@@ -67,6 +67,7 @@ def _route(draft, selected, frequency):
             st.session_state.dc_guest_cost = selected["cost"]
         if frequency:
             st.session_state.dc_cost_frequency = frequency
+            st.session_state.dc_guest_frequency = frequency
         # These are provisional *guest* assumptions, not saved profile edits.
         for field, key in (
             ("income", "dc_guest_income"),
@@ -108,7 +109,7 @@ def _review(context):
             details = draft["gross_income"]
             freq = details.get("frequency") or "an unspecified period"
             st.warning(
-                f"Income of \${details['amount']} per {freq} was not "
+                f"Income of ${details['amount']} for {freq} was not "
                 "identified as take-home pay. Enter **monthly after-tax "
                 "income** below instead; MoneyLab will not estimate taxes."
             )
@@ -165,7 +166,11 @@ def _review(context):
                 key=f"smart_{context}_{version}_confirm",
                 use_container_width=True,
             ):
-                if intent == "recurring" and cadence not in FREQUENCIES:
+                if intent in ("purchase", "recurring") and (
+                    confirmed.get("cost") is None or confirmed["cost"] <= 0
+                ):
+                    st.warning("Enter a positive cost before opening the decision.")
+                elif intent == "recurring" and cadence not in FREQUENCIES:
                     st.warning(
                         "Choose how often the cost recurs. It would be "
                         "unsafe to assume that it's monthly."
