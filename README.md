@@ -4,17 +4,22 @@
 
 [![Python checks](https://github.com/jbj-02/moneylab/actions/workflows/tests.yml/badge.svg)](https://github.com/jbj-02/moneylab/actions/workflows/tests.yml)
 
-## Decision-first alpha in progress
+## Smart Decisions — November 2026
 
-**This is the review branch for [draft PR #1](https://github.com/jbj-02/moneylab/pull/1), not a production release.** The existing public Streamlit deployment remains on `main` and does not yet include these alpha changes.
+**Make your next money decision with a clearer picture.** On Home, write a short description such as "I want to move out. New rent is $1,500 per month, and I take home $3,500 monthly." MoneyLab uses free, private, rules-based text interpretation to identify the decision, extract explicitly provided amounts, and offer a **review screen**. Once you confirm, it opens the existing Moving Out or Decisions page with the reviewed assumptions already entered.
 
-The alpha leads with **"What are you trying to figure out?"** on Home. The flagship **Move Out** experience compares current and proposed living costs and upfront cash requirements, with results for 6, 12 and 24 months, optional goal effects and CSV export. Users can start with a fictional example, change their assumptions and compare without creating a financial profile. Existing Quick Start, Smart Paste, My Money, Goals, Decision Check and exports remain available.
+- **Currently recognized:** Moving/renting, one-time purchases, and recurring commitments.
+- **Financial safeguards:** Gross salary is **never silently converted to take-home income**; an unspecified recurring frequency must be confirmed; unknown bills are **not** claimed to be zero; unrecognized or ambiguous descriptions are rejected rather than guessed.
+- **No automatic profile changes:** The interpreter creates a temporary draft. Moving Out and expense comparisons operate on hypothetical copies, with calculations through the original Decimal projection engine.
+- **Reusable comparison operations:** `scenario_changes.py` handles changes to recorded monthly values, extra recurring costs, and immediate checking withdrawals. Savings are used only when the user explicitly allows them.
+- **No paid AI required:** Smart Decisions and Quick Start Smart Paste use the same existing amount/frequency recognition patterns; neither sends data to a cloud model. Optional cloud AI remains secondary and disabled unless the app owner configures it.
+- **Existing tools retained:** Moving Out, Quick Start, Smart Paste, My Money, Goals, advanced What-if Lab, Learn, and Settings/data export.
 
-See [Alpha release and QA guide](docs/alpha_release.md) for safeguards, limitations, manual device checks and instructions to deploy a separate staging app from `alpha/decision-first-testing`.
+For exact decision parsing limits, edge cases and manual QA, see [Smart Decisions implementation notes](docs/smart_decisions.md) and the [original alpha testing guide](docs/alpha_release.md).
 
 ## Try the new experience
 
-**MoneyLab Decision Check:** The app's main destinations are Home, Quick Start, My Money, Goals, **Decisions**, and Learn. Decisions keeps the existing expense What-if Lab under an advanced option. Native Streamlit navigation replaces the seven-section radio menu. **Settings & data** and the original **Classic Simulator** remain accessible as secondary sidebar links. New workspaces start empty. **Quick Start is now the primary onboarding path:** answer four questions and review multiple suggested blocks at once. You can also add blocks individually. Example figures are fictional and should be edited.
+**Decision-first navigation:** The main pages are Home, Move Out, Decisions, Quick Start, My Money, Goals, and Learn. The older What-if Lab remains under Decisions, while Settings & data and Classic Simulator are grouped in secondary sidebar tools. New users can **test a decision immediately**, without creating an account or profile. Quick Start is optional for people who want ongoing goals and a reusable financial picture. Example figures are always fictional and editable.
 
 The modular profile is built from independent **financial building blocks**:
 
@@ -35,7 +40,7 @@ On **My Money**, blocks are grouped into readable cards for Income, Everyday spe
 - **Where does my monthly income go?** Under **My Money → Advanced · Route take-home income into accounts**, route net income to checking, savings, retirement or investment blocks using fixed dollar amounts or percentages. The engine avoids double-counting routed deposits as income or spending.
 - **How much flexibility does the plan show?** Home emphasizes one careful check-in status, income, recorded commitments, and *additional monthly flexibility*. A reassuring amount appears only if reviewed inputs yield an on-track modeled plan; it is **not verified bank money**.
 - **How might my position change?** Expand **Home → Explore your detailed financial projection** for modeled cash, accounts, debt and net position.
-- **What happens if rent changes?** The **Explore** page leads with three significant before-and-after results and the most important explanatory effects. Full impact details and charts are optional expanders. Save up to 20 named expense-change scenarios without changing your baseline.
+- **What happens if rent changes?** The **advanced What-if Lab** under Decisions leads with three significant before-and-after results and the most important explanatory effects. Full impact details and charts are optional expanders. Save up to 20 named expense-change scenarios without changing your baseline.
 - **Will I reach my savings goal?** The dedicated **Goals** page creates and edits the same underlying goal blocks used elsewhere. It displays current savings, target, and the projected result at each goal's deadline—even if the dashboard uses a shorter projection horizon.
 - **Can I keep my setup?** Open the secondary **Settings & data** page to export or restore profile and scenario JSON (including legacy version 1 imports), or download a projection CSV.
 - **What should I check this week?** **Home** shows the most useful check-in finding. Expand **Update your finances and upcoming dates** to refresh a balance or recurring expense, review recorded inputs, and inspect manually entered upcoming paydays or bills.
@@ -45,12 +50,12 @@ The old simulation remains available at `pages/2_Classic_Simulator.py`.
 
 ## Quick Start — set up a profile without adding every block yourself
 
-**Quick Start is now visible in the main navigation, in an always-present sidebar shortcut, and on Home (including existing profiles).** You can also use **My Money → Quick Start · add multiple blocks**. A focused setup page offers:
+**Quick Start is available in the main navigation and on Home and My Money.** It is optional for completing a decision simulation. A focused setup page offers:
 
 - **Smart paste (free and private, default).** Enter a short description such as `My take-home pay is $1,800 biweekly, rent $1,200 monthly, groceries $100 weekly, checking $500.` A deterministic local Python extractor recognizes basic categories and frequency patterns **without external requests, accounts, quotas, models, or API keys**. It is not a language model; it deliberately flags unknown or ambiguous information for confirmation, and cannot understand every phrasing.
 - **Guided setup (no AI, always available).** Four small steps gather take-home income, rent/groceries and other expenses, cash/savings and optional loan information, plus an optional goal. Weekly, biweekly, monthly and yearly amounts are converted by the existing tested financial engine.
 - **Review and approve.** MoneyLab previews every proposed block. You can edit amounts/frequency/names, leave individual entries out, or discard all drafts. The current profile is never changed until you click **Add selected blocks to my profile**. When information is missing, the preview identifies it and requires explicit confirmation rather than silently inventing a loan rate, balance or payment.
-- **Optional AI-assisted setup.** On an explicitly opted-in request, OpenAI can extract a set of draft blocks from a plain-language description. The AI **never computes forecasts, imports transactions, or writes directly to a profile**; all data goes through MoneyLab's own validation and the same review/approval screen. If AI is not configured, the non-AI wizard still works.
+- **Optional experimental cloud AI (under an expander).** On an explicitly opted-in request, OpenAI can extract a set of draft blocks from a plain-language description. The AI **never computes forecasts, imports transactions, or writes directly to a profile**; all data goes through MoneyLab's own validation and the same review/approval screen. If AI is not configured, the non-AI wizard still works.
 
 ### Enable optional AI setup on Streamlit Community Cloud
 
@@ -114,7 +119,11 @@ GitHub Actions runs tests on pushes and pull requests. Legacy cash-flow, amortiz
 ## Source structure
 
 - `app.py` — minimal native Streamlit multipage router and shared sidebar controls.
-- `moneylab/ui_app.py` — five focused page renderers, card-based block management and focused add/edit dialogs.
+- `moneylab/ui_app.py` — focused page renderers, card-based block management and add/edit dialogs.
+- `moneylab/decision_language.py` — deterministic decision intent detection and temporary, review-required financial drafts.
+- `moneylab/smart_decision_ui.py` — natural-language entry shared by Home and Decisions, confirmation and safe scenario prefill.
+- `moneylab/scenario_changes.py` — immutable multi-change scenario transformations reused by Moving Out and Decision Check.
+- `moneylab/moving.py`, `moneylab/moving_ui.py` — multi-cost moving comparison and simplified results.
 - `pages/0_Home.py`, `pages/1_My_Money.py`, `pages/2_Goals.py`, `pages/3_Explore.py`, `pages/4_Learn.py` — primary page entrypoints.
 - `pages/6_Settings.py` — secondary workspace import/export page.
 - `pages/2_Classic_Simulator.py` — original one-loan Streamlit interface, preserved.
