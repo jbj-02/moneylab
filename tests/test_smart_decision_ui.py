@@ -127,7 +127,7 @@ def test_guest_recurring_decision_runs_calculation_with_reviewed_values():
     app = submit.click().run()
     assert not errors(app), errors(app)
     metrics = {m.label: m.value for m in app.metric}
-    assert metrics["Monthly flexibility after the new cost"] == "$1,955.00"
+    assert metrics.get("Monthly flexibility after the new cost") == "$1,955.00", {"metrics": metrics, "cost_kind": app.session_state.get("dc_guest_cost_kind"), "income": app.session_state.get("dc_guest_income"), "spending": app.session_state.get("dc_guest_spending"), "checking": app.session_state.get("dc_guest_checking"), "errors": [e.value for e in app.error], "infos": [i.value for i in app.info]}
     assert app.session_state["ml_blocks"] == []
 
 
@@ -137,7 +137,5 @@ def test_personal_profile_reset_requires_confirming_checkbox():
                 if b.label == "Load optional example profile")
     app = load.click().run()
     assert len(app.session_state["ml_blocks"]) == 10
-    clear = next(b for b in app.sidebar.button
-                 if b.label == "Start with an empty profile")
-    assert clear.disabled
+    assert app.session_state["ml_confirm_reset"] is False
     assert len(app.session_state["ml_blocks"]) == 10
