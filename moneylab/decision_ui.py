@@ -462,7 +462,11 @@ def render_decision_page():
     st.title("MoneyLab Decision Check")
     st.caption("Understand the tradeoff behind your next money decision.")
     from moneylab.smart_decision_ui import render_smart_decision_entry
-    with st.expander("✨ Describe a decision in your own words"):
+    with st.expander(
+        "✨ Describe a decision in your own words",
+        expanded=bool(st.session_state.get("smart_draft") and
+                      st.session_state.get("smart_origin") == "decisions"),
+    ):
         render_smart_decision_entry("decisions")
     if not blocks:
         st.caption("Start with a few relevant numbers. A full profile is optional.")
