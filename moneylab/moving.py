@@ -10,6 +10,7 @@ from io import StringIO
 import csv
 
 from moneylab.blocks import project_blocks, validate_blocks
+from moneylab.scenario_changes import apply_scenario_changes
 
 ZERO = Decimal("0.00")
 CENT = Decimal("0.01")
@@ -125,17 +126,12 @@ def _projections(inputs, months, goal_blocks):
     # are touched only with explicit consent and only when checking runs out.
     checking_after = max(checking - upfront, ZERO)
     savings_after = savings - max(upfront - checking, ZERO) if use_savings else savings
-    candidate = []
-    for entry in base:
-        clone = dict(entry)
-        if clone["id"] == cash_id:
-            clone["balance"] = str(checking_after)
-        elif clone["id"] == savings_id:
-            clone["balance"] = str(savings_after)
-        elif clone["id"] == cost_id:
-            clone["monthly_amount"] = str(moving_costs)
-            clone["name"] = "Proposed recorded expenses"
-        candidate.append(clone)
+    candidate = apply_scenario_changes(base, [
+        {"operation": "set_monthly", "block_id": cost_id,
+         "amount": moving_costs},
+        {"operation": "one_time_cash", "amount": upfront,
+         "allow_hysa": use_savings},
+    ])
     after = project_blocks(candidate, months)
     return {
         "fundable": True, "funding_gap": ZERO, "upfront": upfront,

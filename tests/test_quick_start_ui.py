@@ -39,11 +39,13 @@ def test_quick_start_is_accessible_and_guided_by_default():
 
 def test_ai_is_optional_and_no_key_is_safe():
     app = start_quick_start()
-    method = next(x for x in app.radio if x.label == "Choose your setup method")
-    app = method.set_value("AI-assisted setup").run()
     assert not errors(app), errors(app)
     assert any("not enabled" in x.value for x in app.info)
     assert len(app.session_state["ml_blocks"]) == 0
+    method = next(x for x in app.radio if x.label == "Choose your setup method")
+    assert list(method.options) == [
+        "Smart paste · free & private", "Guided setup · no AI",
+    ]
 
 
 def test_guided_wizard_batches_income_and_rent_on_approval():
@@ -106,10 +108,12 @@ def test_private_smart_paste_adds_several_blocks_without_ai_key():
 
 def test_quick_start_is_on_sidebar_for_every_financial_profile():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=20).run()
-    assert any(
-        link.label == "✨ Quick Start · set up or add finances"
-        for link in app.sidebar.page_link
-    )
+    # Quick Start remains in native navigation; no duplicate sidebar
+    # link is necessary.
+    quick = app.switch_page("pages/5_Quick_Start.py").run()
+    assert not errors(quick), errors(quick)
+    assert any("MoneyLab Quick Start" in t.value for t in quick.title)
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=20).run()
     app = next(b for b in app.sidebar.button
                if b.label == "Load optional example profile").click().run()
     assert len(app.session_state["ml_blocks"]) == 10

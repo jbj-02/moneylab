@@ -1,6 +1,6 @@
 """MoneyLab — understand your money, enjoy your life.
 
-Native Streamlit navigation keeps the five main experiences focused. Actual
+Native Streamlit navigation keeps financial decisions and optional setup approachable. Actual
 calculations, financial blocks and state are provided by moneylab.ui_app.
 """
 
@@ -31,9 +31,16 @@ st.markdown(
       [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
         gap: .65rem;
       }
-      div[data-testid="stButton"] button {
+      div[data-testid="stButton"] button,
+      div[data-testid="stFormSubmitButton"] button,
+      div[data-testid="stDownloadButton"] button {
         border-radius: 10px;
         min-height: 2.75rem;
+      }
+      [data-testid="stExpander"] {border-radius: 12px;}
+      [data-testid="stWidgetLabel"] p {line-height: 1.45;}
+      [data-testid="stSidebar"] .stPageLink a {
+        min-height: 2.5rem;
       }
       div[data-testid="stButton"] button:focus-visible,
       div[data-testid="stLinkButton"] a:focus-visible {
@@ -95,29 +102,31 @@ def clear_financial_profile():
 
 
 with st.sidebar:
-    st.caption("UNDERSTAND YOUR MONEY. ENJOY YOUR LIFE.")
-    st.page_link(
-        quick_start, label="✨ Quick Start · set up or add finances",
-        use_container_width=True,
-    )
-    with st.expander("Planning horizon & examples"):
+    st.caption("MONEYLAB · FINANCIAL DECISIONS")
+    with st.expander("Examples & projection settings"):
         st.slider(
             "Projection months", 1, 120, 24,
             key="ml_months",
         )
         st.button(
             "Load optional example profile", use_container_width=True,
+            help="Loads fictional numbers, not your personal finances.",
             key="ml_load_example", on_click=load_sample_profile,
+        )
+        confirm_reset = st.checkbox(
+            "I want to clear my current profile", key="ml_confirm_reset",
         )
         st.button(
             "Start with an empty profile", use_container_width=True,
             key="ml_clear_profile", on_click=clear_financial_profile,
+            disabled=not confirm_reset,
         )
-    st.page_link(settings, label="Settings & data", icon="⚙️")
-    st.page_link(classic, label="Classic simulator", icon="🧮")
+    with st.expander("Data & advanced tools"):
+        st.page_link(settings, label="Settings & data", icon="⚙️")
+        st.page_link(classic, label="Classic simulator", icon="🧮")
     st.caption(
-        "Manual-first planning. No connected bank accounts. "
-        "Export your workspace to keep a copy."
+        "No linked bank accounts. Your entries are temporary until "
+        "you export a workspace from Settings & data."
     )
 
 current_page.run()

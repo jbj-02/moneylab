@@ -61,6 +61,17 @@ def _render_result(report):
             f"**Moving would reduce your recorded monthly expenses by "
             f"{dollars(-move_delta)}, but require {dollars(upfront)} upfront.**"
         )
+    a, b, c = st.columns(3)
+    a.metric("Monthly expense change", dollars(move_delta))
+    b.metric("Upfront cash required", dollars(upfront))
+    c.metric("Monthly remainder if you move",
+             dollars(report["monthly_margin_after"]))
+    if report["monthly_margin_after"] < 0:
+        st.warning(
+            "Your proposed recorded expenses exceed your entered monthly "
+            "take-home income. The negative remainder is a modeled shortfall, "
+            "not additional borrowing automatically available."
+        )
     if report["missing"] or not report["reviewed"]:
         st.info(
             "This is a **preliminary comparison**, not a conclusion about "
@@ -69,7 +80,7 @@ def _render_result(report):
         )
 
     with st.container(border=True):
-        st.markdown("#### What changes each month?")
+        st.markdown("#### Your monthly picture")
         st.dataframe(pd.DataFrame([
             {"Measure": "Recorded monthly expenses",
              "Stay": dollars(report["current_monthly"]),
@@ -104,7 +115,7 @@ def _render_result(report):
         b.metric("Liquid funds after upfront costs",
                  dollars(report["remaining_liquid"]),
                  delta=dollars(-upfront))
-        st.markdown("#### What could change over time?")
+        st.markdown("#### Your modeled cash over time")
         st.caption(
             "Modeled liquid funds include checking/cash and unearmarked "
             "savings. They can go negative in the model when there's a "
@@ -118,14 +129,16 @@ def _render_result(report):
                 "Move": float(data["move_liquid"]),
                 "Difference": dollars(data["liquid_change"]),
             })
-        st.dataframe(pd.DataFrame([
-            {"Period": r["Period"], "Stay": dollars(report["timeframes"][month]["stay_liquid"]),
-             "Move": dollars(report["timeframes"][month]["move_liquid"]),
-             "Difference": r["Difference"]}
-            for r, month in zip(rows, (6, 12, 24))
-        ]), hide_index=True, use_container_width=True)
         chart = pd.DataFrame(rows).set_index("Period")[["Stay", "Move"]]
         st.bar_chart(chart, height=250)
+        with st.expander("View exact 6-, 12- and 24-month estimates"):
+            st.dataframe(pd.DataFrame([
+                {"Period": f"{month} months",
+                 "Stay": dollars(report["timeframes"][month]["stay_liquid"]),
+                 "Move": dollars(report["timeframes"][month]["move_liquid"]),
+                 "Difference": dollars(report["timeframes"][month]["liquid_change"])}
+                for month in (6, 12, 24)
+            ]), hide_index=True, use_container_width=True)
         if report["goals_included"]:
             st.markdown("#### Your existing savings goals")
             if report["goals_affected"]:
@@ -224,10 +237,10 @@ def _render_result(report):
 
 
 def render():
-    st.title("Can I afford to move out?")
+    st.title("Moving Out Decision Lab")
     st.caption(
-        "Make your next money decision with a clearer picture. "
-        "Compare staying and moving without building a complete financial profile."
+        "Compare staying where you are with moving somewhere new—without "
+        "creating a full financial profile or connecting a bank account."
     )
     st.radio(
         "How would you like to start?",
@@ -249,7 +262,7 @@ def render():
         )
 
     with st.form("move_alpha_form", border=False):
-        st.markdown("### 1. Your situation today")
+        st.markdown("### 1. Where you are today")
         a, b = st.columns(2, gap="medium")
         with a:
             income = _money("income", "Monthly take-home pay ($)", required=True)
@@ -289,7 +302,7 @@ def render():
                 ),
             )
 
-        st.markdown("### 2. The place you're considering")
+        st.markdown("### 2. Where you're thinking of moving")
         a, b = st.columns(2, gap="medium")
         with a:
             rent = _money("rent", "Your share of the new rent ($/month)", required=True)
