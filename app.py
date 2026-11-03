@@ -109,7 +109,8 @@ with st.sidebar:
             key="ml_months",
         )
         st.button(
-            "Load a fictional example profile", use_container_width=True,
+            "Load optional example profile", use_container_width=True,
+            help="Loads fictional numbers, not your personal finances.",
             key="ml_load_example", on_click=load_sample_profile,
         )
         confirm_reset = st.checkbox(
