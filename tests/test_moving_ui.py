@@ -27,7 +27,7 @@ def click_compare(app):
 def test_moving_page_opens_with_sample_not_in_user_profile():
     app = open_moving()
     assert not errors(app), errors(app)
-    assert any("Can I afford to move out?" in x.value for x in app.title)
+    assert any("Moving Out Decision Lab" in x.value for x in app.title)
     assert app.session_state["ml_blocks"] == []
     assert any(x.label == "Monthly take-home pay ($)" for x in app.number_input)
     assert any(b.label == "Compare stay vs move" for b in app.button)
