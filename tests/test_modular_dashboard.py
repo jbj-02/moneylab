@@ -35,7 +35,7 @@ def test_home_starts_empty_and_uses_native_navigation():
     assert any(b.label == "🏡 Can I afford to move out?" for b in app.button)
     assert any(b.label == "💳 Can I take on a new expense?" for b in app.button)
     assert any(b.label == "🛟 How financially prepared am I?" for b in app.button)
-    assert any(b.label == "🧭 I want to explore my finances" for b in app.button)
+    assert any(b.label == "💼 Build my financial picture" for b in app.button)
     assert len(app.sidebar.radio) == 0
     assert any(x.label == "💾 Save / restore workspace"
                for x in app.sidebar.page_link)
