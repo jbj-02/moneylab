@@ -188,7 +188,7 @@ def test_restoring_decision_removes_stale_results_and_keeps_missing():
         "move_rent": 1400.0,
         "move_checking": None,
         "move_result": {"fake": "stale"},
-        "move_inputs_at_run": {"rent": 1500},
+        "move_inputs_at_run": {"income": 3600, "rent": 1500},
         "move_use_savings": False,
     }
     drafts = capture_decision_drafts(state)
