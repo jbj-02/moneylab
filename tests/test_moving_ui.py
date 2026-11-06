@@ -129,6 +129,11 @@ def test_alternative_rent_keeps_original_comparison():
     button = next(b for b in app.button if b.label == "Try lower rent")
     app = button.click().run()
     assert not errors(app), errors(app)
+    assert any(b.label == "Compare this variation" for b in app.button), {
+        "buttons": [b.label for b in app.button],
+        "variation_kind": app.session_state.get("move_variation_kind"),
+        "has_original_inputs": bool(app.session_state.get("move_inputs_at_run")),
+    }
     compare = next(b for b in app.button
                    if b.label == "Compare this variation")
     app = compare.click().run()
