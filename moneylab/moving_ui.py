@@ -103,7 +103,10 @@ def _profile_loader():
         st.session_state.move_housing_choice = default
     selected = st.selectbox(
         "Which recorded expense represents your current housing?",
-        options, format_func=lambda key: (
+        options,
+        index=options.index(st.session_state.get("move_housing_choice"))
+        if st.session_state.get("move_housing_choice") in options else 0,
+        format_func=lambda key: (
             "I'll enter the current housing amount manually" if key is None
             else next(item["name"] for item in choices if item["id"] == key)
         ), key="move_housing_choice",
