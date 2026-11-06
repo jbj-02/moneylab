@@ -23,7 +23,8 @@ from moneylab.decisions import next_best_step, goal_next_step
 from moneylab.insights import scenario_impacts
 from moneylab.learning import LESSONS, check_answer, recommended_lesson_ids
 from moneylab.presets import PRESET_CATALOG, preset_block
-from moneylab.workspace import validated_scenarios, workspace_from_json, workspace_to_json
+from moneylab.workspace import validated_scenarios, workspace_from_json_full, workspace_to_json
+from moneylab.workspace_session import capture_decision_drafts, restore_decision_drafts
 
 def dollars(value):
     """USD metric label."""
@@ -1008,70 +1009,100 @@ def render_learn():
 
 def render_settings():
     blocks, result, summary, months, saved_scenarios, checkin, profile_signature = context()
-    st.title("Settings & data")
-    st.subheader("Keep your profile portable")
+    st.title("Save or restore your workspace")
     st.write(
-        "Download your blocks as JSON for later use or upload a previously "
-        "exported MoneyLab profile. No account is required and data is not "
-        "automatically saved between browser sessions."
+        "MoneyLab keeps figures in your current Streamlit session. "
+        "**They are not automatically saved between sessions.** "
+        "Download a workspace file to keep your profile and decisions."
     )
-    st.download_button(
-        "Download my workspace + saved scenarios (JSON)",
-        data=workspace_to_json(blocks, saved_scenarios),
-        file_name="moneylab_workspace.json",
-        mime="application/json",
-        use_container_width=True,
-    )
-    st.caption(
-        "Version 2 workspace files include your blocks and named scenarios. "
-        "Older profile-only JSON files are still supported for import."
-    )
-    st.download_button(
-        "Download projection (CSV)",
-        data=as_csv(result),
-        file_name="moneylab_modular_projection.csv",
-        mime="text/csv",
-        use_container_width=True,
-    )
-    uploaded = st.file_uploader(
-        "Import a MoneyLab profile (.json)", type=["json"],
-        help="Only import files you trust. Files must match MoneyLab's supported profile format.",
-    )
-    if st.button("Load selected profile", disabled=uploaded is None):
-        try:
-            text = uploaded.getvalue().decode("utf-8")
-            restored, restored_scenarios = workspace_from_json(text)
-            st.session_state.ml_blocks = restored
-            st.session_state.ml_saved_scenarios = restored_scenarios
-            st.rerun()
-        except (UnicodeDecodeError, ValueError) as exc:
-            st.error(f"Could not load profile: {exc}")
-    with st.expander("Calculation assumptions and data handling"):
-        st.markdown(
-            """
-            - Money figures are in USD and calculated with Decimal cents.
-            - Take-home income and recorded living expenses are assumed constant.
-            - Required loan payments are modeled separately and stop after payoff.
-              Unpaid monthly loan interest is added to the balance.
-            - Optional take-home income routes direct-deposit funds into existing
-              accounts; they are never extra income or additional expenses.
-              The remaining net pay flows to modeled cash.
-            - Other account contributions occur only from affordable monthly
-              surplus; transfers are not double-counted as expenses.
-            - Every non-cash account uses a fixed hypothetical yield or return;
-              investment values may fluctuate in reality. CDs may restrict
-              deposits/withdrawals; no lock-up terms are simulated.
-            - Retirement/HSA/529 contribution limits, eligibility, pretax payroll
-              deductions, taxes and employer matches are not modeled.
-            - A negative cash position represents an unfunded shortfall, not
-              actual borrowed money.
-            - No bank connections, Plaid integration, or automatic transaction
-              synchronization exist in this version.
-            - Profile data lives in the current Streamlit browser session; it is
-              not stored in an account database. Export the profile to save it.
-            - Educational scenario model, not financial advice.
-            """
+    drafts = capture_decision_drafts(st.session_state)
+    with st.container(border=True):
+        st.markdown("### 1. Save a copy")
+        st.caption(
+            f"Includes {len(blocks)} profile blocks, {len(saved_scenarios)} "
+            f"named What-if scenarios, and {len(drafts)} Moving Out draft(s). "
+            "It saves input assumptions, **not** a claim that old results "
+            "are still current. The file may contain private financial figures."
         )
-
-
-
+        st.download_button(
+            "Download workspace (JSON)",
+            data=workspace_to_json(blocks, saved_scenarios, drafts),
+            file_name="moneylab_workspace.json",
+            mime="application/json",
+            use_container_width=True,
+            type="primary",
+        )
+        st.download_button(
+            "Download financial projection (CSV)",
+            data=as_csv(result),
+            file_name="moneylab_financial_projection.csv",
+            mime="text/csv",
+            use_container_width=True,
+        )
+    with st.container(border=True):
+        st.markdown("### 2. Restore a copy")
+        st.caption(
+            "Importing replaces your current session's financial blocks "
+            "and saved What-if scenarios. You will review and rerun any "
+            "restored Moving Out draft. Version 1, 2 and 3 files are supported."
+        )
+        uploaded = st.file_uploader(
+            "Choose a MoneyLab workspace (.json)", type=["json"],
+            help="Only import your own trusted exports; 200 KB text limit.",
+        )
+        replace = st.checkbox(
+            "I understand this replaces my current session's data",
+            key="ml_restore_approval",
+        )
+        if st.button(
+            "Restore selected workspace",
+            type="primary", use_container_width=True,
+            disabled=uploaded is None or not replace,
+            key="ml_restore_workspace",
+        ):
+            try:
+                file_bytes = uploaded.getvalue()
+                if len(file_bytes) > 200_000:
+                    raise ValueError("Workspace exceeds the 200 KB import limit.")
+                decoded = file_bytes.decode("utf-8")
+                restored, restored_scenarios, decision_drafts = (
+                    workspace_from_json_full(decoded)
+                )
+                # Full validation occurs before any session state is replaced.
+                restore_decision_drafts(st.session_state, decision_drafts)
+                st.session_state.ml_blocks = restored
+                st.session_state.ml_saved_scenarios = restored_scenarios
+                st.session_state.ml_workspace_restored = True
+                st.rerun()
+            except (UnicodeDecodeError, ValueError) as exc:
+                st.error(f"Workspace not restored: {exc}")
+    if st.session_state.pop("ml_workspace_restored", False):
+        st.success(
+            "Workspace restored. Profile and saved scenarios are available. "
+            "Recalculate your decision before relying on its result."
+        )
+    if st.session_state.get("ml_restored_moving"):
+        st.page_link(
+            "pages/7_Moving_Out_Alpha.py",
+            label="Open restored Moving Out decision",
+            icon="house",
+        )
+    with st.expander("Privacy, calculation assumptions and format details"):
+        st.write(
+            "Workspace JSON files contain your financial blocks, named "
+            "expense scenarios and optional Moving Out assumptions. "
+            "They do not contain bank credentials, chatbot text or computed "
+            "cached Moving Out results. Keep exported files private."
+        )
+        st.write(
+            "Income and monthly-average expenses are assumed constant. "
+            "Goal transfers are modeled separately from living costs, "
+            "and negative modeled cash represents an unfunded shortfall. "
+            "MoneyLab is an educational simulator, not a live banking ledger."
+        )
+        st.write(
+            "No automatic database-backed saving or bank connections are "
+            "provided in this alpha. Optional cloud AI in Quick Start is "
+            "disabled unless configured separately; its own screen "
+            "discloses any external processing."
+        )
