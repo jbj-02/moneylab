@@ -259,3 +259,14 @@ def test_malformed_saved_cost_amount_and_frequency_rejected():
     ):
         with pytest.raises(ValueError):
             validated_decision_drafts([{**normal, **changes}])
+
+
+def test_profile_source_marks_proposed_rent_as_user_entered_not_from_profile():
+    scenario = dict(SAMPLE)
+    report = compare_moving(scenario, source="profile")
+    current = report["details"]["current"]
+    proposed = report["details"]["proposed"]
+    assert next(x for x in current if x["field"] == "current_housing")["status"] == "profile"
+    assert next(x for x in proposed if x["field"] == "rent")["status"] == "entered"
+    assert next(x for x in proposed if x["field"] == "utilities")["status"] == "entered"
+    assert next(x for x in report["details"]["balances"] if x["field"] == "checking")["status"] == "profile"
