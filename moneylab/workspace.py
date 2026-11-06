@@ -58,12 +58,49 @@ def validated_decision_drafts(drafts):
     seen = set()
     output = []
     for draft in drafts:
-        if not isinstance(draft, dict) or set(draft) != {
+        if not isinstance(draft, dict):
+            raise ValueError("Unsupported decision draft fields.")
+        kind, source = draft.get("kind"), draft.get("source")
+        if kind == "cost":
+            from moneylab.cadence import FREQUENCIES
+            if (set(draft) != {
+                "kind", "source", "values", "cost_type", "frequency"
+            } or kind in seen or source not in ("entered", "profile")
+                or draft["cost_type"] not in ("one_time", "recurring")
+                or draft["frequency"] not in FREQUENCIES):
+                raise ValueError("Unsupported saved cost decision.")
+            values = draft["values"]
+            allowed_cost = {"cost", "income", "spending", "checking", "savings"}
+            if not isinstance(values, dict) or set(values) - allowed_cost:
+                raise ValueError("Unsupported cost decision fields.")
+            cleaned = {}
+            for key, value in values.items():
+                if value is None:
+                    cleaned[key] = None
+                    continue
+                if isinstance(value, bool):
+                    raise ValueError("Invalid cost scenario amount.")
+                try:
+                    number = Decimal(str(value))
+                except (TypeError, ValueError, ArithmeticError):
+                    raise ValueError("Invalid cost scenario amount.") from None
+                if (not number.is_finite() or number < 0
+                        or number > Decimal("100000000")
+                        or number != number.quantize(Decimal("0.01"))):
+                    raise ValueError("Invalid cost scenario amount.")
+                cleaned[key] = str(number)
+            seen.add(kind)
+            output.append({
+                "kind": kind, "source": source, "values": cleaned,
+                "cost_type": draft["cost_type"],
+                "frequency": draft["frequency"],
+            })
+            continue
+        if set(draft) != {
             "kind", "source", "values", "allow_savings",
             "include_goals", "reviewed", "variation",
         }:
             raise ValueError("Unsupported decision draft fields.")
-        kind, source = draft["kind"], draft["source"]
         if kind != "moving" or kind in seen or source not in (
             "entered", "fictional", "profile"
         ):
@@ -112,7 +149,7 @@ def workspace_to_json(blocks, scenarios, decision_drafts=None):
 
 
 def workspace_from_json_full(text):
-    """Return blocks, named scenarios, and optional reviewed moving drafts."""
+    """Return blocks, named scenarios, and optionally reviewed decision drafts."""
     if not isinstance(text, str) or len(text) > 200_000:
         raise ValueError("Workspace file exceeds the supported size limit.")
     try:
