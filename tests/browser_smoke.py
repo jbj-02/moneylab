@@ -51,8 +51,11 @@ def run():
             expect(page.get_by_text(
                 "Fictional example: includes", exact=False
             )).to_be_visible(timeout=45000)
-            for _ in range(2):
+            for step, title in ((2, "The proposed move"), (3, "Review")):
                 page.get_by_role("button", name="Continue", exact=True).click()
+                expect(page.get_by_text(
+                    f"Step {step} of 3 · {title}", exact=True
+                )).to_be_visible(timeout=20000)
             page.get_by_role("button", name="Compare stay vs move").click()
             expect(page.get_by_text(
                 "Included in this comparison", exact=True
@@ -68,8 +71,11 @@ def run():
                 "button", name="Edit original assumptions"
             ).click()
             expect(page.get_by_role("button", name="Continue", exact=True)).to_be_visible(timeout=20000)
-            for _ in range(2):
+            for step, title in ((2, "The proposed move"), (3, "Review")):
                 page.get_by_role("button", name="Continue", exact=True).click()
+                expect(page.get_by_text(
+                    f"Step {step} of 3 · {title}", exact=True
+                )).to_be_visible(timeout=20000)
             page.get_by_role("button", name="Compare stay vs move").click()
             expect(page.get_by_text(
                 "Included in this comparison", exact=True
