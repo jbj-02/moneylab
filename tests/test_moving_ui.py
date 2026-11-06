@@ -48,7 +48,7 @@ def test_sample_comparison_and_export_no_profile_changes():
 def test_switching_to_own_numbers_clears_stale_sample_results():
     app = click_compare(open_moving())
     assert app.session_state["move_result"] is not None
-    mode = next(x for x in app.radio if x.label == "How would you like to start?")
+    mode = next(x for x in app.radio if x.label == "Where should we get the figures?")
     app = mode.set_value("Enter my own numbers").run()
     assert not errors(app), errors(app)
     assert app.session_state.get("move_result") is None
@@ -57,7 +57,7 @@ def test_switching_to_own_numbers_clears_stale_sample_results():
 
 def test_missing_required_values_show_error_without_scenario():
     app = open_moving()
-    mode = next(x for x in app.radio if x.label == "How would you like to start?")
+    mode = next(x for x in app.radio if x.label == "Where should we get the figures?")
     app = mode.set_value("Enter my own numbers").run()
     app = click_compare(app)
     assert not errors(app), errors(app)
@@ -68,8 +68,8 @@ def test_missing_required_values_show_error_without_scenario():
 def test_feedback_link_is_not_a_private_data_endpoint():
     app = open_moving()
     assert not errors(app), errors(app)
-    links = app.get("link_button")
-    assert any(b.label == "Report a problem or request a feature" for b in links)
+    links = app.get("page_link")
+    assert any(b.label == "Share private alpha feedback" for b in links)
     assert app.session_state["ml_blocks"] == []
 
 
