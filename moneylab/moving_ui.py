@@ -99,7 +99,8 @@ def _profile_loader():
     choices = housing_candidates(profile)
     options = [None, *[e["id"] for e in choices]]
     default = suggest_housing_id(profile)
-    if st.session_state.get("move_housing_choice") not in options:
+    if ("move_housing_choice" not in st.session_state
+            or st.session_state.move_housing_choice not in options):
         st.session_state.move_housing_choice = default
     selected = st.selectbox(
         "Which recorded expense represents your current housing?",
@@ -635,6 +636,16 @@ def _render_result(report):
     a, b = st.columns(2)
     if a.button("Edit original assumptions", key="move_edit",
                 use_container_width=True):
+        # Form widgets are not rendered on the result screen, so Streamlit
+        # may purge their keys. Restore from the immutable run snapshot.
+        for field, value in st.session_state.get("move_inputs_at_run", {}).items():
+            st.session_state[f"move_{field}"] = (
+                None if value is None else float(value)
+            )
+        opts = st.session_state.get("move_run_options", {})
+        st.session_state.move_confirm = bool(opts.get("reviewed", False))
+        st.session_state.move_include_goals = bool(opts.get("include_goals", False))
+        st.session_state.move_use_savings = bool(opts.get("allow_savings", False))
         st.session_state.move_editing = True
         st.session_state.pop("move_variant_result", None)
         st.rerun()
@@ -717,9 +728,12 @@ def render():
             and st.session_state.get("move_profile_at_run") !=
             st.session_state.get("ml_blocks", [])
         )
-        if (_read_inputs() != st.session_state["move_inputs_at_run"] or
-                _run_options() != st.session_state.get("move_run_options")
-                or changed_profile):
+        # Hidden form widgets are cleaned up by Streamlit. Compare source
+        # controls and referenced profile here; original input values remain
+        # in move_inputs_at_run until the user explicitly edits the form.
+        if (changed_profile or
+                _source() != st.session_state.get("move_run_options", {}).get(
+                    "source_mode", _source())):
             _reset_result()
             st.warning(
                 "Your financial assumptions or referenced profile changed. "
