@@ -645,7 +645,7 @@ def _render_result(report):
         opts = st.session_state.get("move_run_options", {})
         st.session_state.move_confirm = bool(opts.get("reviewed", False))
         st.session_state.move_include_goals = bool(opts.get("include_goals", False))
-        st.session_state.move_use_savings = bool(opts.get("allow_savings", False))
+        st.session_state.move_use_savings = bool(opts.get("use_savings_for_upfront", False))
         st.session_state.move_editing = True
         st.session_state.pop("move_variant_result", None)
         st.rerun()
@@ -732,8 +732,9 @@ def render():
         # controls and referenced profile here; original input values remain
         # in move_inputs_at_run until the user explicitly edits the form.
         if (changed_profile or
-                _source() != st.session_state.get("move_run_options", {}).get(
-                    "source_mode", _source())):
+                ("fictional" if _source() == "Try fictional example" else
+                 "profile" if _source() == "Use My Money figures" else "entered")
+                != st.session_state.get("move_run_options", {}).get("source")):
             _reset_result()
             st.warning(
                 "Your financial assumptions or referenced profile changed. "
