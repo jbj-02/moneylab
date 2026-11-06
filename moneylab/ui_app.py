@@ -1020,7 +1020,7 @@ def render_settings():
         st.markdown("### 1. Save a copy")
         st.caption(
             f"Includes {len(blocks)} profile blocks, {len(saved_scenarios)} "
-            f"named What-if scenarios, and {len(drafts)} Moving Out draft(s). "
+            f"named What-if scenarios, and {len(drafts)} decision draft(s). "
             "It saves input assumptions, **not** a claim that old results "
             "are still current. The file may contain private financial figures."
         )
@@ -1087,10 +1087,16 @@ def render_settings():
             label="Open restored Moving Out decision",
             icon="🏠",
         )
+    if st.session_state.get("ml_restored_cost"):
+        st.page_link(
+            "pages/3_Explore.py",
+            label="Open restored purchase or expense decision",
+            icon="💳",
+        )
     with st.expander("Privacy, calculation assumptions and format details"):
         st.write(
             "Workspace JSON files contain your financial blocks, named "
-            "expense scenarios and optional Moving Out assumptions. "
+            "expense scenarios and optional Moving Out or cost-decision assumptions. "
             "They do not contain bank credentials, chatbot text or computed "
             "cached Moving Out results. Keep exported files private."
         )
