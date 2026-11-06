@@ -71,4 +71,4 @@ def render_feedback():
         file_name="moneylab-alpha-feedback.txt",
         mime="text/plain", disabled=file_text is None,
     )
-    st.page_link("pages/0_Home.py", label="Back to MoneyLab", icon="house")
+    st.page_link("pages/0_Home.py", label="Back to MoneyLab", icon="🏠")
