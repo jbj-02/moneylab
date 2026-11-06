@@ -31,7 +31,7 @@ EXAMPLE = {
 def money(value):
     """Remove unnecessary decimal zeros while retaining exact cents."""
     number = Decimal(str(value))
-    return f"\${number:,.0f}" if number == number.to_integral_value() else f"\${number:,.2f}"
+    return f"${number:,.0f}" if number == number.to_integral_value() else f"${number:,.2f}"
 
 
 def _source():
