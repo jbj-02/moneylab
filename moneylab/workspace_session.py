@@ -20,22 +20,25 @@ def capture_decision_drafts(state):
         if not state.get("move_editing", True) else None
     )
     if moving is None:
-        moving = {field: state.get(f"move_{field}") for field in FIELDS
-                  if f"move_{field}" in state}
+        moving = dict(state.get("move_draft_values", {}))
+        moving.update({field: state.get(f"move_{field}") for field in FIELDS
+                       if f"move_{field}" in state})
     if moving:
         collected.append({
             "kind": "moving",
-            "source": MODES.get(state.get("move_start_mode"), "entered"),
+            "source": MODES.get(state.get("move_start_mode", state.get("move_draft_source")), "entered"),
             "values": {field: moving.get(field) for field in FIELDS},
-            "allow_savings": bool(state.get("move_use_savings", False)),
-            "include_goals": bool(state.get("move_include_goals", False)),
-            "reviewed": bool(state.get("move_confirm", False)),
+            "allow_savings": bool(state.get("move_use_savings", state.get("move_draft_options", {}).get("move_use_savings", False))),
+            "include_goals": bool(state.get("move_include_goals", state.get("move_draft_options", {}).get("move_include_goals", False))),
+            "reviewed": bool(state.get("move_confirm", state.get("move_draft_options", {}).get("move_confirm", False))),
             "variation": state.get("move_variant_inputs"),
         })
 
+    guest = {**state.get("dc_guest_draft", {}),
+             **{key: state[key] for key in state if key.startswith("dc_guest_")}}
     has_guest = (
         state.get("dc_guest_compared", False)
-        or state.get("dc_guest_cost") is not None
+        or guest.get("dc_guest_cost") is not None
     )
     has_profile_cost = state.get("dc_profile_compared", False)
     if has_guest or has_profile_cost:
@@ -53,14 +56,14 @@ def capture_decision_drafts(state):
             frequency = state.get("dc_cost_frequency", "monthly")
         else:
             values = {
-                "cost": state.get("dc_guest_cost"),
-                "income": state.get("dc_guest_income"),
-                "spending": state.get("dc_guest_spending"),
-                "checking": state.get("dc_guest_checking"),
-                "savings": state.get("dc_guest_savings"),
+                "cost": guest.get("dc_guest_cost"),
+                "income": guest.get("dc_guest_income"),
+                "spending": guest.get("dc_guest_spending"),
+                "checking": guest.get("dc_guest_checking"),
+                "savings": guest.get("dc_guest_savings"),
             }
-            kind = state.get("dc_guest_cost_kind", "one_time")
-            frequency = state.get("dc_guest_frequency", "monthly")
+            kind = guest.get("dc_guest_cost_kind", "one_time")
+            frequency = guest.get("dc_guest_frequency", "monthly")
         collected.append({
             "kind": "cost",
             "source": "profile" if use_profile else "entered",
@@ -80,6 +83,13 @@ def restore_decision_drafts(state, drafts):
         "move_profile_review", "move_profile_notes",
     ):
         state.pop(field, None)
+    state["move_draft_source"] = "Try fictional example"
+    state["move_draft_values"] = {}
+    state["move_draft_options"] = {}
+    state["move_step"] = 0
+    state["dc_guest_draft"] = {}
+    state["dc_guest_step"] = 0
+    state["dc_guest_show_result"] = False
     state["move_editing"] = True
     state["move_confirm"] = False
     state["move_use_savings"] = False
@@ -93,13 +103,19 @@ def restore_decision_drafts(state, drafts):
             "Try fictional example" if moving["source"] == "fictional"
             else "Enter my own numbers"
         )
+        state["move_draft_source"] = state["move_start_mode"]
         for field, amount in moving["values"].items():
             if amount is not None:
                 state[f"move_{field}"] = float(amount)
+        state["move_draft_values"] = {field: (float(amount) if amount is not None else None)
+                                      for field, amount in moving["values"].items()}
         state["move_confirm"] = moving["reviewed"]
         state["move_use_savings"] = moving["allow_savings"]
         state["move_include_goals"] = moving["include_goals"]
         state["move_variant_inputs"] = moving["variation"]
+        state["move_draft_options"] = {"move_confirm": moving["reviewed"],
+                                       "move_use_savings": moving["allow_savings"],
+                                       "move_include_goals": moving["include_goals"]}
         state["ml_restored_moving"] = True
 
     cost = next((item for item in checked if item["kind"] == "cost"), None)

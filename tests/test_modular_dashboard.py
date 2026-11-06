@@ -37,9 +37,9 @@ def test_home_starts_empty_and_uses_native_navigation():
     assert any(b.label == "🛟 How financially prepared am I?" for b in app.button)
     assert any(b.label == "💼 Build my financial picture" for b in app.button)
     assert len(app.sidebar.radio) == 0
-    assert any(x.label == "💾 Save / restore workspace"
+    assert any(x.label == "Save / restore workspace"
                for x in app.sidebar.page_link)
-    assert any(x.label == "💬 Private alpha feedback"
+    assert any(x.label == "Alpha feedback"
                for x in app.sidebar.page_link)
     assert len(app.sidebar.slider) == 1
 
@@ -167,5 +167,5 @@ def test_decision_check_offers_relevant_learning_without_changing_finances():
 def test_decisions_empty_profile_supports_minimal_inputs():
     app = navigate(start(), "3_Explore.py")
     assert not errors(app), errors(app)
-    assert any(b.label == "Check with these assumptions" for b in app.button)
+    assert any(b.label == "Continue" for b in app.button)
     assert app.session_state["ml_blocks"] == []

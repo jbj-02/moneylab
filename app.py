@@ -39,6 +39,10 @@ st.markdown(
       }
       [data-testid="stExpander"] {border-radius: 12px;}
       [data-testid="stWidgetLabel"] p {line-height: 1.45;}
+      [data-testid="stCaptionContainer"] {font-size: .95rem; line-height: 1.55;}
+      [data-testid="stCaptionContainer"] p {color: var(--text-color); opacity: .82;}
+      [data-testid="stProgress"] {margin: .5rem 0 1rem;}
+      [data-testid="stDataFrame"] {max-width: 100%;}
       [data-testid="stSidebar"] .stPageLink a {
         min-height: 2.5rem;
       }
@@ -121,11 +125,11 @@ def clear_financial_profile():
 with st.sidebar:
     st.caption("MONEYLAB · FINANCIAL DECISIONS")
     st.page_link(
-        settings, label="💾 Save / restore workspace",
+        settings, label="Save / restore workspace",
         use_container_width=True,
     )
     st.page_link(
-        feedback, label="💬 Private alpha feedback",
+        feedback, label="Alpha feedback",
         use_container_width=True,
     )
     with st.expander("Examples & projection settings"):

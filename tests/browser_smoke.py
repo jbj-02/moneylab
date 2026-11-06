@@ -51,12 +51,12 @@ def run():
             expect(page.get_by_text(
                 "Fictional example: includes", exact=False
             )).to_be_visible(timeout=45000)
-            page.get_by_role(
-                "button", name="Compare stay vs move"
-            ).click()
+            for _ in range(2):
+                page.get_by_role("button", name="Continue", exact=True).click()
+            page.get_by_role("button", name="Compare stay vs move").click()
             expect(page.get_by_text(
-                "Included in this comparison", exact=False
-            )).to_be_visible(timeout=45000)
+                "Included in this comparison", exact=True
+            ).first).to_be_visible(timeout=45000)
             expect(page.get_by_text(
                 "Recorded liquid funds before move", exact=False
             )).to_be_visible(timeout=15000)
@@ -67,15 +67,13 @@ def run():
             page.get_by_role(
                 "button", name="Edit original assumptions"
             ).click()
-            expect(page.get_by_role(
-                "button", name="Compare stay vs move"
-            )).to_be_visible(timeout=20000)
-            page.get_by_role(
-                "button", name="Compare stay vs move"
-            ).click()
+            expect(page.get_by_role("button", name="Continue", exact=True)).to_be_visible(timeout=20000)
+            for _ in range(2):
+                page.get_by_role("button", name="Continue", exact=True).click()
+            page.get_by_role("button", name="Compare stay vs move").click()
             expect(page.get_by_text(
-                "Included in this comparison", exact=False
-            )).to_be_visible(timeout=45000)
+                "Included in this comparison", exact=True
+            ).first).to_be_visible(timeout=45000)
 
             page.goto(f"{BASE}/settings",
                       wait_until="domcontentloaded", timeout=45000)

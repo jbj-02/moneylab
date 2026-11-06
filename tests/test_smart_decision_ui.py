@@ -122,7 +122,9 @@ def test_guest_recurring_decision_runs_calculation_with_reviewed_values():
     checking = next(x for x in app.number_input
                     if x.label == "Checking / cash balance ($)")
     checking.set_value(1000.00)
-    # Forms buffer inputs; submit both edits in the SAME AppTest run.
+    app = next(b for b in app.button if b.label == "Continue").click().run()
+    app = next(b for b in app.button if b.label == "Continue").click().run()
+    # Review preserved inputs before calculating.
     submit = next(b for b in app.button
                   if b.label == "Check with these assumptions")
     app = submit.click().run()

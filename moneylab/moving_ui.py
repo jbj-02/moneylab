@@ -17,6 +17,14 @@ from moneylab.moving_profile import (
 )
 from moneylab.ui_app import dollars
 
+
+def _write(text):
+    st.write(text.replace("$", r"\$"))
+
+
+def _markdown(text):
+    st.markdown(text.replace("$", r"\$"))
+
 EXAMPLE = {
     "income": 3600, "current_housing": 400, "other_living": 850,
     "minimum_debt": 150, "checking": 4500, "savings": 3000,
@@ -49,6 +57,10 @@ def _reset_result():
 
 
 def _switch_mode():
+    st.session_state.move_draft_values = {}
+    st.session_state.move_draft_options = {}
+    st.session_state.move_step = 0
+    st.session_state.move_draft_source = _source()
     for field in FIELDS:
         st.session_state.pop(f"move_{field}", None)
     for key in ("move_confirm", "move_include_goals", "move_use_savings",
@@ -58,9 +70,11 @@ def _switch_mode():
 
 
 def _preset(field):
-    value = st.session_state.get(f"move_{field}")
-    if value is not None:
-        return value
+    if f"move_{field}" in st.session_state:
+        return st.session_state[f"move_{field}"]
+    draft = st.session_state.get("move_draft_values", {})
+    if field in draft:
+        return draft[field]
     if _source() == "Try fictional example":
         return EXAMPLE[field]
     return None
@@ -89,7 +103,7 @@ def _section_summary(fields):
                 "furniture", "other_upfront"
             ) else ""
             pieces.append(f"{title}: {money(value)}{suffix}")
-    return " · ".join(pieces) if pieces else "not entered"
+    return " · ".join(pieces).replace("$", r"\$") if pieces else "not entered"
 
 
 def _profile_loader():
@@ -125,6 +139,11 @@ def _profile_loader():
                 amount = proposal["values"].get(field)
                 if amount is not None:
                     st.session_state[f"move_{field}"] = float(amount)
+            st.session_state.move_draft_values = {
+                field: (float(value) if value is not None else None)
+                for field, value in proposal["values"].items()
+            }
+            st.session_state.move_step = 0
             st.session_state.move_profile_notes = proposal["notes"]
             _reset_result()
             st.rerun()
@@ -133,115 +152,211 @@ def _profile_loader():
     if st.session_state.get("move_profile_notes"):
         with st.expander("What we reused from My Money", expanded=False):
             for note in st.session_state.move_profile_notes:
-                st.write(f"• {note}")
+                _write(f"• {note}")
+
+
+CURRENT_FIELDS = ("income", "current_housing", "other_living", "checking", "minimum_debt", "savings")
+PROPOSED_FIELDS = tuple(field for field in FIELDS if field not in CURRENT_FIELDS)
+
+
+def _current_fields():
+    _markdown("### 1. Where you are today")
+    a, b = st.columns(2, gap="medium")
+    with a:
+        _money("income", "Monthly take-home pay ($)", required=True)
+        _money(
+            "current_housing", "Your current housing cost ($/month)",
+            required=True, help_text="Enter 0 if you pay no current rent.",
+        )
+    with b:
+        _money(
+            "other_living", "Other regular expenses ($/month)",
+            help_text="Groceries, phone, transportation, insurance and "
+                      "other monthly costs, excluding any loan payments below.",
+        )
+        _money(
+            "checking", "Checking / cash available today ($)",
+            help_text="Checking/cash only; other savings belong below.",
+        )
+    extra = _section_summary(
+        (("minimum_debt", "Debt"), ("savings", "Savings"))
+    )
+    with st.expander(f"Debt & savings · {extra}"):
+        a, b = st.columns(2)
+        with a:
+            _money("minimum_debt", "Minimum debt payments ($/month)")
+        with b:
+            _money(
+                "savings", "Accessible, unearmarked savings ($)",
+                help_text="Exclude amounts already earmarked for goals "
+                          "and retirement or investment accounts.",
+            )
+        st.checkbox(
+            "Allow savings to cover upfront moving costs",
+            key="move_use_savings", value=False,
+        )
+
+
+def _proposed_fields():
+    _markdown("### 2. The proposed move")
+    a, b = st.columns(2, gap="medium")
+    with a:
+        _money("rent", "Your share of new rent ($/month)", required=True)
+        _money("security_deposit", "Security deposit & fees ($)")
+    with b:
+        _money("moving_cost", "Moving costs ($)")
+        st.caption("Include known monthly costs below for a more reliable comparison.")
+
+    costs = _section_summary((
+        ("utilities", "Utilities"), ("internet", "Internet"),
+        ("renters_insurance", "Insurance"),
+        ("transport_change", "Transport change"),
+        ("groceries_change", "Groceries change"),
+        ("other_change", "Other change"),
+    ))
+    with st.expander(f"Monthly bills & lifestyle changes · {costs}"):
+        a, b = st.columns(2)
+        with a:
+            _money("utilities", "Utilities ($/month)")
+            _money("internet", "Internet ($/month)")
+            _money("renters_insurance", "Renter's insurance ($/month)")
+        with b:
+            _money(
+                "transport_change", "Change in transport ($/month)",
+                signed=True,
+                help_text="Use a negative number if your costs decrease.",
+            )
+            _money(
+                "groceries_change", "Change in groceries ($/month)",
+                signed=True,
+            )
+            _money(
+                "other_change", "Other living-cost change ($/month)",
+                signed=True,
+            )
+
+    upfront = _section_summary((
+        ("furniture", "Furniture"), ("other_upfront", "Other upfront")
+    ))
+    with st.expander(f"Other upfront costs · {upfront}"):
+        a, b = st.columns(2)
+        with a:
+            _money("furniture", "Furniture & supplies ($)")
+        with b:
+            _money("other_upfront", "Other one-time costs ($)")
+
+
+def _review_options():
+    goals = [
+        g for g in st.session_state.get("ml_blocks", [])
+        if isinstance(g, dict) and g.get("kind") == "goal"
+    ]
+    if goals:
+        st.checkbox(
+            f"Include my {len(goals)} existing savings goal(s)",
+            key="move_include_goals", value=False,
+        )
+    st.checkbox(
+        "I've reviewed the costs I know (optional)",
+        key="move_confirm", value=False,
+    )
+
+
+def _remember_inputs(fields=FIELDS):
+    # A separate draft survives Streamlit's cleanup of widgets on hidden steps.
+    draft = dict(st.session_state.get("move_draft_values", {}))
+    for field in fields:
+        draft[field] = st.session_state.get(f"move_{field}", _preset(field))
+    st.session_state.move_draft_values = draft
+    options = dict(st.session_state.get("move_draft_options", {}))
+    for key in ("move_use_savings", "move_include_goals", "move_confirm"):
+        if key in st.session_state:
+            options[key] = st.session_state[key]
+    st.session_state.move_draft_options = options
+
+
+def _restore_inputs():
+    for field, value in st.session_state.get("move_draft_values", {}).items():
+        if f"move_{field}" not in st.session_state:
+            st.session_state[f"move_{field}"] = value
+    for key, value in st.session_state.get("move_draft_options", {}).items():
+        if key not in st.session_state:
+            st.session_state[key] = value
+
+
+def _review_inputs():
+    _markdown("### 3. Review your comparison")
+    _write("Check the figures below. Back keeps your answers so you can change anything.")
+    st.dataframe(pd.DataFrame([
+        {"Input": LABELS[field].capitalize(),
+         "Amount": "Not entered" if _preset(field) is None else money(_preset(field))}
+        for field in FIELDS
+    ]), hide_index=True, use_container_width=True)
+    missing = [LABELS[field] for field in FIELDS if _preset(field) is None]
+    if missing:
+        st.info("Still unknown: " + ", ".join(missing) +
+                ". These will be flagged in the preliminary comparison.")
+    _review_options()
 
 
 def _input_form():
+    _restore_inputs()
+    if "move_input_layout" not in st.session_state:
+        st.session_state.move_input_layout = st.session_state.get("move_layout_preference", "Guided steps")
+    guided = st.radio(
+        "How would you like to enter the details?",
+        ["Guided steps", "All inputs"], horizontal=True,
+        key="move_input_layout",
+    ) == "Guided steps"
+    st.session_state.move_layout_preference = st.session_state.move_input_layout
+    step = min(max(st.session_state.get("move_step", 0), 0), 2)
+    if guided:
+        st.progress((step + 1) / 3, text=f"Step {step + 1} of 3 · " +
+                    ("Your situation", "The proposed move", "Review")[step])
     with st.form("move_alpha_form", border=False):
-        st.markdown("### 1. Where you are today")
-        a, b = st.columns(2, gap="medium")
-        with a:
-            _money("income", "Monthly take-home pay ($)", required=True)
-            _money(
-                "current_housing", "Your current housing cost ($/month)",
-                required=True, help_text="Enter 0 if you pay no current rent.",
+        if not guided or step == 0:
+            _current_fields()
+        if not guided or step == 1:
+            _proposed_fields()
+        if guided and step == 2:
+            _review_inputs()
+        elif not guided:
+            _review_options()
+        back, forward = st.columns(2)
+        with back:
+            previous = st.form_submit_button(
+                "Back", disabled=not guided or step == 0,
+                use_container_width=True,
             )
-        with b:
-            _money(
-                "other_living", "Other regular expenses ($/month)",
-                help_text="Groceries, phone, transportation, insurance and "
-                          "other monthly costs, excluding any loan payments below.",
+        with forward:
+            proceed = st.form_submit_button(
+                "Continue" if guided and step < 2 else "Compare stay vs move",
+                type="primary", use_container_width=True,
             )
-            _money(
-                "checking", "Checking / cash available today ($)",
-                help_text="Checking/cash only; other savings belong below.",
-            )
-        extra = _section_summary(
-            (("minimum_debt", "Debt"), ("savings", "Savings"))
-        )
-        with st.expander(f"Debt & savings · {extra}"):
-            a, b = st.columns(2)
-            with a:
-                _money("minimum_debt", "Minimum debt payments ($/month)")
-            with b:
-                _money(
-                    "savings", "Accessible, unearmarked savings ($)",
-                    help_text="Exclude amounts already earmarked for goals "
-                              "and retirement or investment accounts.",
-                )
-            st.checkbox(
-                "Allow savings to cover upfront moving costs",
-                key="move_use_savings", value=False,
-            )
-
-        st.markdown("### 2. The proposed move")
-        a, b = st.columns(2, gap="medium")
-        with a:
-            _money("rent", "Your share of new rent ($/month)", required=True)
-            _money("security_deposit", "Security deposit & fees ($)")
-        with b:
-            _money("moving_cost", "Moving costs ($)")
-            st.caption("Include known monthly costs below for a more reliable comparison.")
-
-        costs = _section_summary((
-            ("utilities", "Utilities"), ("internet", "Internet"),
-            ("renters_insurance", "Insurance"),
-            ("transport_change", "Transport change"),
-            ("groceries_change", "Groceries change"),
-            ("other_change", "Other change"),
-        ))
-        with st.expander(f"Monthly bills & lifestyle changes · {costs}"):
-            a, b = st.columns(2)
-            with a:
-                _money("utilities", "Utilities ($/month)")
-                _money("internet", "Internet ($/month)")
-                _money("renters_insurance", "Renter's insurance ($/month)")
-            with b:
-                _money(
-                    "transport_change", "Change in transport ($/month)",
-                    signed=True,
-                    help_text="Use a negative number if your costs decrease.",
-                )
-                _money(
-                    "groceries_change", "Change in groceries ($/month)",
-                    signed=True,
-                )
-                _money(
-                    "other_change", "Other living-cost change ($/month)",
-                    signed=True,
-                )
-
-        upfront = _section_summary((
-            ("furniture", "Furniture"), ("other_upfront", "Other upfront")
-        ))
-        with st.expander(f"Other upfront costs · {upfront}"):
-            a, b = st.columns(2)
-            with a:
-                _money("furniture", "Furniture & supplies ($)")
-            with b:
-                _money("other_upfront", "Other one-time costs ($)")
-
-        goals = [
-            g for g in st.session_state.get("ml_blocks", [])
-            if isinstance(g, dict) and g.get("kind") == "goal"
-        ]
-        if goals:
-            st.checkbox(
-                f"Include my {len(goals)} existing savings goal(s)",
-                key="move_include_goals", value=False,
-            )
-        st.checkbox(
-            "I've reviewed the costs I know (optional)",
-            key="move_confirm", value=False,
-        )
-        return st.form_submit_button(
-            "Compare stay vs move", type="primary",
-            use_container_width=True,
-        )
+    visible = FIELDS if not guided else (CURRENT_FIELDS if step == 0 else
+                                        PROPOSED_FIELDS if step == 1 else ())
+    if previous or proceed:
+        _remember_inputs(visible)
+        if previous:
+            st.session_state.move_step = step - 1
+            st.rerun()
+        if guided and step < 2:
+            required = ("income", "current_housing") if step == 0 else ("rent",)
+            for field in required:
+                value = _preset(field)
+                if value is None or (field != "current_housing" and value <= 0):
+                    st.error(f"Enter {LABELS[field]} before continuing." +
+                             (" Enter 0 if you pay no current housing cost." if field == "current_housing" else ""))
+                    return False
+            st.session_state.move_step = step + 1
+            st.rerun()
+        return True
+    st.caption("Use Back or Continue to keep this step's answers. Nothing changes your profile.")
+    return False
 
 
 def _read_inputs():
-    return {field: st.session_state.get(f"move_{field}") for field in FIELDS}
+    return {field: _preset(field) for field in FIELDS}
 
 
 def _run_options():
@@ -341,7 +456,7 @@ def _cash_chart(report):
 
 
 def _variation(report):
-    st.markdown("#### What could you try next?")
+    _markdown("#### What could you try next?")
     b1, b2, b3 = st.columns(3)
     if b1.button("Try lower rent", key="move_lower_rent",
                  use_container_width=True):
@@ -362,6 +477,7 @@ def _variation(report):
         st.session_state.pop("move_variant_result", None)
     if b5.button("Review missing expenses", key="move_missing",
                  use_container_width=True):
+        st.session_state.move_step = 0
         st.session_state.move_editing = True
         st.rerun()
 
@@ -372,7 +488,7 @@ def _variation(report):
     if not original:
         return
     with st.container(border=True):
-        st.markdown("**Test another option without changing your first comparison**")
+        _markdown("**Test another option without changing your first comparison**")
         if kind == "delay":
             with st.form("move_delay_plan"):
                 months = st.number_input("Months to wait", 1, 36, 6)
@@ -393,43 +509,55 @@ def _variation(report):
                 )
             return
         changed = dict(original)
-        with st.form("move_variation_form"):
-            if kind in ("rent", "roommate"):
-                old = float(original.get("rent") or 0)
-                suggested = old * (0.9 if kind == "rent" else 0.5)
-                st.caption(
-                    "The initial value below is only an editable example. "
-                    "Enter your actual expected rent or roommate share."
-                )
-                changed["rent"] = st.number_input(
-                    "Alternative monthly rent ($)", min_value=0.01,
-                    max_value=100000000.0,
-                    value=round(suggested, 2), format="%.2f",
-                    key=f"move_variant_{kind}_rent",
-                )
-            else:
-                for field in ("security_deposit", "moving_cost", "furniture",
-                              "other_upfront"):
-                    changed[field] = st.number_input(
-                        LABELS[field].capitalize() + " ($)",
-                        min_value=0.0, max_value=100000000.0,
-                        value=float(original.get(field) or 0),
-                        format="%.2f", key=f"move_variant_{field}",
+        submitted = False
+        if not st.session_state.get("move_variant_result"):
+            with st.form("move_variation_form"):
+                if kind in ("rent", "roommate"):
+                    old = float(original.get("rent") or 0)
+                    suggested = old * (0.9 if kind == "rent" else 0.5)
+                    st.caption(
+                        "The initial value below is only an editable example. "
+                        "Enter your actual expected rent or roommate share."
                     )
-            submitted = st.form_submit_button(
-                "Compare this variation", type="primary",
-            )
+                    changed["rent"] = st.number_input(
+                        "Alternative monthly rent ($)", min_value=0.01,
+                        max_value=100000000.0,
+                        value=round(suggested, 2), format="%.2f",
+                        key=f"move_variant_{kind}_rent",
+                    )
+                else:
+                    for field in ("security_deposit", "moving_cost", "furniture",
+                                  "other_upfront"):
+                        changed[field] = st.number_input(
+                            LABELS[field].capitalize() + " ($)",
+                            min_value=0.0, max_value=100000000.0,
+                            value=float(original.get(field) or 0),
+                            format="%.2f", key=f"move_variant_{field}",
+                        )
+                submitted = st.form_submit_button(
+                    "Compare this variation", type="primary",
+                )
         if submitted:
             try:
                 altered = _calculate(changed, st.session_state["move_run_options"])
                 st.session_state.move_variant_result = altered
                 st.session_state.move_variant_inputs = dict(changed)
+                st.rerun()
             except ValueError as exc:
                 st.session_state.pop("move_variant_result", None)
                 st.error(str(exc))
         variant = st.session_state.get("move_variant_result")
         if variant:
-            st.markdown("**Original move vs. this alternative**")
+            if st.button("Edit this alternative", key="move_edit_variant"):
+                previous = st.session_state.get("move_variant_inputs", {})
+                if kind in ("rent", "roommate"):
+                    st.session_state[f"move_variant_{kind}_rent"] = float(previous.get("rent") or 0)
+                else:
+                    for field in ("security_deposit", "moving_cost", "furniture", "other_upfront"):
+                        st.session_state[f"move_variant_{field}"] = float(previous.get(field) or 0)
+                st.session_state.pop("move_variant_result", None)
+                st.rerun()
+            _markdown("**Original move vs. this alternative**")
             a, b = st.columns(2)
             a.metric("Original moving monthly remainder",
                      money(report["monthly_margin_after"]))
@@ -439,7 +567,7 @@ def _variation(report):
                          variant["monthly_margin_after"] -
                          report["monthly_margin_after"]
                      ))
-            st.write(
+            _write(
                 f"Upfront costs: originally {money(report['upfront'])}; "
                 f"alternative {money(variant['upfront'])}."
             )
@@ -468,8 +596,8 @@ def _profile_review(report):
     if not st.session_state.get("move_profile_review"):
         return
     with st.container(border=True):
-        st.markdown("#### Review changes to My Money")
-        st.write(
+        _markdown("#### Review changes to My Money")
+        _write(
             "Only your **current** income, housing, spending and balances "
             "are eligible. Proposed rent and moving costs are **never** "
             "automatically saved as your real expenses."
@@ -480,7 +608,7 @@ def _profile_review(report):
         )
         actions = {}
         for item in plan:
-            st.write(
+            _write(
                 f"**{item['label']}** — {money(item['value'])} · "
                 f"{item['reason']}"
             )
@@ -512,7 +640,7 @@ def _render_result(report):
     st.subheader("Your moving decision, side by side")
     delta, upfront = report["monthly_change"], report["upfront"]
     direction = "increase" if delta >= 0 else "decrease"
-    st.markdown(
+    _markdown(
         f"**Moving would {direction} your recorded monthly costs by "
         f"{money(abs(delta))}. Your monthly remainder would be "
         f"{money(report['monthly_margin_after'])} before optional savings "
@@ -535,29 +663,29 @@ def _render_result(report):
         )
 
     details = report["details"]
-    with st.container(border=True):
-        st.markdown("#### Included in this comparison")
+    with st.expander("Included in this comparison", expanded=False):
+        _markdown("#### Included in this comparison")
         st.caption(
             "Missing values are not confirmed zero. A zero you entered is "
             "shown separately from an unknown cost."
         )
-        st.markdown("**Monthly expenses — current arrangement**")
+        _markdown("**Monthly expenses — current arrangement**")
         _breakdown_table(details["current"])
-        st.write(f"**Current recorded total: {money(report['current_monthly'])}/month**")
-        st.markdown("**Monthly expenses — proposed move**")
+        _write(f"**Current recorded total: {money(report['current_monthly'])}/month**")
+        _markdown("**Monthly expenses — proposed move**")
         _breakdown_table(details["proposed"])
-        st.write(f"**Proposed recorded total: {money(report['proposed_monthly'])}/month**")
-        st.markdown("**One-time moving costs**")
+        _write(f"**Proposed recorded total: {money(report['proposed_monthly'])}/month**")
+        _markdown("**One-time moving costs**")
         _breakdown_table(details["upfront"])
-        st.write(f"**Upfront total: {money(upfront)}**")
-        st.markdown("**Where the liquid-funds figure comes from**")
+        _write(f"**Upfront total: {money(upfront)}**")
+        _markdown("**Where the liquid-funds figure comes from**")
         _breakdown_table(details["balances"])
-        st.write(
+        _write(
             f"Checking {money(details['checking'])} + unrestricted savings "
             f"{money(details['savings'])} = **{money(report['current_liquid'])}** "
             "in recorded liquid funds."
         )
-        st.write(
+        _write(
             f"Eligible for upfront costs: checking "
             f"{money(details['checking_available_for_upfront'])} + explicitly "
             f"allowed savings {money(details['savings_allowed_for_upfront'])} "
@@ -571,13 +699,13 @@ def _render_result(report):
             "modeled as transfers, not a second living expense."
         )
         if report["fundable"]:
-            st.write(
+            _write(
                 f"Upfront payments use {money(details['upfront_from_checking'])} "
                 f"from checking and {money(details['upfront_from_savings'])} "
                 "from savings."
             )
 
-    st.markdown("#### Your monthly comparison")
+    _markdown("#### Your monthly comparison")
     st.dataframe(pd.DataFrame([
         {"Measure": "Take-home pay",
          "Stay": money(report["income"]), "Move": money(report["income"])},
@@ -595,7 +723,7 @@ def _render_result(report):
             f"{money(report['funding_gap'])}. No loan or overdraft is assumed."
         )
     else:
-        st.markdown("#### What happens to your cash?")
+        _markdown("#### What happens to your cash?")
         a, b = st.columns(2)
         a.metric("Recorded liquid funds before move",
                  money(report["current_liquid"]))
@@ -607,17 +735,17 @@ def _render_result(report):
             "This is not a verified bank balance; only explicitly permitted "
             "funds pay upfront costs."
         )
-        st.markdown("#### Modeled cash over time")
+        _markdown("#### Modeled cash over time")
         _cash_chart(report)
         st.caption(
             "Negative checking balances indicate unfunded cash shortfalls, "
             "not automatic loans. Charts include any modeled goal transfers."
         )
         if report["goals_included"]:
-            st.markdown("#### Existing savings goals")
+            _markdown("#### Existing savings goals")
             if report["goals_affected"]:
                 for goal in report["goals_affected"]:
-                    st.write(
+                    _write(
                         f"**{goal['name']}** at month {goal['deadline_months']}: "
                         f"{money(goal['before'])} if staying vs. "
                         f"{money(goal['after'])} after moving."
@@ -632,7 +760,7 @@ def _render_result(report):
             use_container_width=True,
         )
 
-    st.markdown("#### Next steps")
+    _markdown("#### Next steps")
     a, b = st.columns(2)
     if a.button("Edit original assumptions", key="move_edit",
                 use_container_width=True):
@@ -647,6 +775,8 @@ def _render_result(report):
         st.session_state.move_include_goals = bool(opts.get("include_goals", False))
         st.session_state.move_use_savings = bool(opts.get("use_savings_for_upfront", False))
         st.session_state.move_editing = True
+        st.session_state.move_step = 0
+        st.session_state.move_draft_values = dict(st.session_state.get("move_inputs_at_run", {}))
         st.session_state.pop("move_variant_result", None)
         st.rerun()
     if b.button("Explore another decision", key="move_other_decision",
@@ -660,27 +790,27 @@ def _render_result(report):
         expanded=bool(report["missing"]),
     ):
         if report["missing"]:
-            st.write("**Not entered:** " + ", ".join(
+            _write("**Not entered:** " + ", ".join(
                 LABELS[k] for k in report["missing"]
             ))
         else:
-            st.write("All listed categories have a value, but costs may be omitted.")
-        st.write(
+            _write("All listed categories have a value, but costs may be omitted.")
+        _write(
             "Consider upfront application fees, first/last month's rent, "
             "utilities, annual bills, transport, health costs and deposits."
         )
-        st.write(
+        _write(
             "Monthly remainder is take-home income minus recorded recurring "
             "costs and debt minimums, before optional savings contributions. "
             "The underlying projections use constant monthly averages."
         )
-        st.write(
+        _write(
             "Deposits reduce upfront funds without assumed refunds. If first "
             "month's rent was prepaid, review whether it is counted twice. "
             "There is no exact payday/bill timing or guaranteed investment growth."
         )
         for warning in report["warnings"]:
-            st.write(f"• {warning}")
+            _write(f"• {warning}")
     st.page_link(
         "pages/6_Settings.py", label="Save or restore my workspace",
         icon="💾",
@@ -688,6 +818,7 @@ def _render_result(report):
 
 
 def render():
+    _restore_inputs()
     st.title("Moving Out Decision Lab")
     st.caption("Compare staying with a potential move, without needing a complete profile.")
     profile = st.session_state.get("ml_blocks", [])
@@ -696,15 +827,17 @@ def render():
         modes.append("Use My Money figures")
     # A Smart Decisions draft may preselect manual mode, which remains valid.
     if st.session_state.get("move_start_mode") not in modes:
-        st.session_state.move_start_mode = "Try fictional example"
+        prior = st.session_state.get("move_draft_source", "Try fictional example")
+        st.session_state.move_start_mode = prior if prior in modes else "Enter my own numbers"
     st.radio(
         "Where should we get the figures?",
         modes, key="move_start_mode",
         horizontal=True, on_change=_switch_mode,
     )
+    st.session_state.move_draft_source = _source()
     if _source() == "Try fictional example":
         st.info(
-            "Fictional example: includes $4,500 checking and $3,000 savings, "
+            r"Fictional example: includes \$4,500 checking and \$3,000 savings, "
             "plus debt payments and move-in costs in the expandable sections. "
             "These are not your personal finances."
         )
