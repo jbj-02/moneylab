@@ -367,13 +367,13 @@ def render_home():
             st.session_state.dc_decision_type = "💳 Can I take on a cost?"
             st.switch_page("pages/3_Explore.py")
         if st.button(
-            "🧭 I want to explore my finances",
+            "💼 Build my financial picture",
             use_container_width=True, key="home_decision_explore",
         ):
             st.switch_page("pages/5_Quick_Start.py")
     st.caption(
-        "No bank connection needed. Start with fictional figures or "
-        "enter a few numbers to explore a decision."
+        "Start with fictional numbers or add just enough information "
+        "for the decision you want to compare."
     )
 
     if not blocks:
@@ -579,7 +579,7 @@ def render_my_money():
         )
         if st.button(
             "✨ Quick Start · add multiple blocks",
-            key="ml_money_quick_start", type="primary",
+            key="ml_money_quick_start",
         ):
             st.switch_page("pages/5_Quick_Start.py")
 
