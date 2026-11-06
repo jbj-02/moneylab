@@ -91,7 +91,7 @@ personal amounts or information into feedback.
 
 Private submission uses a low-maintenance **Formspree inbox**. No arbitrary
 URLs are permitted: the server validates the form endpoint must match
-\`https://formspree.io/f/FORM_ID\`. The Streamlit server sends the three
+`https://formspree.io/f/FORM_ID`. The Streamlit server sends the three
 comments and an app label in an HTTPS JSON POST. A successful message
 appears **only** after a 2xx HTTP response.
 
@@ -100,13 +100,13 @@ appears **only** after a 2xx HTTP response.
 1. Create a new form at https://formspree.io/ and verify the inbox
    destination. Configure access, retention and spam controls to match
    your needs. The inbox belongs to the app owner, not GitHub.
-2. Copy the exact form endpoint URL (e.g. \`https://formspree.io/f/abc123\`).
+2. Copy the exact form endpoint URL (e.g. `https://formspree.io/f/abc123`).
 3. In Streamlit Community Cloud, open your MoneyLab app's Settings →
    Secrets and enter:
 
-   \`\`\`toml
+   ```toml
    MONEYLAB_FEEDBACK_URL = "https://formspree.io/f/YOUR_FORM_ID"
-   \`\`\`
+   ```
 
 4. Restart or redeploy the Streamlit app if required and submit a
    **fictional** test message. Verify actual delivery in Formspree's
@@ -124,24 +124,24 @@ and https://help.formspree.io/articles/form-and-project-settings/system-limits
 
 Run:
 
-\`\`\`sh
+```sh
 python -m pip install -r requirements.txt
 python -m compileall -q app.py moneylab tests
 python -m pytest -v
-\`\`\`
+```
 
 CI checks all calculations, parser behavior, existing profile, goal and
 Quick Start functions, versioned workspace compatibility, duplicate-safe
 profile updates, private-feedback validation and the Streamlit page tests.
 
-The \`Browser UI smoke\` workflow additionally runs **real Chromium** at
+The `Browser UI smoke` workflow additionally runs **real Chromium** at
 1280px desktop and 390px mobile widths against a locally launched Streamlit
 app, checking Home, Moving Out, result breakdown, editing/recalculation,
 Settings, and horizontal overflow. Screenshots and logs are saved as
 fictional test artifacts for 7 days.
 
 **Not verified by these automated checks:** the user-hosted public
-\`https://moneylab-dev.streamlit.app/\` deployment, every browser or assistive
+`https://moneylab-dev.streamlit.app/` deployment, every browser or assistive
 technology, actual personal bank data, private Formspree delivery without
 configuration, or a statistically meaningful 3–5-minute task completion
 time. Those require manual live testing and alpha users.
