@@ -292,6 +292,160 @@ def _goal_check(blocks, months, reviewed):
         st.switch_page("pages/2_Goals.py")
 
 
+GUEST_KEYS = ("dc_guest_income", "dc_guest_spending", "dc_guest_checking",
+              "dc_guest_savings", "dc_guest_cost", "dc_guest_cost_kind", "dc_guest_frequency")
+
+
+def _guest_budget_fields(choice):
+    income = st.number_input(
+        "Take-home pay each month ($)", value=None,
+        min_value=0.0, max_value=10000000.0,
+        step=50.0, format="%.2f",
+        placeholder="Optional for emergency comparison",
+        key="dc_guest_income",
+    )
+    spending = st.number_input(
+        "Recorded monthly expenses ($)", value=None,
+        min_value=0.0, max_value=10000000.0,
+        step=50.0, format="%.2f",
+        placeholder="Required",
+        help="Include rent, groceries, insurance, bills and minimum loan payments.",
+        key="dc_guest_spending",
+    )
+    checking = st.number_input(
+        "Checking / cash balance ($)", value=None,
+        min_value=0.0, max_value=10000000.0, step=50.0,
+        format="%.2f", placeholder="Required",
+        key="dc_guest_checking",
+    )
+    savings = None
+    if choice == DECISIONS[1]:
+        savings = st.number_input(
+            "Accessible savings balance ($)", value=None,
+            min_value=0.0, max_value=10000000.0,
+            step=50.0, format="%.2f",
+            placeholder="Optional",
+            key="dc_guest_savings",
+        )
+
+
+def _guest_cost_fields(choice):
+    expense = None
+    kind = "one_time"
+    if choice == DECISIONS[0]:
+        kind = st.radio(
+            "New cost", ("one_time", "recurring"), horizontal=True,
+            format_func=lambda x: (
+                "One-time purchase" if x == "one_time"
+                else "Recurring commitment"
+            ), key="dc_guest_cost_kind",
+        )
+        expense = st.number_input(
+            "Proposed additional cost ($)", value=None,
+            min_value=0.0, max_value=10000000.0,
+            step=25.0, format="%.2f", placeholder="Required",
+            key="dc_guest_cost",
+        )
+        # Forms submit as one batch, so keep the cadence visible even before
+        # a newly selected recurring radio value reaches the server.
+        st.selectbox(
+            "How often will the cost recur?",
+            list(FREQUENCIES), index=list(FREQUENCIES).index(
+                st.session_state.get("dc_guest_frequency", "monthly")
+            ), format_func=lambda item: FREQUENCIES[item][0],
+            key="dc_guest_frequency",
+            help="Used only for recurring commitments. Ignored for a one-time purchase.",
+        )
+
+
+def _guest_inputs(choice):
+    # Non-widget draft survives switching steps or leaving this page.
+    draft = st.session_state.setdefault("dc_guest_draft", {})
+    for key, value in draft.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
+    if st.session_state.get("dc_guest_result_choice") != choice:
+        st.session_state.dc_guest_show_result = False
+    if st.session_state.get("dc_guest_show_result"):
+        st.caption("Calculated from your reviewed snapshot. Edit to test different assumptions.")
+        if st.button("Back to edit assumptions", key="dc_guest_edit"):
+            st.session_state.dc_guest_show_result = False
+            st.session_state.dc_guest_step = 0
+            st.rerun()
+        return True
+    guided = st.radio(
+        "How would you like to enter the details?",
+        ["Guided steps", "All inputs"], horizontal=True,
+        key="dc_guest_layout",
+    ) == "Guided steps"
+    step = min(max(st.session_state.get("dc_guest_step", 0), 0), 2)
+    labels = ("Your current situation", "The decision", "Review")
+    if guided:
+        st.progress((step + 1) / 3, text=f"Step {step + 1} of 3 · {labels[step]}")
+    with st.form("dc_no_profile_form", border=False):
+        if not guided or step == 0:
+            st.subheader("Your current situation")
+            _guest_budget_fields(choice)
+        if not guided or step == 1:
+            st.subheader("What would change?")
+            if choice == DECISIONS[0]:
+                _guest_cost_fields(choice)
+            else:
+                st.write("Compare accessible funds with three months of the expenses you entered. "
+                         "This is an illustrative target, not a universal rule.")
+        if guided and step == 2:
+            st.subheader("Review your assumptions")
+            for key, label in (("dc_guest_income", "Monthly take-home pay"),
+                               ("dc_guest_spending", "Monthly expenses"),
+                               ("dc_guest_checking", "Checking/cash"),
+                               ("dc_guest_savings", "Accessible savings"),
+                               ("dc_guest_cost", "Proposed cost")):
+                if key == "dc_guest_cost" and choice != DECISIONS[0]:
+                    continue
+                if key == "dc_guest_savings" and choice == DECISIONS[0]:
+                    continue
+                value = st.session_state.get(key)
+                st.write(f"**{label}:** " + ("Not entered" if value is None else dollars(value)))
+            if choice == DECISIONS[0]:
+                recurring = st.session_state.get("dc_guest_cost_kind") == "recurring"
+                st.write("**Cost type:** " + ("Recurring · " + st.session_state.get("dc_guest_frequency", "monthly")
+                                             if recurring else "One-time purchase"))
+            st.caption("Back keeps your answers. Unknown bills and exact payment dates are not modeled.")
+        left, right = st.columns(2)
+        back = left.form_submit_button("Back", disabled=not guided or step == 0,
+                                       use_container_width=True)
+        forward = right.form_submit_button(
+            "Continue" if guided and step < 2 else "Check with these assumptions",
+            type="primary", use_container_width=True,
+        )
+    if not (back or forward):
+        return False
+    for key in GUEST_KEYS:
+        if key in st.session_state:
+            draft[key] = st.session_state[key]
+    st.session_state.dc_guest_draft = dict(draft)
+    if back:
+        st.session_state.dc_guest_step = step - 1
+        st.rerun()
+    if guided and step < 2:
+        if step == 0:
+            if any(st.session_state.get(key) is None for key in
+                   ("dc_guest_spending", "dc_guest_checking")):
+                st.error("Enter monthly expenses and checking/cash. Use 0 for a confirmed zero.")
+                return False
+            if choice == DECISIONS[0] and not st.session_state.get("dc_guest_income"):
+                st.error("Enter positive monthly take-home pay before continuing.")
+                return False
+        elif choice == DECISIONS[0] and not st.session_state.get("dc_guest_cost"):
+            st.error("Enter a positive proposed cost before continuing.")
+            return False
+        st.session_state.dc_guest_step = step + 1
+        st.rerun()
+    st.session_state.dc_guest_show_result = True
+    st.session_state.dc_guest_result_choice = choice
+    st.rerun()
+
+
 def _empty_profile_decision(choice):
     """A low-input decision preview, without requiring full Quick Start.
 
@@ -311,73 +465,15 @@ def _empty_profile_decision(choice):
             st.session_state.ml_return_to = "pages/3_Explore.py"
             st.switch_page("pages/5_Quick_Start.py")
         return
-    with st.form("dc_no_profile_form", border=False):
-        income = st.number_input(
-            "Take-home pay each month ($)", value=None,
-            min_value=0.0, max_value=10000000.0,
-            step=50.0, format="%.2f",
-            placeholder="Optional for emergency comparison",
-            key="dc_guest_income",
-        )
-        spending = st.number_input(
-            "Recorded monthly expenses ($)", value=None,
-            min_value=0.0, max_value=10000000.0,
-            step=50.0, format="%.2f",
-            placeholder="Required",
-            help="Include rent, groceries, insurance, bills and minimum loan payments.",
-            key="dc_guest_spending",
-        )
-        checking = st.number_input(
-            "Checking / cash balance ($)", value=None,
-            min_value=0.0, max_value=10000000.0, step=50.0,
-            format="%.2f", placeholder="Required",
-            key="dc_guest_checking",
-        )
-        savings = None
-        if choice == DECISIONS[1]:
-            savings = st.number_input(
-                "Accessible savings balance ($)", value=None,
-                min_value=0.0, max_value=10000000.0,
-                step=50.0, format="%.2f",
-                placeholder="Optional",
-                key="dc_guest_savings",
-            )
-        expense = None
-        kind = "one_time"
-        if choice == DECISIONS[0]:
-            kind = st.radio(
-                "New cost", ("one_time", "recurring"), horizontal=True,
-                format_func=lambda x: (
-                    "One-time purchase" if x == "one_time"
-                    else "Recurring commitment"
-                ), key="dc_guest_cost_kind",
-            )
-            expense = st.number_input(
-                "Proposed additional cost ($)", value=None,
-                min_value=0.0, max_value=10000000.0,
-                step=25.0, format="%.2f", placeholder="Required",
-                key="dc_guest_cost",
-            )
-            cadence = "monthly"
-            if kind == "recurring":
-                cadence = st.selectbox(
-                    "How often will the cost recur?",
-                    list(FREQUENCIES), index=list(FREQUENCIES).index(
-                        st.session_state.get("dc_guest_frequency", "monthly")
-                    ),
-                    format_func=lambda item: FREQUENCIES[item][0],
-                    key="dc_guest_frequency",
-                )
-        submit = st.form_submit_button(
-            "Check with these assumptions", type="primary",
-            use_container_width=True,
-        )
-    if not submit:
-        st.caption(
-            "Unentered bills, irregular expenses, income changes, "
-            "and exact payment dates are not modeled."
-        )
+    if not _guest_inputs(choice):
         return
+    income = st.session_state.get("dc_guest_income")
+    spending = st.session_state.get("dc_guest_spending")
+    checking = st.session_state.get("dc_guest_checking")
+    savings = st.session_state.get("dc_guest_savings") if choice == DECISIONS[1] else None
+    expense = st.session_state.get("dc_guest_cost")
+    kind = st.session_state.get("dc_guest_cost_kind", "one_time")
+    cadence = st.session_state.get("dc_guest_frequency", "monthly")
     if spending is None or checking is None:
         st.error("Enter the monthly expenses and available checking/cash.")
         return
@@ -458,6 +554,11 @@ def _empty_profile_decision(choice):
             "may overstate your apparent reserves."
         )
 
+    st.page_link("pages/6_Settings.py", label="Save this decision draft", icon="💾")
+    if st.button("Build my financial picture", key="dc_guest_build_profile"):
+        st.session_state.ml_return_to = "pages/3_Explore.py"
+        st.switch_page("pages/5_Quick_Start.py")
+
 
 def render_decision_page():
     blocks, result, summary, months, _, checkin, _ = context()
@@ -489,10 +590,13 @@ def render_decision_page():
             st.caption(
                 "Temporary figures below do not overwrite your My Money profile."
             )
+    if "dc_decision_type" not in st.session_state and st.session_state.get("dc_last_choice") in DECISIONS:
+        st.session_state.dc_decision_type = st.session_state.dc_last_choice
     choice = st.radio(
         "What would you like to figure out?",
         DECISIONS, key="dc_decision_type",
     )
+    st.session_state.dc_last_choice = choice
     if not blocks or st.session_state.get("dc_profile_source") == "Enter a temporary snapshot":
         _empty_profile_decision(choice)
         return

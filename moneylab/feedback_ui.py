@@ -21,6 +21,9 @@ def render_feedback():
         "names, addresses, or other identifying information. "
         "No figures from your MoneyLab profile or decisions are attached."
     )
+    endpoint = _private_url()
+    if not endpoint:
+        st.info("Private feedback delivery is not available yet. You can prepare and download an unsent draft below.")
     with st.form("alpha_private_feedback"):
         trying = st.text_area(
             "What were you trying to do?",
@@ -35,11 +38,10 @@ def render_feedback():
             max_chars=800, placeholder="An explanation of...",
         )
         pressed = st.form_submit_button(
-            "Send private feedback", type="primary",
+            "Send private feedback" if endpoint else "Prepare feedback draft", type="primary",
             use_container_width=True,
         )
     answers = {"trying": trying, "problem": problem, "better": better}
-    endpoint = _private_url()
     if endpoint:
         st.caption(
             "When you submit, these three answers are sent to a private "
@@ -48,14 +50,14 @@ def render_feedback():
         )
     else:
         st.warning(
-            "Private delivery is not configured yet. Clicking Send will "
-            "**not** transmit your feedback. You can instead download a "
-            "draft to share privately with the app owner."
+            "Private delivery is not configured yet. Preparing a draft does "
+            "**not** submit it. Download the draft to share privately with the app owner."
         )
     if pressed:
         try:
             if not endpoint:
-                st.error("Feedback was not sent: a private inbox is not configured.")
+                validate_feedback(answers)
+                st.info("Draft prepared, not submitted. Download it below.")
             else:
                 submit_private_feedback(answers, endpoint)
                 st.success("Feedback delivered to the configured private inbox.")

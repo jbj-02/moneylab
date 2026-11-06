@@ -53,10 +53,18 @@ def _route(draft, selected, frequency):
         for field, value in selected.items():
             if field in FIELDS and value is not None:
                 st.session_state[f"move_{field}"] = value
+        st.session_state.move_draft_values = {field: selected.get(field) for field in FIELDS}
+        st.session_state.move_draft_options = {}
+        st.session_state.move_step = 0
+        st.session_state.move_editing = True
+        st.session_state.move_draft_source = "Enter my own numbers"
         st.session_state.move_start_mode = "Enter my own numbers"
         st.session_state.pop("move_result", None)
         st.session_state.move_confirm = False
     else:
+        st.session_state.dc_guest_draft = {}
+        st.session_state.dc_guest_show_result = False
+        st.session_state.dc_guest_step = 0
         st.session_state.dc_decision_type = "💳 Can I take on a cost?"
         st.session_state.dc_cost_kind = (
             "One-time purchase" if intent == "purchase"
@@ -191,8 +199,8 @@ def render_smart_decision_entry(context="home"):
     with st.container(border=True):
         st.markdown("#### Describe a money decision")
         st.caption(
-            "Try: “I want to move out. New rent would be $1,500 per month; "
-            "I take home $3,500 monthly.” Free, private rules-based interpretation."
+            r"Try: “I want to move out. New rent would be \$1,500 per month; "
+            r"I take home \$3,500 monthly.”"
         )
         description = st.text_area(
             "What are you thinking about doing?",
@@ -201,8 +209,8 @@ def render_smart_decision_entry(context="home"):
             key=f"smart_{context}_description",
         )
         st.caption(
-            "Recognizes moving, recurring expenses and one-time purchases. "
-            "No AI service, account connection or automatic profile changes."
+            "Describe a move, a purchase, or a new regular expense. "
+            "You’ll review the suggested figures before using them."
         )
         if st.button(
             "Understand my decision", key=f"smart_{context}_interpret",

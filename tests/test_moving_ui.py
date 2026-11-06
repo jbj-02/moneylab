@@ -12,7 +12,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def open_moving():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
-    return app.switch_page("pages/7_Moving_Out_Alpha.py").run()
+    app = app.switch_page("pages/7_Moving_Out_Alpha.py").run()
+    return next(r for r in app.radio if r.key == "move_input_layout").set_value("All inputs").run()
 
 
 def errors(app):

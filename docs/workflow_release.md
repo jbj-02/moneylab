@@ -152,3 +152,31 @@ Car purchase/financing, job offer and debt-versus-liquidity remain the
 next templates. Shared scenario changes are available, but no additional
 specialized calculations or definitive financial recommendations have
 been introduced in this pass.
+
+## Guided decision flow follow-up
+
+Moving Out and temporary cost/reserve checks now default to **Guided steps**:
+current situation → proposed decision → review → results. Back and Continue
+submit the current step before changing it. Required values are validated at
+the relevant step; unknown optional amounts remain unknown. An **All inputs**
+view remains available for people who prefer a single form.
+
+Draft dictionaries retain confirmed step inputs when Streamlit removes hidden
+widgets, including navigation to Settings. Workspace exports include these
+partial drafts. Import starts an editable flow and never reuses old results.
+Results and editable assumptions are separate views; **Edit original
+assumptions** / **Back to edit assumptions** require a new calculation before
+showing an updated answer. Moving alternatives use the same separation.
+
+The homepage currency example escapes dollar signs to prevent Markdown math
+formatting. Sidebar links avoid duplicate emoji, captions are more readable,
+and the detailed moving reconciliation is expandable beneath the headline
+results. Unconfigured feedback offers **Prepare feedback draft** rather than
+an unavailable Send action. Real private delivery still requires the owner's
+Formspree endpoint in Streamlit secrets; no endpoint or credentials are added
+to the repository.
+
+New AppTest journeys cover forward/back retention, unknown versus zero,
+source changes, a recurring weekly cost, exporting between steps, and the
+$6,000 cash / $1,200 → $2,200 purchase regression. The browser smoke journey
+has been updated to traverse the guided steps at both existing viewport sizes.
