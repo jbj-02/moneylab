@@ -58,7 +58,7 @@ def run():
                 "Included in this comparison", exact=False
             )).to_be_visible(timeout=45000)
             expect(page.get_by_text(
-                "Checking $4,500 + unrestricted savings", exact=False
+                "Recorded liquid funds before move", exact=False
             )).to_be_visible(timeout=15000)
             assert_no_horizontal_scroll(page, f"{label} move results")
             page.screenshot(path=str(OUTPUT / f"{label}-results.png"),
