@@ -190,11 +190,19 @@ def compare_moving(values, *, existing_goals=None, reviewed=False,
     # goal balances are excluded from available liquid funds; goal contributions
     # are transfers, not a second living expense.
     recorded = {key: values.get(key) is not None for key in FIELDS}
+    # A profile supplies *current* finances, not hypothetical new housing.
+    # All proposed-specific numbers are user inputs even in profile mode.
+    profile_fields = {
+        "income", "current_housing", "other_living",
+        "minimum_debt", "checking", "savings",
+    }
     def rows(keys):
         return [
             {"field": key, "label": LABELS[key], "amount": validated[key],
              "status": ("missing" if not recorded[key] else
-                        ("confirmed_zero" if validated[key] == ZERO else source))}
+                        "confirmed_zero" if validated[key] == ZERO else
+                        "profile" if source == "profile" and key in profile_fields
+                        else "fictional" if source == "fictional" else "entered")}
             for key in keys
         ]
     details = {
