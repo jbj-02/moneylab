@@ -134,9 +134,9 @@ with st.sidebar:
             disabled=not confirm_reset,
         )
     with st.expander("More tools"):
-        st.page_link(quick_start, label="Quick Start", icon="sparkles")
-        st.page_link(learn, label="Learn", icon="book-open")
-        st.page_link(classic, label="Classic simulator", icon="calculator")
+        st.page_link(quick_start, label="Quick Start", icon="✨")
+        st.page_link(learn, label="Learn", icon="📚")
+        st.page_link(classic, label="Classic simulator", icon="🧮")
     st.caption(
         "Session only — not autosaved. Export a workspace to keep your "
         "figures and decision drafts."
