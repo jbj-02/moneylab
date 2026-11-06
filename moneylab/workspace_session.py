@@ -16,7 +16,10 @@ MODES = {
 
 def capture_decision_drafts(state):
     source = MODES.get(state.get("move_start_mode"), "entered")
-    snapshot = state.get("move_inputs_at_run")
+    snapshot = (
+        state.get("move_inputs_at_run")
+        if not state.get("move_editing", True) else None
+    )
     if snapshot is None:
         snapshot = {
             f: state.get(f"move_{f}") for f in FIELDS
