@@ -1085,7 +1085,7 @@ def render_settings():
         st.page_link(
             "pages/7_Moving_Out_Alpha.py",
             label="Open restored Moving Out decision",
-            icon="house",
+            icon="🏠",
         )
     with st.expander("Privacy, calculation assumptions and format details"):
         st.write(
