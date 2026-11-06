@@ -41,6 +41,7 @@ def _source():
 def _reset_result():
     for key in (
         "move_result", "move_inputs_at_run", "move_run_options",
+        "move_profile_at_run",
         "move_variant_result", "move_variant_inputs", "move_variation_kind", "move_profile_review",
     ):
         st.session_state.pop(key, None)
@@ -703,10 +704,24 @@ def render():
 
     report = st.session_state.get("move_result")
     if report and st.session_state.get("move_inputs_at_run"):
+        profile_source = st.session_state.get("move_run_options", {})
+        profile_dependent = (
+            profile_source.get("source") == "profile"
+            or profile_source.get("include_goals")
+        )
+        changed_profile = (
+            profile_dependent
+            and st.session_state.get("move_profile_at_run") !=
+            st.session_state.get("ml_blocks", [])
+        )
         if (_read_inputs() != st.session_state["move_inputs_at_run"] or
-                _run_options() != st.session_state.get("move_run_options")):
+                _run_options() != st.session_state.get("move_run_options")
+                or changed_profile):
             _reset_result()
-            st.warning("Your assumptions changed. Recalculate to see updated results.")
+            st.warning(
+                "Your financial assumptions or referenced profile changed. "
+                "Review and recalculate to see updated results."
+            )
             report = None
     if report and not st.session_state.get("move_editing", False):
         _render_result(report)
@@ -719,6 +734,9 @@ def render():
                 st.session_state.move_result = _calculate(inputs, options)
                 st.session_state.move_inputs_at_run = dict(inputs)
                 st.session_state.move_run_options = dict(options)
+                st.session_state.move_profile_at_run = [
+                    dict(item) for item in st.session_state.get("ml_blocks", [])
+                ]
                 st.session_state.move_editing = False
                 st.session_state.pop("move_variant_result", None)
                 st.session_state.pop("move_variation_kind", None)
