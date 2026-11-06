@@ -394,7 +394,8 @@ def review_drafts():
             st.session_state.pop("qs_ai_text", None)
             st.session_state.pop("qs_smart_text", None)
             st.session_state.pop("qs_free_ignored", None)
-            st.switch_page("pages/1_My_Money.py")
+            destination = st.session_state.pop("ml_return_to", None)
+            st.switch_page(destination or "pages/1_My_Money.py")
         except ValueError as exc:
             st.error(f"No blocks were added: {exc}")
     if st.button("Discard suggestions", key="qs_discard"):
