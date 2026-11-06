@@ -100,7 +100,8 @@ def test_use_my_money_prefills_current_not_proposed_rent():
     assert app.session_state["move_current_housing"] == 1350.0
     assert app.session_state["move_other_living"] == 650.0
     assert app.session_state["move_minimum_debt"] == 470.0
-    assert "move_rent" not in app.session_state
+    # The proposed rent widget exists but remains unknown, never copied from current rent.
+    assert app.session_state.get("move_rent") is None
     assert app.session_state["ml_blocks"] == original
 
 
