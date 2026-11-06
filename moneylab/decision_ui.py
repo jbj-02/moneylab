@@ -307,6 +307,7 @@ def _empty_profile_decision(choice):
             "the relevant financial blocks."
         )
         if st.button("Set up only what I need", key="dc_quick_setup"):
+            st.session_state.ml_return_to = "pages/3_Explore.py"
             st.switch_page("pages/5_Quick_Start.py")
         return
     with st.form("dc_no_profile_form", border=False):
