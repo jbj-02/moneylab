@@ -41,7 +41,7 @@ def _source():
 def _reset_result():
     for key in (
         "move_result", "move_inputs_at_run", "move_run_options",
-        "move_variant_result", "move_variation_kind", "move_profile_review",
+        "move_variant_result", "move_variant_inputs", "move_variation_kind", "move_profile_review",
     ):
         st.session_state.pop(key, None)
     st.session_state.move_editing = True
@@ -418,6 +418,7 @@ def _variation(report):
             try:
                 altered = _calculate(changed, st.session_state["move_run_options"])
                 st.session_state.move_variant_result = altered
+                st.session_state.move_variant_inputs = dict(changed)
             except ValueError as exc:
                 st.session_state.pop("move_variant_result", None)
                 st.error(str(exc))
@@ -596,7 +597,8 @@ def _render_result(report):
         b.metric("Recorded liquid funds after upfront",
                  money(report["remaining_liquid"]), delta=money(-upfront))
         st.caption(
-            "Liquid funds = entered checking plus unearmarked savings. "
+            "Liquid funds = entered checking plus savings identified as "
+            "accessible. Check whether any savings are actually earmarked. "
             "This is not a verified bank balance; only explicitly permitted "
             "funds pay upfront costs."
         )
