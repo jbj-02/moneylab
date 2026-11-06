@@ -459,8 +459,12 @@ def _empty_profile_decision(choice):
 def render_decision_page():
     blocks, result, summary, months, _, checkin, _ = context()
     reviewed = checkin["reviewed"]
-    st.title("MoneyLab Decision Check")
-    st.caption("Understand the tradeoff behind your next money decision.")
+    st.title("Decisions")
+    st.caption("Compare a choice with your current situation and see the tradeoffs.")
+    st.page_link(
+        "pages/7_Moving_Out_Alpha.py",
+        label="🏡 Moving out? Compare staying and moving",
+    )
     from moneylab.smart_decision_ui import render_smart_decision_entry
     with st.expander(
         "✨ Describe a decision in your own words",
@@ -471,12 +475,22 @@ def render_decision_page():
     if not blocks:
         st.caption("Start with a few relevant numbers. A full profile is optional.")
     else:
-        _context_note(blocks, reviewed)
+        source = st.radio(
+            "Use which financial figures?",
+            ["Use My Money figures", "Enter a temporary snapshot"],
+            horizontal=True, key="dc_profile_source",
+        )
+        if source == "Use My Money figures":
+            _context_note(blocks, reviewed)
+        else:
+            st.caption(
+                "Temporary figures below do not overwrite your My Money profile."
+            )
     choice = st.radio(
         "What would you like to figure out?",
         DECISIONS, key="dc_decision_type",
     )
-    if not blocks:
+    if not blocks or st.session_state.get("dc_profile_source") == "Enter a temporary snapshot":
         _empty_profile_decision(choice)
         return
     if choice == DECISIONS[0]:
