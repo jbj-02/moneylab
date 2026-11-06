@@ -198,5 +198,5 @@ def test_restoring_decision_removes_stale_results_and_keeps_missing():
     assert target["move_editing"] is True
     assert target["move_start_mode"] == "Enter my own numbers"
     assert target["move_income"] == 3600.0
-    assert target["move_rent"] == 1500.0  # last compared snapshot, not an invented cost
+    assert target["move_rent"] == 1400.0  # unsubmitted edit takes precedence over stale result
     assert "move_checking" not in target
