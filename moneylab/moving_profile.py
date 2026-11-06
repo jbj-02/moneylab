@@ -48,7 +48,16 @@ def profile_to_moving(blocks, housing_id=None):
     ]
     loans = [b for b in entries if b["kind"] == "loan"]
     selected = next((b for b in expenses if b["id"] == housing_id), None)
-    other = [b for b in expenses if b["id"] != housing_id]
+    debt_like = [
+        b for b in expenses
+        if any(token in b["name"].lower()
+               for token in ("loan payment", "debt payment", "credit card payment"))
+    ]
+    other = [b for b in expenses
+             if b["id"] != housing_id and b not in debt_like]
+    debt_expense = (
+        [] if loans else [b for b in debt_like if b["id"] != housing_id]
+    )
     def total(items, key):
         return str(sum((x[key] for x in items), ZERO)) if items else None
     fields = {key: None for key in FIELDS}
@@ -56,11 +65,20 @@ def profile_to_moving(blocks, housing_id=None):
         "income": total(incomes, "monthly_amount"),
         "current_housing": str(selected["monthly_amount"]) if selected else None,
         "other_living": total(other, "monthly_amount"),
-        "minimum_debt": total(loans, "monthly_payment"),
+        "minimum_debt": (
+            total(loans, "monthly_payment") if loans
+            else total(debt_expense, "monthly_amount")
+        ),
         "checking": total(cash, "balance"),
         "savings": total(savings, "balance"),
     })
     notes = []
+    if loans and debt_like:
+        notes.append(
+            "Expense blocks labeled loan/debt payment were excluded from "
+            "regular spending when separate loan blocks exist, to avoid "
+            "double counting. Check whether they represent distinct bills."
+        )
     if len(expenses) > 1:
         notes.append(
             "Other living costs include every recorded expense except the "
