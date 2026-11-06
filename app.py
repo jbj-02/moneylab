@@ -12,7 +12,7 @@ st.set_page_config(
     page_title="MoneyLab | Understand your money",
     page_icon="💰",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="auto",
 )
 
 st.markdown(
@@ -65,16 +65,16 @@ if "ml_blocks" not in st.session_state:
 if "ml_saved_scenarios" not in st.session_state:
     st.session_state.ml_saved_scenarios = []
 
-moving_alpha = st.Page("pages/7_Moving_Out_Alpha.py", title="Move Out", icon="🏡", url_path="moving-alpha")
+moving_alpha = st.Page("pages/7_Moving_Out_Alpha.py", title="Move Out", icon="🏡", url_path="moving-alpha", visibility="hidden")
 
 home = st.Page("pages/0_Home.py", title="Home", icon="🏠", default=True)
 money = st.Page("pages/1_My_Money.py", title="My Money", icon="💼", url_path="money")
 goals = st.Page("pages/2_Goals.py", title="Goals", icon="🎯", url_path="goals")
 explore = st.Page("pages/3_Explore.py", title="Decisions", icon="🧭", url_path="explore")
-learn = st.Page("pages/4_Learn.py", title="Learn", icon="🎓", url_path="learn")
+learn = st.Page("pages/4_Learn.py", title="Learn", icon="🎓", url_path="learn", visibility="hidden")
 quick_start = st.Page(
     "pages/5_Quick_Start.py", title="Quick Start",
-    icon="✨", url_path="quick-start",
+    icon="✨", url_path="quick-start", visibility="hidden",
 )
 settings = st.Page(
     "pages/6_Settings.py", title="Settings & data",
@@ -84,49 +84,83 @@ classic = st.Page(
     "pages/2_Classic_Simulator.py", title="Classic simulator",
     icon="🧮", url_path="classic", visibility="hidden",
 )
+feedback = st.Page(
+    "pages/8_Feedback.py", title="Feedback", icon="💬",
+    url_path="feedback", visibility="hidden",
+)
 
 current_page = st.navigation(
-    [home, moving_alpha, explore, quick_start, money, goals, learn, settings, classic],
+    [home, explore, money, goals, moving_alpha, quick_start, learn, settings, classic, feedback],
     position="sidebar",
     expanded=True,
 )
 
+def _invalidate_profile_dependent_results():
+    for key in (
+        "move_result", "move_run_options", "move_inputs_at_run",
+        "move_variant_result", "move_variant_inputs",
+        "ml_reviewed_signature",
+    ):
+        st.session_state.pop(key, None)
+    st.session_state.move_editing = True
+
+
 def load_sample_profile():
     st.session_state.ml_blocks = default_blocks()
     st.session_state.ml_saved_scenarios = []
+    st.session_state.ml_example_confirm = False
+    _invalidate_profile_dependent_results()
 
 
 def clear_financial_profile():
     st.session_state.ml_blocks = []
     st.session_state.ml_saved_scenarios = []
+    _invalidate_profile_dependent_results()
 
 
 with st.sidebar:
     st.caption("MONEYLAB · FINANCIAL DECISIONS")
+    st.page_link(
+        settings, label="💾 Save / restore workspace",
+        use_container_width=True,
+    )
+    st.page_link(
+        feedback, label="💬 Private alpha feedback",
+        use_container_width=True,
+    )
     with st.expander("Examples & projection settings"):
-        st.slider(
-            "Projection months", 1, 120, 24,
-            key="ml_months",
-        )
+        st.slider("Projection months", 1, 120, 24, key="ml_months")
+        if st.session_state.ml_blocks:
+            st.checkbox(
+                "Replace my current profile with fictional sample data",
+                key="ml_example_confirm",
+            )
         st.button(
-            "Load optional example profile", use_container_width=True,
-            help="Loads fictional numbers, not your personal finances.",
+            "Load optional example profile",
+            use_container_width=True,
+            help="Fictional demonstration values. Requires confirmation "
+                 "if your profile already has data.",
             key="ml_load_example", on_click=load_sample_profile,
+            disabled=bool(st.session_state.ml_blocks) and not
+                     st.session_state.get("ml_example_confirm", False),
         )
         confirm_reset = st.checkbox(
-            "I want to clear my current profile", key="ml_confirm_reset",
+            "I want to clear my current profile",
+            key="ml_confirm_reset",
         )
         st.button(
-            "Start with an empty profile", use_container_width=True,
+            "Start with an empty profile",
+            use_container_width=True,
             key="ml_clear_profile", on_click=clear_financial_profile,
             disabled=not confirm_reset,
         )
-    with st.expander("Data & advanced tools"):
-        st.page_link(settings, label="Settings & data", icon="⚙️")
+    with st.expander("More tools"):
+        st.page_link(quick_start, label="Quick Start", icon="✨")
+        st.page_link(learn, label="Learn", icon="📚")
         st.page_link(classic, label="Classic simulator", icon="🧮")
     st.caption(
-        "No linked bank accounts. Your entries are temporary until "
-        "you export a workspace from Settings & data."
+        "Session only — not autosaved. Export a workspace to keep your "
+        "figures and decision drafts."
     )
 
 current_page.run()

@@ -144,13 +144,15 @@ def _projections(inputs, months, goal_blocks):
 
 
 def compare_moving(values, *, existing_goals=None, reviewed=False,
-                   use_savings_for_upfront=False):
+                   use_savings_for_upfront=False, source="entered"):
     """Compare stay and move using only explicit, validated assumptions.
 
     The first three inputs are required; absent optional costs remain
     flagged unknown, not silently considered verified zero. Savings are
     excluded from upfront funding unless the caller explicitly opts in.
     """
+    if source not in ("entered", "fictional", "profile"):
+        raise ValueError("Unknown comparison source.")
     if not isinstance(values, dict) or set(values) - set(FIELDS):
         raise ValueError("Unexpected moving comparison inputs.")
     if not isinstance(reviewed, bool) or not isinstance(use_savings_for_upfront, bool):
@@ -184,8 +186,54 @@ def compare_moving(values, *, existing_goals=None, reviewed=False,
     spending_margin_after = validated["income"] - new_monthly
     current_liquid = validated["checking"] + validated["savings"]
     upfront = model["upfront"]
+    # These sums reconcile directly to the visible money categories. Dedicated
+    # goal balances are excluded from available liquid funds; goal contributions
+    # are transfers, not a second living expense.
+    recorded = {key: values.get(key) is not None for key in FIELDS}
+    # A profile supplies *current* finances, not hypothetical new housing.
+    # All proposed-specific numbers are user inputs even in profile mode.
+    profile_fields = {
+        "income", "current_housing", "other_living",
+        "minimum_debt", "checking", "savings",
+    }
+    def rows(keys):
+        return [
+            {"field": key, "label": LABELS[key], "amount": validated[key],
+             "status": ("missing" if not recorded[key] else
+                        "confirmed_zero" if validated[key] == ZERO else
+                        "profile" if source == "profile" and key in profile_fields
+                        else "fictional" if source == "fictional" else "entered")}
+            for key in keys
+        ]
+    details = {
+        "source": source,
+        "current": rows(("current_housing", "other_living", "minimum_debt")),
+        "proposed": rows(("rent", "utilities", "internet", "renters_insurance",
+                          "other_living", "minimum_debt", "transport_change",
+                          "groceries_change", "other_change")),
+        "upfront": rows(UPFRONT),
+        "balances": rows(BALANCES),
+        "income": rows(("income",)),
+        "checking": validated["checking"],
+        "savings": validated["savings"],
+        "earmarked_goals": sum((goal["balance"] for goal in goals), ZERO),
+        "planned_goal_contributions": sum(
+            (goal["monthly_contribution"] for goal in goals), ZERO
+        ),
+        "checking_available_for_upfront": validated["checking"],
+        "savings_allowed_for_upfront": (
+            validated["savings"] if use_savings_for_upfront else ZERO
+        ),
+        "upfront_from_checking": (
+            min(upfront, validated["checking"]) if model["fundable"] else ZERO
+        ),
+        "upfront_from_savings": (
+            max(upfront - validated["checking"], ZERO) if model["fundable"] else ZERO
+        ),
+    }
     result = {
         "fundable": model["fundable"],
+        "details": details,
         "income": validated["income"],
         "current_monthly": current_monthly,
         "proposed_monthly": new_monthly,
@@ -208,6 +256,8 @@ def compare_moving(values, *, existing_goals=None, reviewed=False,
         "goals_affected": [],
     }
     warnings = []
+    if source == "fictional":
+        warnings.append("This comparison uses fictional demonstration amounts.")
     if missing:
         warnings.append(
             "Not entered: " + ", ".join(LABELS[k] for k in missing)
@@ -218,6 +268,12 @@ def compare_moving(values, *, existing_goals=None, reviewed=False,
         warnings.append(
             "Costs have not been confirmed as complete. Monthly flexibility "
             "is provisional and may be overstated."
+        )
+    if goals:
+        warnings.append(
+            "Monthly remainder excludes planned goal contributions of "
+            f"${details['planned_goal_contributions']}; the projection "
+            "models affordable transfers separately."
         )
     if spending_margin_after < ZERO:
         warnings.append(

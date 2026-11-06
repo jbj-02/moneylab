@@ -19,7 +19,7 @@ For exact decision parsing limits, edge cases and manual QA, see [Smart Decision
 
 ## Try the new experience
 
-**Decision-first navigation:** The main pages are Home, Move Out, Decisions, Quick Start, My Money, Goals, and Learn. The older What-if Lab remains under Decisions, while Settings & data and Classic Simulator are grouped in secondary sidebar tools. New users can **test a decision immediately**, without creating an account or profile. Quick Start is optional for people who want ongoing goals and a reusable financial picture. Example figures are always fictional and editable.
+**Focused navigation:** Four primary destinations — **Home, Decisions, My Money, Goals**. Moving Out stays accessible from Home and Decisions (including its original `/moving-alpha` link). Quick Start is available from My Money and relevant onboarding prompts. Save/Restore and private feedback are prominent sidebar links; Learn, Quick Start, and the Classic Simulator remain reachable through secondary navigation. No profile is required to test a decision.
 
 The modular profile is built from independent **financial building blocks**:
 
@@ -42,15 +42,15 @@ On **My Money**, blocks are grouped into readable cards for Income, Everyday spe
 - **How might my position change?** Expand **Home → Explore your detailed financial projection** for modeled cash, accounts, debt and net position.
 - **What happens if rent changes?** The **advanced What-if Lab** under Decisions leads with three significant before-and-after results and the most important explanatory effects. Full impact details and charts are optional expanders. Save up to 20 named expense-change scenarios without changing your baseline.
 - **Will I reach my savings goal?** The dedicated **Goals** page creates and edits the same underlying goal blocks used elsewhere. It displays current savings, target, and the projected result at each goal's deadline—even if the dashboard uses a shorter projection horizon.
-- **Can I keep my setup?** Open the secondary **Settings & data** page to export or restore profile and scenario JSON (including legacy version 1 imports), or download a projection CSV.
+- **Can I keep my setup?** Use the prominent sidebar **Save / restore workspace** link. Version-3 JSON files contain profile blocks, named What-if scenarios, and optional current Moving Out or purchase/recurring decision drafts. Prior versions remain importable; outputs must be recalculated after restoring.
 - **What should I check this week?** **Home** shows the most useful check-in finding. Expand **Update your finances and upcoming dates** to refresh a balance or recurring expense, review recorded inputs, and inspect manually entered upcoming paydays or bills.
-- **Can I learn while using the app?** The **Learn** tab offers short lessons matched to the blocks the user adds, such as net pay, HYSA assumptions, loan interest and retirement accounts, with optional quick self-check quizzes.
+- **Can I learn while using the app?** Financial concepts link from decisions, with the optional Learn page still accessible from secondary navigation.
 
 The old simulation remains available at `pages/2_Classic_Simulator.py`.
 
 ## Quick Start — set up a profile without adding every block yourself
 
-**Quick Start is available in the main navigation and on Home and My Money.** It is optional for completing a decision simulation. A focused setup page offers:
+**Quick Start is accessible from My Money, Home and relevant setup prompts.** It is optional for completing a decision simulation. A focused setup page offers:
 
 - **Smart paste (free and private, default).** Enter a short description such as `My take-home pay is $1,800 biweekly, rent $1,200 monthly, groceries $100 weekly, checking $500.` A deterministic local Python extractor recognizes basic categories and frequency patterns **without external requests, accounts, quotas, models, or API keys**. It is not a language model; it deliberately flags unknown or ambiguous information for confirmation, and cannot understand every phrasing.
 - **Guided setup (no AI, always available).** Four small steps gather take-home income, rent/groceries and other expenses, cash/savings and optional loan information, plus an optional goal. Weekly, biweekly, monthly and yearly amounts are converted by the existing tested financial engine.
@@ -69,6 +69,18 @@ MONEYLAB_ENABLE_AI_SETUP = true
 The server makes bounded calls to the OpenAI Responses API using a supported compact model (currently `gpt-4.1-mini`). The code requests structured output and sets `store = false`, and does not save the original description in the MoneyLab profile. Users must check a consent box before any external request. It is **not automatically included with a ChatGPT subscription**; the account owner must arrange separate API access and billing. See [OpenAI structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs) and [Streamlit Cloud secrets](https://docs.streamlit.io/deploy/concepts/secrets).
 
 **Public-deployment caution:** A three-request limit per browser session, a description length limit and bounded output help reduce accidental usage, but are **not** secure per-user rate limiting. Before enabling AI for an unrestricted public audience, add real authentication / per-user quotas, spending limits, abuse monitoring and a privacy review. Financial descriptions submitted to AI are transmitted to an external service and subject to that service's data policies. Do not solicit banking credentials, account numbers or personally identifying information.
+
+## Workflow and results improvements — November 2026
+
+The **Moving Out Decision Lab** now shows a complete **Included in this comparison** reconciliation: every current expense, proposed expense, upfront cost, checking balance, savings balance, and source status (fictional, entered, confirmed zero, profile or missing). A recorded `$7,500` liquid-funds headline can therefore be traced to its constituent checking and savings amounts, and excluded earmarked goal balances are identified.
+
+New users can still start without a profile. Existing users may explicitly choose **Use My Money figures**, select their recorded current housing expense, and review imported income, expenses, loan payments, cash and accessible savings. The move's proposed rent never overwrites their recorded rent. After a decision, **Review and add these figures to My Money** previews each potential addition or update; every change requires approval, and ambiguous duplicates must be reconciled manually.
+
+Completed Moving Out results show a concise monthly/upfront takeaway, an ordered 6/12/24-month chart, missing-cost explanations, and editable alternatives for lower rent, a roommate share, reduced upfront costs or waiting and saving. Editing the original inputs hides the old result until a fresh comparison is calculated. The chart uses consistent Stay/Move colors and formatted currency.
+
+Portable workspace exports support **version 3**, preserving profile blocks, named scenarios and validated current decision input drafts—not cached results. Restored decisions must be recalculated. The **private tester feedback** page sends only three manually entered answers to a configured Formspree inbox; without configuration, it offers an explicitly unsent downloadable draft instead of claiming delivery.
+
+See [Workflow release and QA guide](docs/workflow_release.md) for privacy setup, testing and limitations.
 
 ## Decision Check — why the financial data matters
 
