@@ -212,7 +212,7 @@ def test_guest_recurring_cost_draft_roundtrip_with_no_profile():
     }
     drafts = capture_decision_drafts(state)
     assert len(drafts) == 1 and drafts[0]["kind"] == "cost"
-    assert drafts[0]["values"]["cost"] == "45"
+    assert D(drafts[0]["values"]["cost"]) == D("45")
     data = workspace_to_json([], [], drafts)
     blocks, scenarios, restored = workspace_from_json_full(data)
     assert blocks == [] and scenarios == []
