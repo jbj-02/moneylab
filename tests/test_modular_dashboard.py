@@ -80,7 +80,7 @@ def test_decisions_page_keeps_advanced_whatif_available():
     app = load_example(start())
     app = navigate(app, "3_Explore.py")
     assert not errors(app), errors(app)
-    assert any("MoneyLab Decision Check" in title.value for title in app.title)
+    assert any("Decisions" in title.value for title in app.title)
     kinds = next(r for r in app.radio if r.label == "What would you like to figure out?")
     app = kinds.set_value("🔍 Explore an existing expense").run()
     assert not errors(app), errors(app)
