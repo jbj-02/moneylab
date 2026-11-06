@@ -95,14 +95,27 @@ current_page = st.navigation(
     expanded=True,
 )
 
+def _invalidate_profile_dependent_results():
+    for key in (
+        "move_result", "move_run_options", "move_inputs_at_run",
+        "move_variant_result", "move_variant_inputs",
+        "ml_reviewed_signature",
+    ):
+        st.session_state.pop(key, None)
+    st.session_state.move_editing = True
+
+
 def load_sample_profile():
     st.session_state.ml_blocks = default_blocks()
     st.session_state.ml_saved_scenarios = []
+    st.session_state.ml_example_confirm = False
+    _invalidate_profile_dependent_results()
 
 
 def clear_financial_profile():
     st.session_state.ml_blocks = []
     st.session_state.ml_saved_scenarios = []
+    _invalidate_profile_dependent_results()
 
 
 with st.sidebar:
@@ -117,11 +130,19 @@ with st.sidebar:
     )
     with st.expander("Examples & projection settings"):
         st.slider("Projection months", 1, 120, 24, key="ml_months")
+        if st.session_state.ml_blocks:
+            st.checkbox(
+                "Replace my current profile with fictional sample data",
+                key="ml_example_confirm",
+            )
         st.button(
             "Load optional example profile",
             use_container_width=True,
-            help="Replace this session's profile with fictional demonstration values.",
+            help="Fictional demonstration values. Requires confirmation "
+                 "if your profile already has data.",
             key="ml_load_example", on_click=load_sample_profile,
+            disabled=bool(st.session_state.ml_blocks) and not
+                     st.session_state.get("ml_example_confirm", False),
         )
         confirm_reset = st.checkbox(
             "I want to clear my current profile",
