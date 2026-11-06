@@ -666,7 +666,7 @@ def _render_result(report):
             st.write(f"• {warning}")
     st.page_link(
         "pages/6_Settings.py", label="Save or restore my workspace",
-        icon="save",
+        icon="💾",
     )
 
 
@@ -732,5 +732,5 @@ def render():
     st.page_link(
         "pages/8_Feedback.py",
         label="Share private alpha feedback",
-        icon="message-square",
+        icon="💬",
     )
