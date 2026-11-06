@@ -96,6 +96,7 @@ def _cost_check(blocks, months, reviewed):
                 "actually be funded. MoneyLab does not assume borrowing."
             )
             return
+        st.session_state.dc_profile_compared = True
         st.markdown("#### What changes in your modeled plan?")
         if check["needs_attention"]:
             st.warning(
@@ -411,6 +412,7 @@ def _empty_profile_decision(choice):
             st.warning(report["reason"])
             st.metric("Recorded checking available", dollars(report["available_checking"]))
             return
+        st.session_state.dc_guest_compared = True
         st.markdown("### Your preliminary result")
         before = report["monthly_buffer_before"]
         after = report["monthly_buffer_after"]
