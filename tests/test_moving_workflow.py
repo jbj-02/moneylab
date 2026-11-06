@@ -200,3 +200,62 @@ def test_restoring_decision_removes_stale_results_and_keeps_missing():
     assert target["move_income"] == 3600.0
     assert target["move_rent"] == 1400.0  # unsubmitted edit takes precedence over stale result
     assert "move_checking" not in target
+
+
+
+def test_guest_recurring_cost_draft_roundtrip_with_no_profile():
+    state = {
+        "ml_blocks": [], "dc_guest_compared": True,
+        "dc_guest_cost": 45.0, "dc_guest_income": 3000.0,
+        "dc_guest_spending": 1000.0, "dc_guest_checking": 500.0,
+        "dc_guest_cost_kind": "recurring", "dc_guest_frequency": "monthly",
+    }
+    drafts = capture_decision_drafts(state)
+    assert len(drafts) == 1 and drafts[0]["kind"] == "cost"
+    assert drafts[0]["values"]["cost"] == "45"
+    data = workspace_to_json([], [], drafts)
+    blocks, scenarios, restored = workspace_from_json_full(data)
+    assert blocks == [] and scenarios == []
+    target = {"dc_guest_cost": 900.0, "dc_guest_compared": True}
+    restore_decision_drafts(target, restored)
+    assert target["dc_guest_cost"] == 45.0
+    assert target["dc_guest_income"] == 3000.0
+    assert target["dc_guest_cost_kind"] == "recurring"
+    assert not target["dc_guest_compared"]
+    assert target["ml_restored_cost"]
+
+
+def test_profile_cost_draft_does_not_duplicate_profile_blocks():
+    blocks = default_blocks()
+    state = {
+        "ml_blocks": deepcopy(blocks), "dc_profile_compared": True,
+        "dc_profile_source": "Use My Money figures",
+        "dc_cost_value": 60.0, "dc_cost_kind": "Recurring commitment",
+        "dc_cost_frequency": "weekly",
+    }
+    drafts = capture_decision_drafts(state)
+    assert drafts[0]["source"] == "profile"
+    loaded, _, decision = workspace_from_json_full(
+        workspace_to_json(blocks, [], drafts)
+    )
+    target = {}
+    restore_decision_drafts(target, decision)
+    assert target["dc_cost_value"] == 60.0
+    assert target["dc_cost_frequency"] == "weekly"
+    assert target["dc_profile_source"] == "Use My Money figures"
+    assert len(loaded) == len(blocks)
+
+
+def test_malformed_saved_cost_amount_and_frequency_rejected():
+    normal = {
+        "kind": "cost", "source": "entered", "values": {"cost": "100"},
+        "cost_type": "recurring", "frequency": "monthly",
+    }
+    for changes in (
+        {"values": {"cost": "NaN"}},
+        {"values": {"cost": "-1"}},
+        {"frequency": "every_eon"},
+        {"secret": "user-data"},
+    ):
+        with pytest.raises(ValueError):
+            validated_decision_drafts([{**normal, **changes}])
