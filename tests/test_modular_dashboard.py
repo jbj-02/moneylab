@@ -37,8 +37,9 @@ def test_home_starts_empty_and_uses_native_navigation():
     assert any(b.label == "🛟 How financially prepared am I?" for b in app.button)
     assert any(b.label == "🧭 I want to explore my finances" for b in app.button)
     assert len(app.sidebar.radio) == 0
-    assert len(app.sidebar.page_link) == 2
-    assert any(x.label == "Settings & data"
+    assert any(x.label == "💾 Save / restore workspace"
+               for x in app.sidebar.page_link)
+    assert any(x.label == "💬 Private alpha feedback"
                for x in app.sidebar.page_link)
     assert len(app.sidebar.slider) == 1
 
@@ -98,7 +99,7 @@ def test_settings_supports_workspace_export_and_old_import():
     app = load_example(start())
     app = navigate(app, "6_Settings.py")
     assert not errors(app), errors(app)
-    assert any("Settings & data" in t.value for t in app.title)
+    assert any("Save or restore your workspace" in t.value for t in app.title)
     assert len(app.get("download_button")) >= 1
 
 
