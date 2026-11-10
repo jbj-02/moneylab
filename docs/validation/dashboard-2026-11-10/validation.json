@@ -1,0 +1,133 @@
+{
+  "url": "https://moneylab-dev.streamlit.app/",
+  "captured_at": "2026-11-10T18:59:18.820922-05:00",
+  "fictional_data": true,
+  "journeys": [
+    {
+      "viewport": "desktop",
+      "status": "passed",
+      "url": "https://moneylab-dev.streamlit.app/settings",
+      "app_frame_url": "https://moneylab-dev.streamlit.app/~/+/settings",
+      "tls": {
+        "issuer": "openai.com",
+        "protocol": "TLS 1.3",
+        "subjectName": "moneylab-dev.streamlit.app",
+        "validFrom": 1794334996,
+        "validTo": 1825871056
+      },
+      "checks": [
+        "visible recommendation/benefit/funding/two alternatives",
+        "supporting calculations initially collapsed",
+        "both alternatives opened and discarded",
+        "exploration preserved exported profile",
+        "explicit approval updated and tracked the contribution",
+        "supporting calculations opened and closed successfully"
+      ]
+    },
+    {
+      "viewport": "mobile",
+      "status": "passed",
+      "url": "https://moneylab-dev.streamlit.app/settings",
+      "app_frame_url": "https://moneylab-dev.streamlit.app/~/+/settings",
+      "tls": {
+        "issuer": "openai.com",
+        "protocol": "TLS 1.3",
+        "subjectName": "moneylab-dev.streamlit.app",
+        "validFrom": 1794334996,
+        "validTo": 1825871056
+      },
+      "checks": [
+        "visible recommendation/benefit/funding/two alternatives",
+        "supporting calculations initially collapsed",
+        "both alternatives opened and discarded",
+        "exploration preserved exported profile",
+        "explicit approval updated and tracked the contribution",
+        "supporting calculations opened and closed successfully"
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "file": "desktop-01-dashboard.png",
+      "title": "Recommendation, benefit, funding and two alternatives",
+      "viewport": {
+        "width": 1440,
+        "height": 1300
+      }
+    },
+    {
+      "file": "desktop-02-later.png",
+      "title": "Alternative: keep $200/month and allow ten months",
+      "viewport": {
+        "width": 1440,
+        "height": 1300
+      }
+    },
+    {
+      "file": "desktop-03-smaller.png",
+      "title": "Alternative: a smaller $9,200 target at six months",
+      "viewport": {
+        "width": 1440,
+        "height": 1300
+      }
+    },
+    {
+      "file": "desktop-04-recommendation.png",
+      "title": "Recommended option before explicit approval",
+      "viewport": {
+        "width": 1440,
+        "height": 1300
+      }
+    },
+    {
+      "file": "desktop-05-approved.png",
+      "title": "Approved plan with the chosen $333.34/month schedule",
+      "viewport": {
+        "width": 1440,
+        "height": 1300
+      }
+    },
+    {
+      "file": "mobile-01-dashboard.png",
+      "title": "Recommendation, benefit, funding and two alternatives",
+      "viewport": {
+        "width": 390,
+        "height": 1850
+      }
+    },
+    {
+      "file": "mobile-02-later.png",
+      "title": "Alternative: keep $200/month and allow ten months",
+      "viewport": {
+        "width": 390,
+        "height": 1850
+      }
+    },
+    {
+      "file": "mobile-03-smaller.png",
+      "title": "Alternative: a smaller $9,200 target at six months",
+      "viewport": {
+        "width": 390,
+        "height": 1850
+      }
+    },
+    {
+      "file": "mobile-04-recommendation.png",
+      "title": "Recommended option before explicit approval",
+      "viewport": {
+        "width": 390,
+        "height": 1850
+      }
+    },
+    {
+      "file": "mobile-05-approved.png",
+      "title": "Approved plan with the chosen $333.34/month schedule",
+      "viewport": {
+        "width": 390,
+        "height": 1850
+      }
+    }
+  ],
+  "deployed_merge_commit": "533dbe46754717c2774b24558d9905af86631f86",
+  "pull_request": "https://github.com/jbj-02/moneylab/pull/8"
+}
