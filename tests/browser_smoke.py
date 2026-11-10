@@ -74,12 +74,16 @@ def restore_profile(page, blocks):
     expect(page.get_by_role('heading', name='My Plan', exact=True)).to_be_visible()
 
 
-def export_profile(page):
+def download_workspace(page):
     navigate(page, 'Settings & data')
     with page.expect_download() as download:
         page.get_by_role('button', name='Download workspace (JSON)', exact=True).click()
     data = json.loads(Path(download.value.path()).read_text())
-    return data['workspace']['blocks']
+    return data
+
+
+def export_profile(page):
+    return download_workspace(page)['workspace']['blocks']
 
 
 def graduate_journey(browser, viewport, label):
@@ -186,6 +190,79 @@ def struggling_journey(browser, viewport, label):
     context.close()
 
 
+def action_plan_journey(browser, viewport, label):
+    context = browser.new_context(viewport=viewport, reduced_motion='reduce', accept_downloads=True)
+    page = context.new_page()
+    page.goto(BASE, wait_until='domcontentloaded')
+    expect(page.get_by_role('heading', name='My Plan', exact=True)).to_be_visible()
+    blocks = fictional_profile()
+    blocks.append(dict(blocks[3], id='move', name='Move-out fund', balance='1000', target='3000',
+                       target_months=12, monthly_contribution='100'))
+    restore_profile(page, blocks)
+    confirm(page)
+    page.get_by_role('button', name='View action & alternatives', exact=True).click()
+    expect(page.get_by_role('heading', name='What should I do?', exact=True)).to_be_visible()
+    page.get_by_text('Keep my current pace', exact=True).click()
+    expect(page.get_by_text('10 months from the plan date', exact=False)).to_be_visible()
+    shot(page, f'{label}-action-options')
+    page.get_by_text('Try my own adjustment or expense reduction', exact=True).click()
+    page.get_by_role('combobox', name='Optional: choose a recorded expense to reduce', exact=True).click()
+    page.get_by_role('option', name='Rent & living costs', exact=True).click()
+    number(page, 'Reduce this expense each month by ($)', 200)
+    page.get_by_role('spinbutton', name='Reduce this expense each month by ($)', exact=True).press('Tab')
+    redirect = page.get_by_role('spinbutton', name='Of that reduction, put toward this goal ($)', exact=True)
+    expect(redirect).to_have_value('200.00')
+    redirect.fill('133.34')
+    redirect.press('Tab')
+    expect(page.get_by_text('Proposed goal saving:', exact=False)).to_contain_text('$333.34/month')
+    shot(page, f'{label}-explicit-expense-funding')
+    page.get_by_role('button', name='Inspect my adjustment', exact=True).click()
+    expect(page.get_by_role('heading', name='Current plan vs alternative', exact=True)).to_be_visible()
+    page.get_by_role('button', name='Discard alternative', exact=True).click()
+    expect(page.get_by_role('heading', name='What should I do?', exact=True)).to_be_visible()
+    page.get_by_text('Save more to meet the deadline', exact=True).click()
+    page.get_by_role('button', name='Inspect this option', exact=True).click()
+    expect(page.get_by_role('heading', name='Current plan vs alternative', exact=True)).to_be_visible()
+    page.get_by_text('What if things change?', exact=True).click()
+    page.get_by_text('Lower income', exact=True).click()
+    expect(page.get_by_role('combobox', name='Recorded item to stress-test', exact=True)).to_have_value('Take-home pay')
+    number(page, 'Monthly change to test ($)', 600)
+    page.get_by_role('spinbutton', name='Monthly change to test ($)', exact=True).press('Tab')
+    expect(page.get_by_role('spinbutton', name='Monthly change to test ($)', exact=True)).to_have_value('600.00')
+    page.get_by_role('button', name='Run stress test', exact=True).click()
+    expect(page.get_by_text('Chosen option under stress:', exact=False)).to_be_visible()
+    shot(page, f'{label}-stress-test')
+    original = download_workspace(page)
+    assert original['workspace']['blocks'][3]['monthly_contribution'] == '200.00'
+    assert 'accepted_plan' not in original['plan']
+    navigate(page, 'My Plan')
+    page.get_by_role('link', name='Review pending alternative', exact=True).click()
+    page.get_by_text('I want to replace my plan with these exact changes', exact=True).click()
+    page.get_by_role('button', name='Apply these changes to my plan', exact=True).click()
+    expect(page.get_by_role('heading', name='My Plan', exact=True)).to_be_visible()
+    expect(page.get_by_text('Your chosen plan:', exact=False).first).to_be_visible()
+    chosen = download_workspace(page)
+    assert chosen['schema_version'] == 5
+    assert chosen['workspace']['blocks'][3]['monthly_contribution'] == '333.34'
+    assert chosen['plan']['accepted_plan']['blocks'][3]['monthly_contribution'] == '333.34'
+    navigate(page, 'My Plan')
+    confirm(page)
+    page.get_by_text('Check my progress for Emergency fund', exact=True).click()
+    number(page, 'Recorded goal balance ($)', 7900)
+    page.get_by_role('button', name='Compare my progress', exact=True).click()
+    expect(page.get_by_text('Your recorded balance is $100.00 behind', exact=False)).to_be_visible()
+    expect(page.get_by_text('350.00', exact=False).first).to_be_visible()
+    shot(page, f'{label}-progress-gap')
+    page.get_by_text('I want to replace my plan with these exact changes', exact=True).click()
+    page.get_by_role('button', name='Apply these changes to my plan', exact=True).click()
+    expect(page.get_by_role('heading', name='My Plan', exact=True)).to_be_visible()
+    checked = download_workspace(page)
+    assert checked['workspace']['blocks'][3]['balance'] == '7900.00'
+    assert checked['workspace']['blocks'][3]['monthly_contribution'] == '333.34'
+    assert checked['plan']['accepted_plan']['blocks'][3]['balance'] == '8000.00'
+    context.close()
+
+
 def legacy_move_journey(browser, viewport, label):
     context = browser.new_context(viewport=viewport, reduced_motion='reduce')
     page = context.new_page()
@@ -238,7 +315,7 @@ def run():
         browser = pw.chromium.launch(headless=True, args=['--no-sandbox'])
         for viewport, label in (({'width':1440,'height':1000}, 'desktop'),
                                 ({'width':390,'height':844}, 'mobile')):
-            for journey in (graduate_journey, savings_and_purchase_journey, struggling_journey, legacy_move_journey):
+            for journey in (graduate_journey, savings_and_purchase_journey, struggling_journey, legacy_move_journey, action_plan_journey):
                 journey(browser, viewport, label)
                 print(f'{label}: {journey.__name__} passed', flush=True)
         local_continuity_journey(browser)

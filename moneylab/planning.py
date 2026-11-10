@@ -6,13 +6,15 @@ is a separate pot of money, never a second label on an existing account.
 from copy import deepcopy
 from decimal import Decimal, ROUND_CEILING
 from hashlib import sha256
+import json
 
-from moneylab.blocks import MAX_AMOUNT, profile_to_json, project_blocks, serialize_blocks
+from moneylab.blocks import MAX_AMOUNT, project_blocks, serialize_blocks
 from moneylab.engine import CENT, ZERO, calculate_monthly_loan_payment
 
 
 def signature(blocks):
-    return sha256(profile_to_json(blocks).encode()).hexdigest()
+    canonical = json.dumps(serialize_blocks(blocks), sort_keys=True, separators=(",", ":"))
+    return sha256(canonical.encode()).hexdigest()
 
 
 def _set(blocks, ident, field, value):
@@ -80,7 +82,8 @@ def preview(blocks, alternative, *, title, months=24):
     deadlines = [b["target_months"] for b in before + after if b["kind"] == "goal"]
     horizon = max([months, *deadlines])
     return {
-        "source_signature": signature(before), "blocks": after, "title": title,
+        "source_signature": signature(before), "candidate_signature": signature(after),
+        "source_blocks": before, "blocks": after, "title": title,
         "baseline": project_blocks(before, horizon),
         "alternative": project_blocks(after, horizon),
     }
@@ -90,10 +93,15 @@ def apply_preview(blocks, comparison):
     """Reject stale previews; approval never reapplies or partially merges one."""
     if signature(blocks) != comparison["source_signature"]:
         raise ValueError("Your figures changed. Compare this alternative again before applying it.")
+    if comparison.get("allow_apply", True) is not True:
+        raise ValueError("A stress scenario cannot be applied to your plan.")
+    if signature(comparison["blocks"]) != comparison.get("candidate_signature"):
+        raise ValueError("The proposed changes changed. Compare this alternative again before applying it.")
     return serialize_blocks(deepcopy(comparison["blocks"]))
 
 
-def goal_alternative(blocks, goal_id, monthly, *, expense_id=None, reduction=0, months=24):
+def goal_alternative(blocks, goal_id, monthly, *, expense_id=None, reduction=0, months=24,
+                     target=None, deadline=None):
     """User-selected transfers/reductions, evaluated through the real engine."""
     from moneylab.blocks import modify_expense
     from moneylab.engine import validate_money
@@ -107,7 +115,15 @@ def goal_alternative(blocks, goal_id, monthly, *, expense_id=None, reduction=0, 
         cut = validate_money(reduction, "Expense reduction")
         items = modify_expense(items, expense_id, -cut)
     after = _set(items, goal_id, "monthly_contribution", value)
-    return preview(blocks, after, title="A different savings pace", months=months)
+    goal = next(b for b in after if b["id"] == goal_id)
+    if target is not None:
+        goal["target"] = str(validate_money(target, "Goal target"))
+    if deadline is not None:
+        goal["target_months"] = deadline
+    after = serialize_blocks(after)
+    comparison = preview(blocks, after, title="A different savings pace", months=months)
+    comparison["focus_goal_id"] = goal_id
+    return comparison
 
 
 def plan_actions(blocks, *, reviewed=False, months=24):
@@ -132,7 +148,7 @@ def plan_actions(blocks, *, reviewed=False, months=24):
     for loan in (b for b in items if b["kind"] == "loan"):
         interest = calculate_monthly_loan_payment(loan["balance"], loan["annual_rate"], loan["monthly_payment"])["monthly_interest"]
         if interest > Decimal(loan["monthly_payment"]):
-            actions.append({"kind": "debt", "title": f"{loan['name']} is growing",
+            actions.append({"kind": "debt", "loan_id": loan["id"], "title": f"{loan['name']} is growing",
                             "detail": f"First-month interest is ${interest:,.2f}; the recorded payment is "
                                       f"${Decimal(loan['monthly_payment']):,.2f}. Check your actual loan terms before changing payments."})
     outlooks = {goal["id"]: goal_outlook(items, goal["id"], result=baseline) for goal in baseline["goals"]}

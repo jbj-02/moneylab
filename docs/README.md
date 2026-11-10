@@ -1,5 +1,6 @@
 # MoneyLab documentation
 
+- [Explainable action plans](action-plan.md) describes the current recommendations, alternatives, stress scenarios, progress check-ins and calculation boundaries.
 - [Product overhaul](product-overhaul.md) covers the current plan-first experience, audit, feature decisions, frontend tradeoffs, persistence and validation.
 - [Smart Decisions](smart_decisions.md) explains the plain-English parser, input review, and QA.
 - [Product roadmap](product_roadmap.md) describes the planned decision and learning features.
