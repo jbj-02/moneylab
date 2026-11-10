@@ -86,6 +86,9 @@ actual loan payments and modeled savings transfers equals the cash remainder.
 It distinguishes requested goal transfers from transfers actually funded and
 reports when the full request is not funded every month. First-month room is an
 explanation, not a substitute for the full multi-month simulation.
+Recorded direct deposits to a goal are shown separately from its planned
+transfer. The searched contribution is additional to those existing deposits;
+the breakdown reports their combined total rather than hiding the deposit.
 
 Other goals are compared at a common original checkpoint as well as each
 option's own deadline. Extending a deadline does not masquerade as creating

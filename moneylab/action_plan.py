@@ -126,6 +126,8 @@ def funding_breakdown(comparison, goal_id=None):
             "from_remainder": extra - directed, "released_left": released - directed,
             "requested": Decimal(goal["monthly_contribution"]),
             "first_month_funded": amounts[0],
+            "direct_goal_deposit": after["monthly_records"][1]["direct_deposits"].get(goal_id, ZERO),
+            "first_month_total_goal_funding": amounts[0] + after["monthly_records"][1]["direct_deposits"].get(goal_id, ZERO),
             "fully_funded_months": sum(v >= Decimal(goal["monthly_contribution"]) for v in amounts),
             "months": len(amounts),
         })
@@ -262,8 +264,13 @@ def action_breakdown(blocks, action):
         comparison = goal_alternative(blocks, action["goal_id"], amount)
         analysis = explain_option(comparison, action["goal_id"])
         result.update(comparison=comparison, analysis=analysis)
+        goal = next(b for b in serialize_blocks(blocks) if b["id"] == action["goal_id"])
+        direct = baseline["monthly_records"][1]["direct_deposits"].get(action["goal_id"], ZERO)
         reason += (f" {_money(outlook['starting'])} already saved, {_money(outlook['planned'])}/month planned and entered interest "
                    f"produce {_money(outlook['projected'])} by month {outlook['deadline']}, against a {_money(outlook['target'])} target.")
+        reason += f" The entered illustrative annual rate is {goal['annual_rate']}%."
+        if direct:
+            reason += f" This also includes {_money(direct)}/month of recorded direct deposits to the goal."
         if outlook["required"] is not None:
             proposed = f"Compare saving {_money(amount)}/month, an increase of {_money(outlook['extra'])}."
         else:

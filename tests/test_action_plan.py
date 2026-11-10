@@ -76,6 +76,18 @@ def test_remainder_funding_math_conserves_recorded_income():
     assert f['remainder_after'] == Decimal('466.66')
 
 
+def test_recorded_goal_direct_deposits_are_explained_separately_from_planned_transfers():
+    blocks = savings_profile()
+    blocks[0]['routes'] = [{'destination_id':'goal','mode':'fixed','value':'100'}]
+    option = option_map(blocks)['deadline']
+    f = option['analysis']['funding']
+    assert f['requested'] == Decimal('233.34')
+    assert f['direct_goal_deposit'] == 100
+    assert f['first_month_funded'] == Decimal('233.34')
+    assert f['first_month_total_goal_funding'] == Decimal('333.34')
+    assert option['analysis']['goal']['at_new_deadline'] == Decimal('10000.04')
+
+
 def test_goal_gain_that_crowds_out_another_goal_is_disclosed():
     blocks = savings_profile('1000', '0')
     blocks[3].update(balance='0', target='1500', target_months=2, monthly_contribution='250')

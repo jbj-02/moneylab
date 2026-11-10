@@ -88,8 +88,13 @@ def funding_text(analysis):
         if f["fully_funded_months"] < f["months"]:
             st.warning(f"The full requested contribution is funded in {f['fully_funded_months']} of {f['months']} months. "
                        "Use the simulated goal outcome, rather than assuming every requested transfer happens.")
-        h.prose(f"First-month goal transfer actually funded: **{dollars(f['first_month_funded'])}**. "
-                f"First-month cash remainder with this option: **{dollars(f['remainder_after'])}**.")
+        if f["direct_goal_deposit"]:
+            h.prose(f"First-month planned goal transfer funded: **{dollars(f['first_month_funded'])}**, plus "
+                    f"**{dollars(f['direct_goal_deposit'])}** of recorded direct deposits. "
+                    f"Total modeled goal funding: **{dollars(f['first_month_total_goal_funding'])}**.")
+        else:
+            h.prose(f"First-month goal transfer actually funded: **{dollars(f['first_month_funded'])}**.")
+        h.prose(f"First-month cash remainder with this option: **{dollars(f['remainder_after'])}**.")
     else:
         h.prose(f"First-month cash remainder with the option: **{dollars(f['remainder_after'])}**.")
 
