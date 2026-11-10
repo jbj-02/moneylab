@@ -42,12 +42,14 @@ def open_app(context, url):
     return HostedApp(page, actual), response
 
 
-def capture(app, folder, label, title, screenshots):
+def capture(app, folder, label, title, screenshots, *, focus=None):
     page = app.page
     old = page.viewport_size
     height = 1300 if old['width'] >= 768 else 1850
     page.set_viewport_size({'width':old['width'], 'height':height})
     app.get_by_test_id('stMain').evaluate('(e)=>e.scrollTo(0,0)')
+    if focus is not None:
+        focus.scroll_into_view_if_needed()
     path = folder / f'{label}.png'
     page.screenshot(path=str(path), full_page=True)
     screenshots.append({'file':path.name, 'title':title, 'viewport':{'width':old['width'],'height':height}})
@@ -80,6 +82,9 @@ def run(args):
                 assert collapsed is True, 'Supporting calculations must start collapsed'
                 assert app.evaluate('document.documentElement.scrollWidth <= innerWidth + 4')
                 capture(app,folder,f'{label}-01-dashboard','Recommendation, benefit, funding and two alternatives',shots)
+                expander.locator('summary').click()
+                expect(expander.get_by_text('Month 1 funding:',exact=True)).to_be_visible()
+                expander.locator('summary').click()
                 app.get_by_role('button',name='Compare a later deadline',exact=True).click()
                 expect(app.get_by_role('heading',name='Current plan vs alternative',exact=True)).to_be_visible()
                 expect(app.get_by_text('10,000.00 at month 10',exact=False)).to_be_visible()
@@ -105,7 +110,8 @@ def run(args):
                 expect(app.get_by_text('Your chosen plan:',exact=False).first.locator('..')).to_contain_text('$333.34/month')
                 # Complete the existing post-change review, then capture the final plan.
                 confirm(app)
-                capture(app,folder,f'{label}-05-approved','Approved plan with the chosen $333.34/month schedule',shots)
+                capture(app,folder,f'{label}-05-approved','Approved plan with the chosen $333.34/month schedule',shots,
+                        focus=app.get_by_text('Your chosen plan:',exact=False).first)
                 chosen = download_workspace(app)
                 assert chosen['workspace']['blocks'][3]['monthly_contribution'] == '333.34'
                 assert chosen['plan']['accepted_plan']['blocks'][3]['monthly_contribution'] == '333.34'
