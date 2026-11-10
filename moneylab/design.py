@@ -27,6 +27,11 @@ def theme():
     .ml-hero h2 {color:#f8faf4;font-size:2rem !important;max-width:650px;margin:.35rem 0 .7rem}
     .ml-hero p {color:#d7e6df;max-width:610px;line-height:1.65;margin:0}
     .ml-hero .ml-eyebrow {color:#a9d3b9}
+    .ml-action-summary {padding:1.5rem;margin-bottom:.5rem}
+    .ml-action-summary h2 {font-size:1.8rem !important;max-width:none;margin:.25rem 0 1rem}
+    .ml-action-grid {display:grid;grid-template-columns:1fr 1.2fr;gap:1.5rem}
+    .ml-action-grid h3 {color:#a9d3b9;font-size:.8rem !important;letter-spacing:.04em;margin:0 0 .4rem}
+    .ml-action-grid p {color:#f3f7f2;font-size:1rem;line-height:1.5;max-width:none}
     .ml-status {display:inline-block;padding:.25rem .65rem;background:#e5eee5;color:#28594c;border-radius:30px;font-size:.75rem;font-weight:650;margin-bottom:.5rem}
     .ml-status.attention {background:#fff0d9;color:#805018}
     .ml-goal {padding:.15rem 0 .5rem}.ml-goal-title {font-size:1.05rem;font-weight:700;margin-bottom:.3rem}
@@ -35,6 +40,7 @@ def theme():
     @media(max-width:768px) {
       .block-container{padding:1.4rem 1rem 3rem} h1{font-size:2rem !important}
       .ml-hero{padding:1.4rem;border-radius:16px}.ml-hero h2{font-size:1.6rem !important}
+      .ml-action-grid{grid-template-columns:1fr;gap:1rem}
       [data-testid="stMetric"]{padding:.8rem} [data-testid="stMetricValue"]{font-size:1.5rem}
     }
     @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto !important}}
@@ -48,6 +54,15 @@ def eyebrow(text):
 def hero(title, detail, *, label="MONEY, WITH A DIRECTION"):
     st.markdown(f'<div class="ml-hero"><div class="ml-eyebrow">{escape(label)}</div>'
                 f'<h2>{escape(title)}</h2><p>{escape(detail)}</p></div>', unsafe_allow_html=True)
+
+
+def action_summary(title, benefit, funding, *, preliminary=False):
+    label = "RECOMMENDED ACTION · PRELIMINARY" if preliminary else "RECOMMENDED ACTION"
+    st.markdown(f'<section class="ml-hero ml-action-summary" aria-label="Recommended action">'
+                f'<div class="ml-eyebrow">{label}</div><h2>{escape(title)}</h2>'
+                '<div class="ml-action-grid"><div><h3>Expected benefit</h3>'
+                f'<p>{escape(benefit)}</p></div><div><h3>Where the money comes from</h3>'
+                f'<p>{escape(funding)}</p></div></div></section>', unsafe_allow_html=True)
 
 
 def goal_summary(name, saved, target, *, on_track):

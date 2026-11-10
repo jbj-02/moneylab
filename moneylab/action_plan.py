@@ -316,6 +316,107 @@ def action_breakdown(blocks, action):
     return result
 
 
+def _dashboard_option(option):
+    analysis = option["analysis"]
+    goal, funding = analysis["goal"], analysis["funding"]
+    title = option["title"]
+    if option["key"] == "deadline":
+        title = f"Save {_money(funding['requested'])}/month for {goal['name']}"
+    elif option["key"] == "later":
+        title = f"Keep {_money(funding['requested'])}/month; allow {goal['deadline_after']} months"
+    elif option["key"] == "target":
+        title = f"Aim for {_money(goal['target_after'])} by month {goal['deadline_after']}"
+    elif option["key"] == "current":
+        title = f"Keep saving {_money(funding['requested'])}/month"
+    if option["key"] == "target":
+        benefit = (f"Meet a smaller {_money(goal['target_after'])} target by month {goal['deadline_after']}, "
+                   f"keeping {_money(funding['requested'])}/month.")
+    elif goal["completion_after"] is None:
+        benefit = f"The target is not reached within {analysis['effects']['searched_months']} months."
+    elif goal["completion_before"] is not None and goal["completion_after"] < goal["completion_before"]:
+        benefit = (f"Reach {_money(goal['target_after'])} in {goal['completion_after']} months instead of "
+                   f"{goal['completion_before']} — {goal['completion_before'] - goal['completion_after']} months sooner.")
+    else:
+        benefit = f"Reach the {_money(goal['target_after'])} target in about {goal['completion_after']} months."
+    warnings = []
+    if not goal["on_track"]:
+        warnings.append(f"Still {_money(max(goal['target_after'] - goal['at_new_deadline'], ZERO))} short at the month-{goal['deadline_after']} deadline.")
+    if funding["goal_increase"]:
+        if funding["from_remainder"] <= max(funding["remainder_before"], ZERO):
+            source = (f"Use {_money(funding['from_remainder'])} of the {_money(max(funding['remainder_before'], ZERO))} "
+                      "left each month after recorded bills, debt payments and saving.")
+        else:
+            source = (f"The increase needs {_money(funding['goal_increase'])}/month; the current remainder is "
+                      f"{_money(funding['remainder_before'])}. It may reduce funding elsewhere.")
+        if funding["from_released"]:
+            source += f" Redirect {_money(funding['from_released'])} from the selected expense reduction."
+    else:
+        source = f"Keep the existing {_money(funding['requested'])} contribution; no extra monthly saving is requested."
+    if funding["direct_goal_deposit"]:
+        source += f" The recorded {_money(funding['direct_goal_deposit'])} direct deposit also continues."
+    source += f" The first-month cash remainder would be {_money(funding['remainder_after'])}."
+    if funding["fully_funded_months"] < funding["months"]:
+        warnings.append(f"The full contribution is funded in only {funding['fully_funded_months']} of {funding['months']} months.")
+    for other in analysis["effects"]["goals"]:
+        if other["id"] != goal["id"] and other["change"] < ZERO:
+            warnings.append(f"{other['name']} has {_money(-other['change'])} less at its original deadline.")
+    if analysis["effects"]["shortfall_month"]:
+        warnings.append(f"Unfunded cash starts in month {analysis['effects']['shortfall_month']}.")
+    if option["key"] == "target":
+        warnings.append("This lowers the goal; it does not create additional money.")
+    return {**option, "headline": title, "benefit": benefit, "funding_source": source,
+            "warnings": warnings, "completion_month": goal["completion_after"]}
+
+
+def dashboard_action(blocks, plan):
+    """Put one proposal and two honest alternatives on the dashboard itself.
+
+    Missing review is a visible qualifier, not an extra gate to understanding
+    a preliminary option. Actual cash/debt risk ordering remains unchanged.
+    """
+    action = next((a for a in plan["actions"] if a["kind"] != "review"), plan["actions"][0])
+    detail = action_breakdown(blocks, action)
+    if action["kind"] == "goal":
+        options = goal_options(blocks, action["goal_id"])
+        by_key = {o["key"]: o for o in options}
+        key = "deadline" if "deadline" in by_key else "later" if "later" in by_key else "current"
+        chosen = _dashboard_option(by_key[key])
+        alternatives = [_dashboard_option(by_key[k]) for k in ("later", "target", "current") if k != key and k in by_key][:2]
+        if len(alternatives) < 2:
+            alternatives.append({"key": "custom", "headline": "Choose an expense or saving change",
+                                 "benefit": "Compare a reduction you select against this goal and the rest of your plan.",
+                                 "funding_source": "Only recorded expenses are offered. Choose the amount before a benefit is estimated.",
+                                 "warnings": [], "comparison": None, "completion_month": None})
+        if len(alternatives) < 2:
+            alternatives.append({"key": "review", "headline": "Review the recorded figures",
+                                 "benefit": "A second funded alternative is not supported by the current figures.",
+                                 "funding_source": "Update figures that changed, or confirm missing information. No extra money is assumed.",
+                                 "warnings": [], "comparison": None, "completion_month": None})
+        detail.update(comparison=chosen["comparison"], analysis=chosen["analysis"],
+                      proposed_action=chosen["headline"], outcome=chosen["benefit"])
+        return {"action": action, "detail": detail, "recommended": chosen, "alternatives": alternatives}
+    candidate = detail["comparison"]
+    funding = (f"The first-month remainder would be {_money(detail['analysis']['funding']['remainder_after'])}; "
+               "the full comparison shows other commitments." if candidate else
+               "No additional money is assumed. Choose a recorded change before committing more money.")
+    recommended = {"key": "action", "headline": action["title"], "benefit": detail["outcome"],
+                   "funding_source": funding, "warnings": [], "completion_month": None, "comparison": candidate}
+    current = preview(blocks, blocks, title="Keep the recorded plan")
+    rows = current["baseline"]["monthly_records"]
+    gap = next((r for r in rows[1:] if r["unfunded_shortfall"] > 0), None)
+    current_result = (f"Unfunded cash of {_money(gap['unfunded_shortfall'])} still starts in month {gap['month']}."
+                      if gap else f"First-month cash remainder stays {_money(rows[1]['net_cash_flow'])}.")
+    alternatives = [
+        {"key": "current", "headline": "Keep the current plan", "benefit": current_result,
+         "funding_source": "No contribution, expense or payment changes.", "warnings": [],
+         "comparison": current, "completion_month": None},
+        {"key": "custom", "headline": "Choose a recorded adjustment", "benefit": "Test an expense, income or payment change you enter.",
+         "funding_source": "The outcome is calculated after you choose the change; no reduction or extra income is assumed.",
+         "warnings": [], "comparison": None, "completion_month": None},
+    ]
+    return {"action": action, "detail": detail, "recommended": recommended, "alternatives": alternatives}
+
+
 def stress_test(comparison, change):
     """Apply the same explicit shock to both plans. Never create an approvable plan."""
     results = {}
