@@ -40,20 +40,25 @@ def capture_decision_drafts(state):
         state.get("dc_guest_compared", False)
         or guest.get("dc_guest_cost") is not None
     )
-    has_profile_cost = state.get("dc_profile_compared", False)
+    profile_draft = state.get("ml_profile_cost_draft")
+    has_profile_cost = state.get("dc_profile_compared", False) or bool(profile_draft)
     if has_guest or has_profile_cost:
         use_profile = (
             bool(state.get("ml_blocks"))
-            and state.get("dc_profile_source") != "Enter a temporary snapshot"
+            and (profile_draft or state.get("dc_profile_source") != "Enter a temporary snapshot")
             and has_profile_cost
         )
         if use_profile:
-            values = {"cost": state.get("dc_cost_value")}
-            kind = (
-                "recurring" if state.get("dc_cost_kind")
-                == "Recurring commitment" else "one_time"
-            )
-            frequency = state.get("dc_cost_frequency", "monthly")
+            if profile_draft:
+                values = {"cost": profile_draft["cost"]}
+                kind, frequency = profile_draft["cost_type"], profile_draft["frequency"]
+            else:
+                values = {"cost": state.get("dc_cost_value")}
+                kind = (
+                    "recurring" if state.get("dc_cost_kind")
+                    == "Recurring commitment" else "one_time"
+                )
+                frequency = state.get("dc_cost_frequency", "monthly")
         else:
             values = {
                 "cost": guest.get("dc_guest_cost"),
@@ -75,6 +80,7 @@ def capture_decision_drafts(state):
 
 def restore_decision_drafts(state, drafts):
     checked = validated_decision_drafts(drafts)
+    state.pop("ml_profile_cost_draft", None)
     for field in FIELDS:
         state.pop(f"move_{field}", None)
     for field in (
@@ -129,6 +135,10 @@ def restore_decision_drafts(state, drafts):
     if cost is not None:
         state["dc_decision_type"] = "💳 Can I take on a cost?"
         if cost["source"] == "profile":
+            state["ml_profile_cost_draft"] = {
+                "cost": str(cost["values"].get("cost") or 0),
+                "cost_type": cost["cost_type"], "frequency": cost["frequency"],
+            }
             state["dc_profile_source"] = "Use My Money figures"
             state["dc_cost_value"] = float(cost["values"].get("cost") or 0)
             state["dc_cost_kind"] = (

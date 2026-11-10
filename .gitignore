@@ -6,3 +6,7 @@ __pycache__/
 .ipynb_checkpoints/
 .env
 .streamlit/secrets.toml
+work/
+artifacts/
+*.sqlite3
+*.sqlite3-journal

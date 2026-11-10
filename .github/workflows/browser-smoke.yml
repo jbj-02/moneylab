@@ -24,8 +24,14 @@ jobs:
             --server.headless=true \
             --server.address=127.0.0.1 \
             --server.port=8501 > streamlit.log 2>&1 &
+          MONEYLAB_LOCAL_STORE="$RUNNER_TEMP/moneylab-local" \
+            nohup python -m streamlit run app.py \
+            --server.headless=true \
+            --server.address=127.0.0.1 \
+            --server.port=8502 > streamlit-local.log 2>&1 &
           for i in $(seq 1 45); do
-            if curl -fsS http://127.0.0.1:8501/_stcore/health >/dev/null; then
+            if curl -fsS http://127.0.0.1:8501/_stcore/health >/dev/null && \
+               curl -fsS http://127.0.0.1:8502/_stcore/health >/dev/null; then
               echo "Streamlit ready"
               exit 0
             fi
@@ -34,6 +40,8 @@ jobs:
           cat streamlit.log
           exit 1
       - name: Run desktop and mobile Chromium journeys
+        env:
+          MONEYLAB_PERSISTENCE_TEST_URL: http://127.0.0.1:8502
         run: python tests/browser_smoke.py
       - name: Upload fictional browser screenshots and logs
         if: always()
@@ -43,4 +51,5 @@ jobs:
           path: |
             artifacts/browser/
             streamlit.log
+            streamlit-local.log
           retention-days: 7

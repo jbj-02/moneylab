@@ -1,5 +1,7 @@
 # MoneyLab — Learning, confidence and decision support roadmap
 
+Historical roadmap. The current [product overhaul](product-overhaul.md) records implemented workflows, feature dispositions and the next release requirements.
+
 ## One-sentence product promise
 
 **Understand your money. Enjoy your life.** MoneyLab helps people in their

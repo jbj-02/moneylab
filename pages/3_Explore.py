@@ -1,5 +1,3 @@
-"""Decision Check: everyday tradeoffs, reserve readiness and savings goals."""
+from moneylab.plan_ui import render_decisions
 
-from moneylab.decision_ui import render_decision_page
-
-render_decision_page()
+render_decisions()
