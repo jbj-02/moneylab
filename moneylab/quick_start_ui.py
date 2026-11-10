@@ -38,7 +38,7 @@ def previous_answer(key, default):
 def amount(label, key):
     return st.number_input(
         label, min_value=0.0, max_value=1000000000.0, value=float(previous_answer(key, 0.0)),
-        step=25.0, format="%.2f", key=key,
+        step=25.0, format="%.2f", key=key, on_change=persist_step_answers,
     )
 
 
@@ -46,7 +46,7 @@ def cadence(label, key, preferred):
     options = list(FREQUENCIES)
     return st.selectbox(
         label, options, index=options.index(previous_answer(key, preferred)),
-        format_func=lambda key: FREQUENCIES[key][0], key=key,
+        format_func=lambda key: FREQUENCIES[key][0], key=key, on_change=persist_step_answers,
     )
 
 
@@ -207,7 +207,7 @@ def smart_paste_entry():
         "Unknown rates, take-home pay and schedules will be flagged for confirmation."
     )
     if st.button(
-        "Find my building blocks", key="qs_smart_submit", type="primary",
+        "Review details from text", key="qs_smart_submit", type="primary",
         disabled=len(description.strip()) < 10,
     ):
         try:
@@ -274,7 +274,7 @@ def ai_entry():
 def review_drafts():
     drafts = st.session_state.qs_drafts
     revision = st.session_state.get("qs_revision", 0)
-    st.markdown("### Review these building blocks")
+    st.markdown("### Review your financial details")
     st.write(
         f"{len(drafts)} suggestions found. Correct any values and exclude "
         "anything that does not apply. **Nothing is saved until you approve.**"
@@ -377,11 +377,11 @@ def review_drafts():
             edited.append(item)
 
     st.caption(
-        "The selected blocks will be added to your existing financial profile, "
+        "The selected entries will be added to your existing financial profile, "
         "not replace it. If any selected item is invalid, nothing is added."
     )
     if st.button(
-        "Add selected blocks to my profile", type="primary",
+        "Save selected details", type="primary",
         use_container_width=True, key="qs_confirm",
     ):
         from moneylab.ui_app import context
@@ -395,7 +395,10 @@ def review_drafts():
             st.session_state.pop("qs_smart_text", None)
             st.session_state.pop("qs_free_ignored", None)
             destination = st.session_state.pop("ml_return_to", None)
-            st.switch_page(destination or "pages/1_My_Money.py")
+            st.session_state.pop("qs_saved_answers", None)
+            for key in GUIDED_KEYS:
+                st.session_state.pop(key, None)
+            st.switch_page(destination or "pages/0_Home.py")
         except ValueError as exc:
             st.error(f"No blocks were added: {exc}")
     if st.button("Discard suggestions", key="qs_discard"):
@@ -407,30 +410,17 @@ def review_drafts():
 
 
 def render_quick_start():
-    st.title("MoneyLab Quick Start")
-    st.caption("Start with a few answers. Add several blocks at once.")
-    st.write(
-        "Type your finances in plain language or follow four short steps. "
-        "You can review every suggested block before saving."
-    )
+    st.title("Set up My Finances")
+    st.caption("Enter the figures you know, review them, then see your plan. You can continue with partial information.")
     if st.session_state.get("qs_drafts") is not None:
         review_drafts()
+        if st.button("Back to setup"):
+            st.session_state.qs_drafts = None
+            st.rerun()
         return
-    path = st.radio(
-        "Choose your setup method",
-        ["Smart paste · free & private", "Guided setup · no AI"],
-        horizontal=True, key="qs_method",
-    )
-    if path.startswith("Smart"):
+    guided_step()
+    with st.expander("Or enter your figures in plain English"):
         smart_paste_entry()
-    else:
-        guided_step()
-    with st.expander("Optional experimental cloud AI setup"):
-        ai_entry()
-    st.divider()
-    if st.button("I'd rather build blocks individually", key="qs_manual"):
-        st.switch_page("pages/1_My_Money.py")
-    st.caption(
-        "No bank connection or login is required. Session-only data must "
-        "be exported from Settings & data to keep a copy."
-    )
+        with st.expander("Optional cloud-assisted entry"):
+            ai_entry()
+    st.page_link("pages/1_My_Money.py", label="Back to My Finances")

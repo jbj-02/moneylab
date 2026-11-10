@@ -152,7 +152,7 @@ def _cost_check(blocks, months, reviewed):
                     else dollars(goal["after"])
                 )
                 st.write(f"**{goal['name']}**: {before} → {after} at its deadline")
-        with st.expander("Important assumptions and limitations", expanded=True):
+        with st.expander("Assumptions behind this estimate"):
             for note in check["cautions"]:
                 st.write(f"• {note}")
             st.write(
@@ -563,8 +563,8 @@ def _empty_profile_decision(choice):
 def render_decision_page():
     blocks, result, summary, months, _, checkin, _ = context()
     reviewed = checkin["reviewed"]
-    st.title("Decisions")
-    st.caption("Compare a choice with your current situation and see the tradeoffs.")
+    st.title("Explore Decisions")
+    st.caption("Choose a scenario, review your figures, then compare the impact and next steps.")
     st.page_link(
         "pages/7_Moving_Out_Alpha.py",
         label="🏡 Moving out? Compare staying and moving",
@@ -576,20 +576,6 @@ def render_decision_page():
                       st.session_state.get("smart_origin") == "decisions"),
     ):
         render_smart_decision_entry("decisions")
-    if not blocks:
-        st.caption("Start with a few relevant numbers. A full profile is optional.")
-    else:
-        source = st.radio(
-            "Use which financial figures?",
-            ["Use My Money figures", "Enter a temporary snapshot"],
-            horizontal=True, key="dc_profile_source",
-        )
-        if source == "Use My Money figures":
-            _context_note(blocks, reviewed)
-        else:
-            st.caption(
-                "Temporary figures below do not overwrite your My Money profile."
-            )
     if "dc_decision_type" not in st.session_state and st.session_state.get("dc_last_choice") in DECISIONS:
         st.session_state.dc_decision_type = st.session_state.dc_last_choice
     choice = st.radio(
@@ -597,6 +583,21 @@ def render_decision_page():
         DECISIONS, key="dc_decision_type",
     )
     st.session_state.dc_last_choice = choice
+    if not blocks:
+        st.caption("Start with a few relevant numbers. A full profile is optional.")
+    else:
+        source = st.radio(
+            "Use which financial figures?",
+            ["Use My Money figures", "Enter a temporary snapshot"],
+            horizontal=True, key="dc_profile_source",
+            format_func=lambda value: ("Use My Finances" if value == "Use My Money figures" else "Enter figures for this decision"),
+        )
+        if source == "Use My Money figures":
+            _context_note(blocks, reviewed)
+        else:
+            st.caption(
+                "Temporary figures below do not overwrite your My Money profile."
+            )
     if not blocks or st.session_state.get("dc_profile_source") == "Enter a temporary snapshot":
         _empty_profile_decision(choice)
         return
