@@ -8,10 +8,10 @@ import streamlit as st
 
 from moneylab.action_plan import (
     DEFAULT_PREFERENCE, FOCUSES, action_breakdown, build_action_plan,
-    goal_options, stress_test, validate_preference,
+    dashboard_action, goal_options, stress_test, validate_preference,
 )
 from moneylab.blocks import project_blocks
-from moneylab.design import eyebrow, hero
+from moneylab.design import action_summary, eyebrow
 from moneylab.planning import goal_alternative, preview, signature
 from moneylab.progress import add_months, progress_preview, remaining_months
 from moneylab.ui_app import dollars
@@ -121,34 +121,68 @@ def render_breakdown(detail):
 
 def render_next_actions(blocks, plan, metadata, reviewed):
     h = _helpers()
-    first = plan["actions"][0]
-    st.subheader("What should I do next?")
-    render_priorities(blocks, metadata)
-    hero(first["title"], first["finding"], label="YOUR NEXT STEP" if reviewed else "PRELIMINARY ACTION PLAN")
-    detail = action_breakdown(blocks, first)
-    h._caption(first["rank_reason"])
+    model = dashboard_action(blocks, plan)
+    action, detail, recommended = model["action"], model["detail"], model["recommended"]
+    title, preference = st.columns([3, 1], vertical_alignment="center")
+    title.subheader("What should I do next?")
+    with preference:
+        render_priorities(blocks, metadata)
+    action_summary(recommended["headline"], recommended["benefit"], recommended["funding_source"], preliminary=not reviewed)
+    if recommended["completion_month"] is not None:
+        h._caption(f"Projected target date: around {add_months(model_date(metadata), recommended['completion_month']):%b %d, %Y}. "
+                   + action["rank_reason"])
+    else:
+        h._caption(action["rank_reason"])
+    for text in recommended["warnings"]:
+        st.warning(text.replace("$", r"\$"))
+    if not reviewed:
+        h._caption("Preliminary: complete and confirm your figures before approving a change. Exploring keeps your current plan intact.")
     a, b = st.columns(2)
-    if a.button("View action & alternatives", type="primary", key="action_open_primary"):
-        _open_action(first)
-    if first["kind"] == "goal" and first["outlook"]["required"] is not None:
-        if b.button("Preview this saving pace", key=f"plan_recommend_{first['goal_id']}"):
-            h._remember(detail["comparison"])
+    candidate = recommended["comparison"]
+    if candidate:
+        label = "Preview this saving pace" if recommended["key"] == "deadline" else "Compare recommended plan"
+        if a.button(label, type="primary", key=f"plan_recommend_{action.get('goal_id', action['id'])}"):
+            h._remember(candidate)
+        if b.button("View action & alternatives", key="action_open_primary"):
+            _open_action(action)
+    elif a.button("View action & alternatives", type="primary", key="action_open_primary"):
+        _open_action(action)
     with st.expander("How MoneyLab worked this out"):
         render_breakdown(detail)
-    if len(plan["actions"]) > 1:
-        st.subheader("Also worth a look")
-    for action in plan["actions"][1:3]:
-        with st.container(border=True):
-            h.prose(f"**{action['title']}**")
-            h.prose(action["finding"])
-            h._caption(action["rank_reason"])
-            if st.button("Review this action", key=f"action_open_{action['id']}"):
-                _open_action(action)
-            # Keep the direct preview for a well-defined, engine-tested pace.
-            if action["kind"] == "goal" and action["outlook"]["required"] is not None:
-                if st.button("Preview this saving pace", key=f"plan_recommend_{action['goal_id']}"):
-                    h._remember(goal_alternative(blocks, action["goal_id"], action["outlook"]["required"]))
-    h._caption("Options are alternatives, not a combined budget. After you approve one, MoneyLab recalculates the others.")
+    st.subheader("Two other ways forward")
+    columns = st.columns(2)
+    labels = {"later": "Compare a later deadline", "target": "Compare a smaller target", "current": "Compare keeping my current plan"}
+    for column, option in zip(columns, model["alternatives"]):
+        with column, st.container(border=True):
+            h.prose(f"**{option['headline']}**")
+            h.prose(option["benefit"])
+            h._caption(option["funding_source"])
+            if option["completion_month"] is not None:
+                h._caption(f"Around {add_months(model_date(metadata), option['completion_month']):%b %d, %Y}.")
+            for text in option["warnings"]:
+                h._caption(text)
+            if option["comparison"]:
+                if st.button(labels[option["key"]], key=f"dashboard_option_{action['id']}_{option['key']}", width="stretch"):
+                    h._remember(option["comparison"])
+            elif st.button("Review my figures" if option["key"] == "review" else "Choose a recorded change",
+                            key=f"dashboard_custom_{action['id']}_{option['key']}", width="stretch"):
+                if option["key"] == "review":
+                    st.switch_page("pages/1_My_Money.py")
+                elif action["kind"] == "goal":
+                    drafts = st.session_state.setdefault("ml_action_drafts", {})
+                    drafts[action["goal_id"]] = {"source_signature": signature(blocks), "option": "custom"}
+                    _open_action(action)
+                else:
+                    st.switch_page("pages/3_Explore.py")
+    remaining = [a for a in plan["actions"] if a["id"] != action["id"] and a["kind"] != "review"]
+    if remaining:
+        with st.expander("Other financial priorities"):
+            for secondary in remaining[:2]:
+                h.prose(f"**{secondary['title']}**")
+                h.prose(secondary["finding"])
+                if st.button("Review this action", key=f"action_open_{secondary['id']}"):
+                    _open_action(secondary)
+    h._caption("Compare one option at a time. Approving a change recalculates your plan and the other options.")
 
 
 def _option_summary(analysis, anchor):

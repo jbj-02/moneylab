@@ -12,17 +12,20 @@ but did not explain funding or offer a coherent set of alternatives. Ranking
 followed entry order among goals, preference was not editable, and approval
 retained no dated schedule for later progress checks.
 
-The public URL returned HTTP 200. Interactive live inspection was blocked by
-the environment's proxy certificate trust; local browser testing uses the
-actual application and does not establish live-deployment verification.
+The initial implementation was verified locally. The dashboard follow-up adds
+an explicit deployed-browser journey, separate from CI, using fictional data
+and normal TLS verification inside Streamlit Cloud's hosted app frame.
 
 The revised sequence is:
 
-1. **Understand the issue.** My Plan highlights one next action and up to two
-   secondary actions. A short explanation states why each appears in that order.
+1. **Understand the issue.** My Plan shows the recommended action, expected
+   benefit and funding source together, followed by two visible alternatives.
+   A short explanation states why the action has priority. Other financial
+   priorities remain available in an expander.
 2. **Review the reasoning.** Open “How MoneyLab worked this out” for the finding,
    calculation, proposed action, funding, outcome, tradeoffs and assumptions.
-3. **Compare paths.** “View action & alternatives” opens a focused review task.
+3. **Compare paths.** Each dashboard alternative opens its exact comparison.
+   “View action & alternatives” also opens the focused review task.
 4. **Inspect consequences.** The comparison shows the exact edits, other goals,
    checking/cash, debt, interest, target dates and optional stress tests.
 5. **Approve.** Complete reviewed figures and a separate approval remain required.
@@ -32,6 +35,16 @@ The revised sequence is:
 The former custom goal editor is consolidated into the action-options screen.
 The existing direct saving-pace preview, decision simulator and financial
 editing workflows remain available.
+
+The dashboard uses the same calculated options as the detailed task. It favors
+a fundable deadline contribution, otherwise a supported later date or current
+pace. The smaller-target option explicitly gives up part of the target; it
+does not claim the original goal is reached sooner. Direct deposits and
+warnings about reduced funding for other goals remain visible. When the data
+cannot support two calculated alternatives, a card asks the user to choose a
+recorded adjustment or review their figures rather than inventing extra money.
+Unreviewed profiles can understand a clearly labeled preliminary proposal;
+the existing review and explicit approval gates still apply.
 
 ## Ranking and preference
 
@@ -178,6 +191,16 @@ stress the recommendation, prove exploration did not alter an exported profile,
 approve, export the chosen schedule, record a balance behind schedule, inspect
 the revised pace and approve only that balance update. Existing onboarding,
 editing, purchase, shortfall, move and local-deletion journeys remain in CI.
+
+The dashboard journey additionally opens and discards both visible alternatives,
+checks the collapsed calculation detail, then previews and explicitly approves
+the recommended contribution. Exports verify that exploration leaves the
+profile intact and approval records the selected schedule. Run
+`tests/deployed_journey.py --chromium-profile <isolated-test-profile> --output <folder>`
+after deployment to repeat this on the public URL in desktop and mobile Chromium.
+It saves actual browser screenshots, a gallery and a machine-readable validation
+record. Environments with an HTTPS inspection proxy must configure their trusted
+root in that isolated browser profile; the script does not bypass TLS checks.
 
 Remaining limitations are monthly rather than daily timing, manual balance
 updates, mutually exclusive rather than jointly optimized recommendations,

@@ -263,6 +263,50 @@ def action_plan_journey(browser, viewport, label):
     context.close()
 
 
+def dashboard_summary_journey(browser, viewport, label):
+    context = browser.new_context(viewport=viewport, reduced_motion='reduce', accept_downloads=True)
+    page = context.new_page()
+    page.goto(BASE, wait_until='domcontentloaded')
+    expect(page.get_by_role('heading', name='My Plan', exact=True)).to_be_visible()
+    restore_profile(page, fictional_profile())
+    confirm(page)
+    summary = page.get_by_role('region', name='Recommended action', exact=True)
+    expect(summary).to_contain_text('Save $333.34/month')
+    expect(summary).to_contain_text('4 months sooner')
+    expect(summary).to_contain_text('$133.34 of the $600.00')
+    expect(summary).to_contain_text('$466.66')
+    expect(page.get_by_role('button', name='Compare a later deadline', exact=True)).to_be_visible()
+    expect(page.get_by_role('button', name='Compare a smaller target', exact=True)).to_be_visible()
+    page.get_by_role('heading', name='My Plan', exact=True).scroll_into_view_if_needed()
+    shot(page, f'{label}-dashboard-summary')
+    page.get_by_role('button', name='Compare a later deadline', exact=True).click()
+    expect(page.get_by_role('heading', name='Current plan vs alternative', exact=True)).to_be_visible()
+    expect(page.get_by_text('10,000.00 at month 10', exact=False)).to_be_visible()
+    shot(page, f'{label}-dashboard-alternative')
+    page.get_by_role('button', name='Discard alternative', exact=True).click()
+    expect(page.get_by_role('heading', name='My Plan', exact=True)).to_be_visible()
+    page.get_by_role('button', name='Compare a smaller target', exact=True).click()
+    expect(page.get_by_role('heading', name='Current plan vs alternative', exact=True)).to_be_visible()
+    expect(page.get_by_text('savings target: $10,000.00 → $9,200.00', exact=False)).to_be_visible()
+    page.get_by_role('button', name='Discard alternative', exact=True).click()
+    expect(page.get_by_role('heading', name='My Plan', exact=True)).to_be_visible()
+    page.get_by_role('button', name='Preview this saving pace', exact=True).click()
+    expect(page.get_by_role('heading', name='Current plan vs alternative', exact=True)).to_be_visible()
+    original = download_workspace(page)
+    assert original['workspace']['blocks'][3]['monthly_contribution'] == '200.00'
+    navigate(page, 'My Plan')
+    page.get_by_role('link', name='Review pending alternative', exact=True).click()
+    page.get_by_text('I want to replace my plan with these exact changes', exact=True).click()
+    page.get_by_role('button', name='Apply these changes to my plan', exact=True).click()
+    expect(page.get_by_role('heading', name='My Plan', exact=True)).to_be_visible()
+    expect(page.get_by_text('Your chosen plan:', exact=False).first.locator('..')).to_contain_text('$333.34/month')
+    shot(page, f'{label}-dashboard-approved')
+    chosen = download_workspace(page)
+    assert chosen['workspace']['blocks'][3]['monthly_contribution'] == '333.34'
+    assert chosen['plan']['accepted_plan']['blocks'][3]['monthly_contribution'] == '333.34'
+    context.close()
+
+
 def legacy_move_journey(browser, viewport, label):
     context = browser.new_context(viewport=viewport, reduced_motion='reduce')
     page = context.new_page()
@@ -315,7 +359,7 @@ def run():
         browser = pw.chromium.launch(headless=True, args=['--no-sandbox'])
         for viewport, label in (({'width':1440,'height':1000}, 'desktop'),
                                 ({'width':390,'height':844}, 'mobile')):
-            for journey in (graduate_journey, savings_and_purchase_journey, struggling_journey, legacy_move_journey, action_plan_journey):
+            for journey in (graduate_journey, savings_and_purchase_journey, struggling_journey, legacy_move_journey, action_plan_journey, dashboard_summary_journey):
                 journey(browser, viewport, label)
                 print(f'{label}: {journey.__name__} passed', flush=True)
         local_continuity_journey(browser)
