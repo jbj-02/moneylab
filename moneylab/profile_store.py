@@ -11,13 +11,15 @@ import sqlite3
 
 from moneylab.plan_setup import EXPENSES, PRIORITIES
 from moneylab.workspace import workspace_from_json_full, workspace_to_json
+from moneylab.action_plan import validate_preference
+from moneylab.progress import validate_tracking
 import json
 
 UNKNOWN_FIELDS = {"income", *EXPENSES, "checking", "savings", "debts"}
 
 
 def validate_metadata(metadata):
-    if not isinstance(metadata, dict) or not {"priority", "unknown"}.issubset(metadata) or set(metadata) - {"priority", "unknown", "is_example"}:
+    if not isinstance(metadata, dict) or not {"priority", "unknown"}.issubset(metadata) or set(metadata) - {"priority", "unknown", "is_example", "action_preference", "accepted_plan"}:
         raise ValueError("Unsupported planning details.")
     if metadata["priority"] not in PRIORITIES:
         raise ValueError("Unknown financial priority.")
@@ -26,11 +28,17 @@ def validate_metadata(metadata):
         raise ValueError("Unsupported missing financial details.")
     if not isinstance(metadata.get("is_example", False), bool):
         raise ValueError("Invalid example marker.")
-    return {"priority": metadata["priority"], "unknown": list(dict.fromkeys(unknown)), "is_example": metadata.get("is_example", False)}
+    result = {"priority": metadata["priority"], "unknown": list(dict.fromkeys(unknown)), "is_example": metadata.get("is_example", False)}
+    # Old v4 metadata stays byte-shape compatible until these features are used.
+    if "action_preference" in metadata:
+        result["action_preference"] = validate_preference(metadata["action_preference"])
+    if "accepted_plan" in metadata:
+        result["accepted_plan"] = validate_tracking(metadata["accepted_plan"])
+    return result
 
 
 def plan_to_json(blocks, scenarios, drafts, metadata):
-    return json.dumps({"schema_version": 4,
+    return json.dumps({"schema_version": 5,
                        "workspace": json.loads(workspace_to_json(blocks, scenarios, drafts)),
                        "plan": validate_metadata(metadata)}, indent=2)
 
@@ -51,7 +59,7 @@ def plan_from_json(text):
         raise ValueError("File is not valid JSON.") from None
     if not isinstance(payload, dict) or type(payload.get("schema_version")) is not int:
         raise ValueError("Workspace needs a supported integer version.")
-    if isinstance(payload, dict) and payload.get("schema_version") == 4:
+    if isinstance(payload, dict) and payload.get("schema_version") in (4, 5):
         if set(payload) != {"schema_version", "workspace", "plan"}:
             raise ValueError("Unexpected workspace fields.")
         metadata = validate_metadata(payload["plan"])

@@ -1,5 +1,7 @@
 # MoneyLab: from calculators to a financial plan
 
+The subsequent [action-plan release](action-plan.md) extends the recommendations, comparisons, uncertainty testing and progress tracking described here. This document records the original overhaul and its validation.
+
 ## Product decision
 
 MoneyLab helps someone turn their recorded finances into a practical next step,

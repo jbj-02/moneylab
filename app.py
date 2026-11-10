@@ -19,6 +19,7 @@ explore = st.Page("pages/3_Explore.py", title="Explore Decisions", url_path="exp
 settings = st.Page("pages/6_Settings.py", title="Settings & data", url_path="settings")
 # Existing bookmarks stay reachable; old tools leave the primary experience.
 hidden = [
+    st.Page("pages/10_Action_Plan.py", title="What should I do?", url_path="actions", visibility="hidden"),
     st.Page("pages/9_Compare_Plan.py", title="Compare your plan", url_path="compare", visibility="hidden"),
     st.Page("pages/2_Goals.py", title="Goals", url_path="goals", visibility="hidden"),
     st.Page("pages/7_Moving_Out_Alpha.py", title="Move Out", url_path="moving-alpha", visibility="hidden"),

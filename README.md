@@ -9,9 +9,10 @@ MoneyLab helps students, recent graduates and early-career professionals turn th
 ## Build a plan
 
 - **Start with a priority.** One setup flow asks what matters, your monthly money, then balances and debts. Blank answers remain unknown. The portion of savings assigned to a goal is counted once.
-- **Know your next step.** My Plan ranks shortfalls, growing debt and missed goals. Goal suggestions calculate a saving pace through the full engine and say when a deadline cannot be funded.
+- **Know your next step.** My Plan explains why an action comes first, where its money would come from, and what it changes elsewhere. Edit your priority and compare a current pace, increased saving, a later date, a smaller target or an expense reduction you select.
 - **Compare before committing.** Test purchases, recurring costs, recorded expenses, income, loan payments or a move. See cash, debt, interest and goal effects. Inspect the exact edits and explicitly approve any plan update; exploring is temporary.
-- **Return to your figures.** My Finances edits the shared profile. Download a workspace backup or enable the documented single-user local store. Public account-based saving remains deferred.
+- **Test uncertainty and follow through.** Stress the same income, expense or one-time-cost assumption against both plans. After approval, see the chosen contribution, target and projected date; compare a new recorded balance with that schedule before updating it.
+- **Return to your figures.** My Finances edits the shared profile. Backups and the opt-in single-user local store preserve your selected schedule and preference. Public account-based saving remains deferred.
 
 ### Example
 
@@ -36,7 +37,7 @@ python -m pip install -r requirements.txt
 python -m streamlit run app.py
 ```
 
-Run the automated suite with `python -m pytest -q`. GitHub Actions also runs desktop and mobile Chromium journeys on pull requests. See the [overhaul notes](docs/product-overhaul.md) for architecture, migration, local-saving setup and hosted persistence requirements.
+Run the automated suite with `python -m pytest -q`. GitHub Actions also runs desktop and mobile Chromium journeys on pull requests. See the [action-plan notes](docs/action-plan.md) for calculations, dates and validation, and the [overhaul notes](docs/product-overhaul.md) for local-saving setup and hosted persistence requirements.
 
 ## Repository layout
 
@@ -50,7 +51,7 @@ Run the automated suite with `python -m pytest -q`. GitHub Actions also runs des
 
 ## Data and setup
 
-MoneyLab uses entered figures and has no bank connection. Public deployments are session-only and disclose that status. For single-user development, `MONEYLAB_LOCAL_STORE` enables private-file SQLite saving only with a loopback server address. This is plaintext local storage, without account authentication, and must not be publicly exposed. Workspace versions 1–3 import into the current format; new exports also preserve unknowns and example-data labels. The optional decision parser runs locally without an AI API key. Private feedback delivery requires the owner's Formspree endpoint.
+MoneyLab uses entered figures and has no bank connection. Public deployments are session-only and disclose that status. For single-user development, `MONEYLAB_LOCAL_STORE` enables private-file SQLite saving only with a loopback server address. This is plaintext local storage, without account authentication, and must not be publicly exposed. Workspace versions 1–4 import into version 5; exports also preserve unknowns, example-data labels, preferences and the selected schedule. The optional decision parser runs locally without an AI API key. Private feedback delivery requires the owner's Formspree endpoint.
 
 [Phase 1 submission](docs/phase1_submission.md) · [Phase 1 Colab demo](https://colab.research.google.com/github/jbj-02/moneylab/blob/main/notebooks/phase1_demo.ipynb)
 
