@@ -1,210 +1,57 @@
-# 💰 MoneyLab
+# MoneyLab
 
-**Understand your money. Enjoy your life.** MoneyLab is a personalized financial learning and planning app for the transition to financial independence. It combines educational guidance, a careful MoneyLab Check-In, budgeting building blocks, and what-if decisions.
+MoneyLab is a Python and Streamlit decision simulator for students, recent graduates, and anyone working toward financial independence. Use it to see what a move or a new expense would cost and how changing your plan could affect your goals.
+
+[Open MoneyLab](https://moneylab-dev.streamlit.app/) · [Project documentation](docs/README.md)
 
 [![Python checks](https://github.com/jbj-02/moneylab/actions/workflows/tests.yml/badge.svg)](https://github.com/jbj-02/moneylab/actions/workflows/tests.yml)
 
-## Smart Decisions — November 2026
+## Try a decision
 
-**Make your next money decision with a clearer picture.** On Home, write a short description such as "I want to move out. New rent is $1,500 per month, and I take home $3,500 monthly." MoneyLab uses free, private, rules-based text interpretation to identify the decision, extract explicitly provided amounts, and offer a **review screen**. Once you confirm, it opens the existing Moving Out or Decisions page with the reviewed assumptions already entered.
+- **Moving out.** Start with a fictional example, your own numbers, or your My Money profile. Enter your current situation and proposed costs, then review them before calculating. Back and Continue retain your entries. All inputs is available for a single form.
+- **Move timing.** Set a monthly savings amount, a target month, and the cash you want left after moving. Compare waiting, redirecting part of a recorded expense, or choosing a lower rent share and different move-in costs. Compare the timing, cash after the move, and monthly remainder with your current plan.
+- **Purchases and recurring expenses.** Compare a proposed cost with your monthly budget and cash. You can also start by describing a decision in plain English and reviewing the amounts MoneyLab extracted.
+- **My Money and Goals.** Build a profile from income, expenses, loans, accounts, and savings goals. Start empty, add blocks as needed, or use Quick Start. Save and restore your profile and supported scenario drafts with a workspace JSON file.
 
-- **Currently recognized:** Moving/renting, one-time purchases, and recurring commitments.
-- **Financial safeguards:** Gross salary is **never silently converted to take-home income**; an unspecified recurring frequency must be confirmed; unknown bills are **not** claimed to be zero; unrecognized or ambiguous descriptions are rejected rather than guessed.
-- **No automatic profile changes:** The interpreter creates a temporary draft. Moving Out and expense comparisons operate on hypothetical copies, with calculations through the original Decimal projection engine.
-- **Reusable comparison operations:** `scenario_changes.py` handles changes to recorded monthly values, extra recurring costs, and immediate checking withdrawals. Savings are used only when the user explicitly allows them.
-- **No paid AI required:** Smart Decisions and Quick Start Smart Paste use the same existing amount/frequency recognition patterns; neither sends data to a cloud model. Optional cloud AI remains secondary and disabled unless the app owner configures it.
-- **Existing tools retained:** Moving Out, Quick Start, Smart Paste, My Money, Goals, advanced What-if Lab, Learn, and Settings/data export.
+### Example
 
-For exact decision parsing limits, edge cases and manual QA, see [Smart Decisions implementation notes](docs/smart_decisions.md) and the [original alpha testing guide](docs/alpha_release.md).
+If your move-in costs and cash cushion leave a gap of $1,200, saving $200 a month closes it in six months. Cutting a recorded expense by $100 a month and saving that difference brings it down to four months, assuming your budget has room for the transfer.
 
-## Try the new experience
+The move estimate uses whole months, a fixed savings pace, and the balances and expenses you enter. Cash that you have not allowed for upfront costs can count toward your cushion if it remains accessible after the move. The planner shows a monthly shortfall separately from the upfront target. Move timing comparisons are temporary.
 
-**Focused navigation:** Four primary destinations — **Home, Decisions, My Money, Goals**. Moving Out stays accessible from Home and Decisions (including its original `/moving-alpha` link). Quick Start is available from My Money and relevant onboarding prompts. Save/Restore and private feedback are prominent sidebar links; Learn, Quick Start, and the Classic Simulator remain reachable through secondary navigation. No profile is required to test a decision.
-
-The modular profile is built from independent **financial building blocks**:
-
-| Block | Example | Input |
-| --- | --- | --- |
-| Income | Take-home salary, side job | Monthly income |
-| Expense | Rent, groceries, entertainment, subscriptions | Monthly spending |
-| Loan | Student loan, car financing | Balance, APR, required payment |
-| Cash | Checking account | Starting balance |
-| High-yield savings (HYSA) | Emergency fund | Balance, hypothetical annual yield, planned contribution |
-| Roth IRA | Retirement account | Balance, hypothetical annual growth, planned contribution |
-| Dedicated savings goal | Trip, moving fund | Balance, contribution, target, months to goal |
-
-On **My Money**, blocks are grouped into readable cards for Income, Everyday spending, Accounts & savings, Loans & debt, and Savings goals. A single Add action opens a focused editor; each card has Edit and a More options menu for reordering or confirming deletion. Paycheck routing is available under an Advanced expander. The expanded library includes traditional and Roth IRAs, 401(k) variants, 403(b), money market and CD accounts, brokerage, HSA, 529 and traditional savings. All are simplified balances with hypothetical fixed rates; MoneyLab does not yet implement account-specific tax rules, employer contributions, spending restrictions or deposit maturity schedules. Multiple loans are supported. A **classic loan simulator** remains accessible through the sidebar for the Phase 1 calculations and comparison features.
-
-### What the new dashboard answers
-
-- **Where does my monthly income go?** Under **My Money → Advanced · Route take-home income into accounts**, route net income to checking, savings, retirement or investment blocks using fixed dollar amounts or percentages. The engine avoids double-counting routed deposits as income or spending.
-- **How much flexibility does the plan show?** Home emphasizes one careful check-in status, income, recorded commitments, and *additional monthly flexibility*. A reassuring amount appears only if reviewed inputs yield an on-track modeled plan; it is **not verified bank money**.
-- **How might my position change?** Expand **Home → Explore your detailed financial projection** for modeled cash, accounts, debt and net position.
-- **What happens if rent changes?** The **advanced What-if Lab** under Decisions leads with three significant before-and-after results and the most important explanatory effects. Full impact details and charts are optional expanders. Save up to 20 named expense-change scenarios without changing your baseline.
-- **Will I reach my savings goal?** The dedicated **Goals** page creates and edits the same underlying goal blocks used elsewhere. It displays current savings, target, and the projected result at each goal's deadline—even if the dashboard uses a shorter projection horizon.
-- **Can I keep my setup?** Use the prominent sidebar **Save / restore workspace** link. Version-3 JSON files contain profile blocks, named What-if scenarios, and optional current Moving Out or purchase/recurring decision drafts. Prior versions remain importable; outputs must be recalculated after restoring.
-- **What should I check this week?** **Home** shows the most useful check-in finding. Expand **Update your finances and upcoming dates** to refresh a balance or recurring expense, review recorded inputs, and inspect manually entered upcoming paydays or bills.
-- **Can I learn while using the app?** Financial concepts link from decisions, with the optional Learn page still accessible from secondary navigation.
-
-The old simulation remains available at `pages/2_Classic_Simulator.py`.
-
-## Quick Start — set up a profile without adding every block yourself
-
-**Quick Start is accessible from My Money, Home and relevant setup prompts.** It is optional for completing a decision simulation. A focused setup page offers:
-
-- **Smart paste (free and private, default).** Enter a short description such as `My take-home pay is $1,800 biweekly, rent $1,200 monthly, groceries $100 weekly, checking $500.` A deterministic local Python extractor recognizes basic categories and frequency patterns **without external requests, accounts, quotas, models, or API keys**. It is not a language model; it deliberately flags unknown or ambiguous information for confirmation, and cannot understand every phrasing.
-- **Guided setup (no AI, always available).** Four small steps gather take-home income, rent/groceries and other expenses, cash/savings and optional loan information, plus an optional goal. Weekly, biweekly, monthly and yearly amounts are converted by the existing tested financial engine.
-- **Review and approve.** MoneyLab previews every proposed block. You can edit amounts/frequency/names, leave individual entries out, or discard all drafts. The current profile is never changed until you click **Add selected blocks to my profile**. When information is missing, the preview identifies it and requires explicit confirmation rather than silently inventing a loan rate, balance or payment.
-- **Optional experimental cloud AI (under an expander).** On an explicitly opted-in request, OpenAI can extract a set of draft blocks from a plain-language description. The AI **never computes forecasts, imports transactions, or writes directly to a profile**; all data goes through MoneyLab's own validation and the same review/approval screen. If AI is not configured, the non-AI wizard still works.
-
-### Enable optional AI setup on Streamlit Community Cloud
-
-**You do not need a key for Smart paste or guided setup.** Only the optional third-party **cloud AI** path is disabled by default; it remains available for a later experiment if the owner wishes to configure a provider. To enable the existing OpenAI connector, the owner must configure the following in their Streamlit Community Cloud app's **Settings → Secrets** area (do **not** commit real values to GitHub):
-
-```toml
-OPENAI_API_KEY = "YOUR_PRIVATE_OPENAI_API_KEY"
-MONEYLAB_ENABLE_AI_SETUP = true
-```
-
-The server makes bounded calls to the OpenAI Responses API using a supported compact model (currently `gpt-4.1-mini`). The code requests structured output and sets `store = false`, and does not save the original description in the MoneyLab profile. Users must check a consent box before any external request. It is **not automatically included with a ChatGPT subscription**; the account owner must arrange separate API access and billing. See [OpenAI structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs) and [Streamlit Cloud secrets](https://docs.streamlit.io/deploy/concepts/secrets).
-
-**Public-deployment caution:** A three-request limit per browser session, a description length limit and bounded output help reduce accidental usage, but are **not** secure per-user rate limiting. Before enabling AI for an unrestricted public audience, add real authentication / per-user quotas, spending limits, abuse monitoring and a privacy review. Financial descriptions submitted to AI are transmitted to an external service and subject to that service's data policies. Do not solicit banking credentials, account numbers or personally identifying information.
-
-## Workflow and results improvements — November 2026
-
-The **Moving Out Decision Lab** now shows a complete **Included in this comparison** reconciliation: every current expense, proposed expense, upfront cost, checking balance, savings balance, and source status (fictional, entered, confirmed zero, profile or missing). A recorded `$7,500` liquid-funds headline can therefore be traced to its constituent checking and savings amounts, and excluded earmarked goal balances are identified.
-
-New users can still start without a profile. Existing users may explicitly choose **Use My Money figures**, select their recorded current housing expense, and review imported income, expenses, loan payments, cash and accessible savings. The move's proposed rent never overwrites their recorded rent. After a decision, **Review and add these figures to My Money** previews each potential addition or update; every change requires approval, and ambiguous duplicates must be reconciled manually.
-
-Completed Moving Out results show a concise monthly/upfront takeaway, an ordered 6/12/24-month chart, missing-cost explanations, and editable alternatives for lower rent, a roommate share, reduced upfront costs or waiting and saving. Editing the original inputs hides the old result until a fresh comparison is calculated. The chart uses consistent Stay/Move colors and formatted currency.
-
-Portable workspace exports support **version 3**, preserving profile blocks, named scenarios and validated current decision input drafts—not cached results. Restored decisions must be recalculated. The **private tester feedback** page sends only three manually entered answers to a configured Formspree inbox; without configuration, it offers an explicitly unsent downloadable draft instead of claiming delivery.
-
-See [Workflow release and QA guide](docs/workflow_release.md) for privacy setup, testing and limitations.
-
-## Decision Check — why the financial data matters
-
-**Home now prioritizes a single next step.** The app looks at missing inputs, whether they've been reviewed, modeled monthly income gaps, cash shortfalls, underfunded loan interest, savings goals and a user-adjustable illustrative liquid-reserve target. These rules are deterministic and explain their rationale; there is no hidden financial wellness score.
-
-Open the **Decisions** page to explore four paths:
-
-1. **Can I take on a cost?** Compare an immediate one-time checking/cash purchase or a new weekly, biweekly, monthly or yearly commitment. MoneyLab runs the existing projection engine with the hypothetical change, displays monthly flexibility and projected effects, flags increases in modeled cash shortfalls, and checks which *assessed* savings goals are affected. One-time payments deduct only recorded checking/cash, not retirement accounts, goals, unspecified bank transfers, savings withdrawals or imagined borrowing. The comparison never modifies the original profile.
-2. **How prepared am I?** Choose your own target of months of *recorded* outflows and a savings timeframe. The app shows eligible liquid funds, target shortfall and the arithmetic average monthly extra savings needed. It checks whether that amount fits in the modeled first-month unallocated budget; it does not assert that future deposits are achievable.
-3. **How do I reach a goal?** Use a tested cent-level scenario search to find the smallest additional *monthly* goal contribution within the first month's recorded unallocated budget that would reach the deadline in the current fixed-rate model. Where no adjustment fits, the app suggests reviewing the timeline or assumptions rather than inventing money. Goals also show this coaching directly on their cards.
-4. **Explore an existing expense.** The previous What-if Lab remains fully available, including saved scenario comparisons.
-
-The app **does not make a definitive affordability judgment**. MoneyLab's estimates depend on manually entered take-home pay, financial accounts, obligations, and consistent monthly averages. It does not model exact bill/paycheck timing, taxes, unexpected costs, credit approvals, live transactions or guaranteed investment growth. Missing core entries and unreviewed profiles are clearly marked preliminary. Retirement, HSA, 529, CD and earmarked goal balances aren't treated as immediately spendable emergency savings.
-
-**Test the feature:** Load the *fictional example profile* from the sidebar, open Decisions, and compare a $200 recurring monthly cost with the baseline. Then try a one-time purchase, the emergency readiness calculator, and the savings-goal contribution coach.
-
-## Install and run
+## Run locally
 
 Use Python 3.12 or newer.
 
-```powershell
+```sh
 git clone https://github.com/jbj-02/moneylab.git
 cd moneylab
-py -m venv .venv
-.\.venv\Scripts\Activate.ps1
+python -m venv .venv
+```
+
+Activate the environment with `source .venv/bin/activate` on macOS/Linux or `.\.venv\Scripts\Activate.ps1` in PowerShell. Then run:
+
+```sh
 python -m pip install -r requirements.txt
 python -m streamlit run app.py
 ```
 
-To update an existing checkout:
+Run the automated suite with `python -m pytest -q`. GitHub Actions also runs desktop and mobile browser smoke tests on pull requests.
 
-```powershell
-git pull origin main
-python -m pip install -r requirements.txt
-python -m streamlit run app.py
-```
+## Repository layout
 
-macOS/Linux: use `python3 -m venv .venv` and `source .venv/bin/activate`.
+| Path | Contents |
+| --- | --- |
+| `app.py`, `pages/` | Streamlit navigation and page entry points |
+| `moneylab/` | Calculation engines, decision and profile logic, UI, and workspace handling |
+| `tests/` | Calculation regressions, Streamlit tests, and browser smoke checks |
+| [`docs/`](docs/README.md) | Product and technical documentation, course submission, and release archive |
+| [`notebooks/`](notebooks/) | Phase 1 Python demo |
 
-### Tests
+## Data and setup
 
-```powershell
-python -m pytest -v
-```
+MoneyLab uses figures entered by the user and has no bank connection. Work stays in the Streamlit session until you explicitly export it. The built-in text parser runs without an AI API key. The [optional Quick Start cloud AI feature](docs/cloud_setup.md) requires owner configuration and user consent. Private feedback delivery requires the owner's Formspree endpoint. Setup details are in the [workflow release notes](docs/archive/workflow_release.md).
 
-GitHub Actions runs tests on pushes and pull requests. Legacy cash-flow, amortization, and scenario test suites are retained; modular-block tests cover financial invariants, affordability, goals, editable profiles and JSON imports.
+[Phase 1 submission](docs/phase1_submission.md) · [Phase 1 Colab demo](https://colab.research.google.com/github/jbj-02/moneylab/blob/main/notebooks/phase1_demo.ipynb)
 
-## Source structure
-
-- `app.py` — minimal native Streamlit multipage router and shared sidebar controls.
-- `moneylab/ui_app.py` — focused page renderers, card-based block management and add/edit dialogs.
-- `moneylab/decision_language.py` — deterministic decision intent detection and temporary, review-required financial drafts.
-- `moneylab/smart_decision_ui.py` — natural-language entry shared by Home and Decisions, confirmation and safe scenario prefill.
-- `moneylab/scenario_changes.py` — immutable multi-change scenario transformations reused by Moving Out and Decision Check.
-- `moneylab/moving.py`, `moneylab/moving_ui.py` — multi-cost moving comparison and simplified results.
-- `pages/0_Home.py`, `pages/1_My_Money.py`, `pages/2_Goals.py`, `pages/3_Explore.py`, `pages/4_Learn.py` — primary page entrypoints.
-- `pages/6_Settings.py` — secondary workspace import/export page.
-- `pages/2_Classic_Simulator.py` — original one-loan Streamlit interface, preserved.
-- `moneylab/blocks.py` — validation, multiple-block projection, what-if changes, JSON profiles.
-- `moneylab/engine.py` — original pure-Python cash-flow and loan calculation engine.
-- `moneylab/strategies.py` — original extra-payment comparisons.
-- `moneylab/reporting.py` — original CSV reports.
-- `moneylab/checkin.py` — conservative, explainable check-in from financial projection results.
-- `moneylab/decisions.py` — pure, validated decision comparisons, reserve gaps, goal contribution search and next-step ranking.
-- `moneylab/decision_ui.py` — decision-first Streamlit interface replacing the old Explore landing screen.
-- `moneylab/cadence.py` — weekly/biweekly/monthly/yearly conversion and upcoming-payday/bill calendar utilities.
-- `moneylab/workspace.py` — versioned profile and saved scenario JSON storage.
-- `moneylab/learning.py` — contextual mini-lessons and self-check feedback.
-- `moneylab/insights.py` — what-if impact descriptions.
-- `moneylab/presets.py` — one-click suggested financial blocks.
-- `tests/` — regression tests and Streamlit smoke tests.
-- `notebooks/phase1_demo.ipynb` — Colab demonstration of the original engine.
-- `docs/phase1_submission.md` — Phase 1 write-up.
-- `docs/product_roadmap.md` — learning-first product strategy, privacy safeguards and next phases.
-
-## Routing example (manual-first)
-
-1. Add an **Income** block with monthly take-home salary, e.g. $4,000.
-2. Add a **Checking account** block and any other destination accounts (e.g. HYSA, Roth IRA).
-3. In **My Money → Advanced · Route take-home income into accounts**, choose the paycheck and make allocations. Fixed-dollar and percentage routes are supported.
-4. MoneyLab validates that routed amounts do not exceed that income and keeps any unrouted remainder in modeled cash. Existing separate monthly contributions to savings accounts are funded only from cash left after expenses, loan payments, and prior shortfalls.
-5. Check **Home** for the financial summary and **Explore** to test how a changing expense affects your projections. MoneyLab currently models routing destinations but pools checking for the cash-flow projection.
-
-**Important:** Multiple checking blocks may be named as routing destinations, but the current model **pools cash for the financial projection**; it does not yet maintain independent checking account transaction ledgers. Treat the weekly spending number as an educational planning estimate, not verified account funds.
-
-## Scheduling and planning assumptions
-
-Choose weekly, **every two weeks**, monthly or yearly amounts when adding or editing an income/expense block. The monthly simulator converts to a mathematical monthly average: weekly × 52 ÷ 12, biweekly × 26 ÷ 12, monthly as entered, and yearly ÷ 12. It uses `Decimal` and rounds to cents for consistent model arithmetic. **Averaged income and bills are not actual cash arrivals or withdrawals on particular dates.** For example, a yearly $1,200 insurance bill becomes a $100 monthly *planning equivalent*; it is still one real-world yearly bill.
-
-Optionally specify the **next expected payday or bill date** in the focused block editor. Home's review expander shows expected upcoming events, but the calendar does **not** simulate individual account balances on those dates or send reminders. Month-end occurrences clip to shorter months. The calendar is informational and must not be used as a guarantee that sufficient money will be available when a bill is due.
-
-Saved What-if scenarios currently change one expense's *monthly equivalent*. They are compared with the current profile and stored in your Streamlit session. Export a **MoneyLab workspace (JSON)** to preserve both the profile and named scenarios. Older profile-only JSON files are compatible with imports. Saving a scenario does not apply it to the original profile.
-
-## Financial modeling and privacy limitations
-
-**This is an educational planning prototype, not a bank balance, financial forecast or personal financial advice.**
-
-- The current version is **manual-first**. There is no Plaid connection, automatic transaction feed or financial login. **Check-ins only evaluate manually entered financial data.** An on-track status is not an assurance of financial health or accuracy and requires an explicit user review of the current profile. Balances and estimates can become stale.
-- Data is held in the current Streamlit session and **is not automatically saved to an account**. Export your profile JSON to save it; do not enter information you would not want processed by the application host.
-- Income, expenses, scheduled payments, and annual rate assumptions remain constant through the projection.
-- Money and loan interest are calculated using `Decimal` cents; monthly interest is APR/12 on each loan's opening balance. Unpaid loan interest is capitalized monthly; actual contracts vary.
-- Direct deposits from **take-home** pay can be routed to cash and investment/savings blocks. Unallocated income remains in modeled cash. Subsequent recurring contributions from cash occur only from **affordable monthly surplus**; neither deposits nor transfers are double-counted as expenses. Withholding before take-home pay, tax treatment, payroll deductions and employer retirement matches are not modeled. The app tracks shortfalls rather than silently inventing a new loan.
-- HYSA yields and Roth IRA growth are **deterministic hypothetical assumptions**, not quotes or guarantees. Retirement contribution limits, eligibility, taxes, investment volatility, inflation and withdrawal restrictions are **not modeled**.
-- The extra weekly spending estimate equals available *first-month unallocated funds* × 12/52 after entered expenses, payments and affordable transfers; it omits costs the user has not entered and does not represent spendable retirement funds.
-- Net position includes only the modeled cash, loan balances and other included account blocks. This is not a complete statement of net worth.
-- Goal blocks each represent a **separate, earmarked account** to prevent counting one savings balance toward multiple goals automatically.
-
-## Roadmap
-
-**Now:** UX Refresh with five native pages, concise Home check-in, readable grouped financial-block cards with focused editing, integrated goal creation and deadline projections, streamlined Explain/Explore impact summaries, and secondary Settings; alongside empty-first onboarding, recurring amounts, optional dates, lessons, routing, scenarios, and JSON/CSV exports.
-
-**Next (course milestones):** User testing with recent graduates; further mobile-size layout and accessibility improvements; goal priority settings; recurring expense exceptions; and a true date-based short-term account cash ledger. Scheduled notifications, history and persistent logins would require separate consent, security and storage design.
-
-**Later (post-course):** Optional secure profile accounts and mobile apps, transaction CSV imports, and economic context APIs.
-
-**Much later, optional:** Plaid integration for consent-based bank transaction syncing. It would require rigorous privacy/security review and is *not* a dependency of MoneyLab's core value.
-
-## Academic demo
-
-- [Phase 1 description](docs/phase1_submission.md)
-- [Google Colab notebook](https://colab.research.google.com/github/jbj-02/moneylab/blob/main/notebooks/phase1_demo.ipynb)
-
-The Colab notebook demonstrates the original calculation engine, while the modular user interface is the next development stage.
-
-## License
-
-No license chosen. All rights reserved unless added later.
+All rights reserved. The project currently has no open-source license.

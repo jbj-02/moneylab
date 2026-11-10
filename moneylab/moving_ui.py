@@ -10,6 +10,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
+from moneylab.move_goal_ui import render_move_goal
 from moneylab.moving import FIELDS, LABELS, compare_moving, comparison_csv
 from moneylab.moving_profile import (
     housing_candidates, suggest_housing_id, profile_to_moving,
@@ -662,6 +663,8 @@ def _render_result(report):
             "A negative remainder is a modeled shortfall, not available cash."
         )
 
+    render_move_goal(report, st.session_state.move_inputs_at_run, money)
+    st.divider()
     details = report["details"]
     with st.expander("Included in this comparison", expanded=False):
         _markdown("#### Included in this comparison")
@@ -782,7 +785,8 @@ def _render_result(report):
     if b.button("Explore another decision", key="move_other_decision",
                 use_container_width=True):
         st.switch_page("pages/3_Explore.py")
-    _variation(report)
+    with st.expander("More move comparisons"):
+        _variation(report)
     _profile_review(report)
 
     with st.expander(

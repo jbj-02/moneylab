@@ -1,6 +1,6 @@
 # MoneyLab alpha — decision-first testing guide
 
-**Historical release guide:** The original decision-first alpha was merged into `main` through [PR #1](https://github.com/jbj-02/moneylab/pull/1) in October 2026. For the newer language-based workflow and UI refinements, see [Smart Decisions](smart_decisions.md). The original pre-merge checklist below is retained as a testing reference; it no longer describes an open draft PR.
+**Historical release guide:** The original decision-first alpha was merged into `main` through [PR #1](https://github.com/jbj-02/moneylab/pull/1) in October 2026. For the newer language-based workflow and UI refinements, see [Smart Decisions](../smart_decisions.md). The original pre-merge checklist below is retained as a testing reference; it no longer describes an open draft PR.
 
 ## Product intent and implementation decisions
 

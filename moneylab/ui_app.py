@@ -344,8 +344,7 @@ def render_home():
     st.title("MoneyLab")
     st.caption("Make your next money decision with a clearer picture.")
     from moneylab.smart_decision_ui import render_smart_decision_entry
-    render_smart_decision_entry("home")
-    st.markdown("### Or choose a decision to explore")
+    st.markdown("### What are you trying to do?")
     left, right = st.columns(2, gap="medium")
     with left:
         if st.button(
@@ -371,6 +370,8 @@ def render_home():
             use_container_width=True, key="home_decision_explore",
         ):
             st.switch_page("pages/5_Quick_Start.py")
+    with st.expander("Describe a decision in your own words", expanded=bool(st.session_state.get("smart_draft"))):
+        render_smart_decision_entry("home")
     st.caption(
         "Start with fictional numbers or add just enough information "
         "for the decision you want to compare."

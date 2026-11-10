@@ -42,7 +42,7 @@ def test_move_guided_back_preserves_income_rent_and_unknown_savings():
     app = click(app, 'Compare stay vs move')
     assert app.session_state['move_result']['monthly_margin_after'] == Decimal('2000')
     assert app.session_state['ml_blocks'] == []
-    assert not app.number_input  # no editable assumptions beside a cached answer
+    assert not any(n.key in ('move_income', 'move_rent') for n in app.number_input)
     app = click(app, 'Edit original assumptions')
     assert not app.metric
     assert next(n for n in app.number_input if n.key == 'move_income').value == 3500
@@ -126,3 +126,22 @@ def test_switching_source_clears_all_guided_example_values():
     assert app.session_state['move_step'] == 0
     assert all(n.value is None for n in app.number_input)
     assert app.session_state['move_draft_values'] == {}
+
+
+def test_move_goal_comparison_shows_the_change_in_timing():
+    app = start('pages/7_Moving_Out_Alpha.py')
+    app = click(app, 'Continue')
+    app = click(app, 'Continue')
+    app = click(app, 'Compare stay vs move')
+    set_number(app, 'move_goal_savings', 200.0)
+    set_number(app, 'move_goal_cushion', 6300.0)
+    set_number(app, 'move_goal_deadline', 4)
+    set_number(app, 'move_goal_expense_total', 250.0)
+    app = app.run()
+    app = click(app, 'Try cutting $100 per month to meet the target')
+    app = app.selectbox(key='move_goal_comparison').select('Reduce an expense').run()
+    assert not app.exception
+    assert [m.value for m in app.metric if m.label == 'Move-in costs plus cushion'] == [
+        'In 6 months', 'In 4 months',
+    ]
+    assert app.session_state['ml_blocks'] == []
