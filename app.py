@@ -18,13 +18,13 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-      .block-container {max-width: 1100px; padding-top: 1.8rem; padding-bottom: 4rem;}
+      .block-container {max-width: 1000px; padding-top: 1.8rem; padding-bottom: 4rem;}
       h1, h2, h3 {letter-spacing: -0.025em;}
       h1 {font-weight: 750;}
       [data-testid="stMetric"] {
         background: var(--secondary-background-color);
         border: 1px solid rgba(128,128,128,.17);
-        border-radius: 14px;
+        border-radius: 8px;
         padding: 1rem;
       }
       [data-testid="stMetricLabel"] {font-size: .86rem;}
@@ -71,10 +71,10 @@ if "ml_saved_scenarios" not in st.session_state:
 
 moving_alpha = st.Page("pages/7_Moving_Out_Alpha.py", title="Move Out", icon="🏡", url_path="moving-alpha", visibility="hidden")
 
-home = st.Page("pages/0_Home.py", title="Home", icon="🏠", default=True)
-money = st.Page("pages/1_My_Money.py", title="My Money", icon="💼", url_path="money")
-goals = st.Page("pages/2_Goals.py", title="Goals", icon="🎯", url_path="goals")
-explore = st.Page("pages/3_Explore.py", title="Decisions", icon="🧭", url_path="explore")
+home = st.Page("pages/0_Home.py", title="My Plan", default=True)
+money = st.Page("pages/1_My_Money.py", title="My Finances", url_path="money")
+goals = st.Page("pages/2_Goals.py", title="Goals", url_path="goals", visibility="hidden")
+explore = st.Page("pages/3_Explore.py", title="Explore Decisions", url_path="explore")
 learn = st.Page("pages/4_Learn.py", title="Learn", icon="🎓", url_path="learn", visibility="hidden")
 quick_start = st.Page(
     "pages/5_Quick_Start.py", title="Quick Start",
@@ -94,7 +94,7 @@ feedback = st.Page(
 )
 
 current_page = st.navigation(
-    [home, explore, money, goals, moving_alpha, quick_start, learn, settings, classic, feedback],
+    [home, money, explore, goals, moving_alpha, quick_start, learn, settings, classic, feedback],
     position="sidebar",
     expanded=True,
 )
@@ -123,7 +123,7 @@ def clear_financial_profile():
 
 
 with st.sidebar:
-    st.caption("MONEYLAB · FINANCIAL DECISIONS")
+    st.caption("MONEYLAB")
     st.page_link(
         settings, label="Save / restore workspace",
         use_container_width=True,
@@ -159,9 +159,9 @@ with st.sidebar:
             disabled=not confirm_reset,
         )
     with st.expander("More tools"):
-        st.page_link(quick_start, label="Quick Start", icon="✨")
+        st.page_link(quick_start, label="Guided setup")
         st.page_link(learn, label="Learn", icon="📚")
-        st.page_link(classic, label="Classic simulator", icon="🧮")
+        st.page_link(classic, label="Classic simulator (legacy)", icon="🧮")
     st.caption(
         "Session only — not autosaved. Export a workspace to keep your "
         "figures and decision drafts."

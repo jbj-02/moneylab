@@ -198,7 +198,7 @@ def add_from_preset(name, blocks):
 
 @st.dialog("Build your financial profile", width="large")
 def add_block_dialog(preferred_kind=None, preset=None):
-    st.caption("Create one building block. Everything is editable later.")
+    st.caption("Choose what you want to record. You can edit it later.")
     if preset:
         seed = PRESET_CATALOG[preset]
         preferred_kind = seed["kind"]
@@ -209,12 +209,12 @@ def add_block_dialog(preferred_kind=None, preset=None):
                     form_identity=f"add_{preset or preferred_kind or 'custom'}")
 
 
-@st.dialog("Edit financial block", width="large")
+@st.dialog("Edit financial detail", width="large")
 def edit_block_dialog(block_id):
     blocks, *_ = context()
     selected = next((item for item in blocks if item["id"] == block_id), None)
     if selected is None:
-        st.error("This block was removed. Refresh your workspace.")
+        st.error("This entry was removed. Refresh your workspace.")
         return
     edit_block_form("edit", seed=selected, preferred_kind=selected["kind"],
                     form_identity=f"edit_{block_id}")
@@ -247,7 +247,7 @@ def edit_block_form(action, *, seed=None, preferred_kind=None, form_identity="ed
     )
     fields = fields_for(kind, form_identity, source, frequency=frequency)
     if st.button(
-        "Save changes" if action == "edit" else "Add to my money",
+        "Save changes" if action == "edit" else "Save detail",
         type="primary", use_container_width=True,
         key=f"{form_identity}_submit",
     ):
@@ -334,154 +334,85 @@ def block_card(block, index, total):
                 f"Confirm removal of {block['name']}",
                 key=f"confirm_delete_{block['id']}",
             )
-            if st.button("Remove block", key=f"remove_{block['id']}",
+            if st.button("Remove entry", key=f"remove_{block['id']}",
                          disabled=not confirm):
                 remove_block(block["id"])
 
 
 def render_home():
     blocks, result, summary, months, _, checkin, _ = context()
-    st.title("MoneyLab")
-    st.caption("Make your next money decision with a clearer picture.")
-    from moneylab.smart_decision_ui import render_smart_decision_entry
-    st.markdown("### What are you trying to do?")
-    left, right = st.columns(2, gap="medium")
-    with left:
-        if st.button(
-            "🏡 Can I afford to move out?", type="primary",
-            use_container_width=True, key="home_decision_move",
-        ):
-            st.switch_page("pages/7_Moving_Out_Alpha.py")
-        if st.button(
-            "🛟 How financially prepared am I?",
-            use_container_width=True, key="home_decision_reserves",
-        ):
-            st.session_state.dc_decision_type = "🛟 How prepared am I?"
-            st.switch_page("pages/3_Explore.py")
-    with right:
-        if st.button(
-            "💳 Can I take on a new expense?",
-            use_container_width=True, key="home_decision_expense",
-        ):
-            st.session_state.dc_decision_type = "💳 Can I take on a cost?"
-            st.switch_page("pages/3_Explore.py")
-        if st.button(
-            "💼 Build my financial picture",
-            use_container_width=True, key="home_decision_explore",
-        ):
-            st.switch_page("pages/5_Quick_Start.py")
-    with st.expander("Describe a decision in your own words", expanded=bool(st.session_state.get("smart_draft"))):
-        render_smart_decision_entry("home")
-    st.caption(
-        "Start with fictional numbers or add just enough information "
-        "for the decision you want to compare."
-    )
-
+    st.title("My Plan")
     if not blocks:
-        st.markdown("### Want a fuller financial picture?")
         st.write(
-            "You can explore decisions without a profile. If you'd also "
-            "like ongoing goals and a financial check-in, add several "
-            "blocks at once through our guided Quick Start."
+            "MoneyLab helps you see where your money goes, plan for a savings goal, "
+            "and test a big decision before you make it."
         )
-        if st.button(
-            "✨ Set up my finances in a few steps",
-            key="ml_home_quick_start",
-        ):
+        st.subheader("What would you like to do?")
+        st.caption("Start with take-home pay and regular bills. Add balances, debt and goals as you go.")
+        if st.button("Set up my finances", type="primary", key="ml_home_quick_start"):
             st.switch_page("pages/5_Quick_Start.py")
-        if st.button(
-            "Add a single financial block",
-            key="ml_home_add_manual",
-        ):
-            add_block_dialog()
-        st.caption(
-            "Sample figures are fictional. Nothing is imported or saved "
-            "automatically, and no bank account is required."
-        )
+        a, b = st.columns(2)
+        a.page_link("pages/7_Moving_Out_Alpha.py", label="Try a move-out decision", icon="🏡")
+        b.page_link("pages/3_Explore.py", label="Compare a purchase or monthly cost")
+        st.caption("You can explore with fictional figures or enter just what you need for one decision.")
+        # Keep the existing plain-English entry point and its review flow.
+        from moneylab.smart_decision_ui import render_smart_decision_entry
+        with st.expander("Describe a decision in your own words",
+                         expanded=st.session_state.get("smart_origin") == "home"):
+            render_smart_decision_entry("home")
         return
 
-    st.markdown("#### One useful next step")
-    recommendation = next_best_step(
-        blocks, months=months, reviewed=checkin["reviewed"],
-    )
+    st.caption("See what you entered, what it could mean over time, and what you could do next.")
+    st.subheader("Your finances today")
+    committed = summary["monthly_expenses"] + summary["first_month_loan_payments"]
+    a, b, c = st.columns(3)
+    a.metric("Monthly take-home", dollars(summary["monthly_income"]))
+    b.metric("Recorded expenses and loan payments", dollars(committed))
+    c.metric("Additional monthly flexibility",
+             dollars(summary["unallocated_monthly_buffer"])
+             if checkin["status"] == "on_track" else "Review needed")
+    st.caption("Monthly flexibility is what the model leaves after recorded obligations and planned transfers it can fund.")
+    show_checkin_status(checkin)
+    with st.expander("Update your finances and upcoming dates",
+                     expanded=st.session_state.get("ml_expand_review", False)):
+        render_quick_review(blocks, result, summary, checkin)
+    st.page_link("pages/1_My_Money.py", label="Edit my finances")
+
+    st.subheader("Your projected outlook")
+    st.caption("These estimates use your recorded amounts and assume the same monthly pattern.")
+    a, b = st.columns(2)
+    a.metric(f"Projected checking cash in {months} months", dollars(summary["ending_cash_savings"]))
+    b.metric(f"Projected debt in {months} months", dollars(summary["ending_debt"]))
+    if summary["ending_unfunded_shortfall"]:
+        st.warning(f"The projection ends with a cash shortfall of {dollars(summary['ending_unfunded_shortfall'])}.")
+    if any(row["negative_amortization"] for row in result["monthly_records"][1:]):
+        st.warning("One or more loan balances grow because payments do not cover interest.")
+    with st.expander("See the full projection"):
+        st.line_chart(as_chart(result), height=300)
+    render_goals(embedded=True, view=(blocks, months, checkin))
+
+    from moneylab.smart_decision_ui import render_smart_decision_entry
+    with st.expander("Describe a decision in your own words",
+                     expanded=st.session_state.get("smart_origin") == "home"):
+        render_smart_decision_entry("home")
+    st.subheader("Suggested next step")
+    recommendation = next_best_step(blocks, months=months, reviewed=checkin["reviewed"])
     with st.container(border=True):
         st.markdown(f"**{recommendation['title']}**")
         st.write(recommendation["why"])
         target = recommendation["action"]
-        label = (
-            "Review my figures" if target == "review" else
-            "Open Quick Start" if target == "quick_start" else
-            "Explore a decision" if target == "decisions" else
-            "Review my goals" if target == "goals" else
-            "Open My Money"
-        )
-        if st.button(label, type="primary", key="ml_home_next_step"):
-            if target == "review":
+        if target == "review":
+            if st.button("Review my figures", key="ml_home_next_step"):
                 st.session_state.ml_expand_review = True
                 st.rerun()
-            else:
-                page = {
-                    "quick_start": "pages/5_Quick_Start.py",
-                    "decisions": "pages/3_Explore.py",
-                    "goals": "pages/2_Goals.py",
-                    "my_money": "pages/1_My_Money.py",
-                }[target]
-                st.switch_page(page)
-
-    st.markdown("#### Your check-in")
-    show_checkin_status(checkin)
-
-    a, b, c = st.columns(3)
-    a.metric("Monthly take-home", dollars(summary["monthly_income"]))
-    committed = summary["monthly_expenses"] + summary["first_month_loan_payments"]
-    b.metric("Recorded monthly obligations", dollars(committed))
-    c.metric(
-        "Additional monthly flexibility",
-        dollars(summary["unallocated_monthly_buffer"])
-        if checkin["status"] == "on_track" else "Review needed",
-    )
-    st.caption(
-        "Figures reflect manual entries. Spending flexibility is an estimate "
-        "after recorded costs and affordable planned transfers, not verified bank money."
-    )
-
-    if st.button("Review or update my finances", key="home_review"):
-        st.session_state.ml_expand_review = True
-        st.rerun()
-    if st.button("Add another building block", key="home_add_block"):
-        add_block_dialog()
-    if st.button(
-        "✨ Quick Start · add more finances",
-        key="ml_existing_profile_quick_start",
-    ):
-        st.switch_page("pages/5_Quick_Start.py")
-    if result["goals"]:
-        st.markdown("#### Your goals")
-        for goal in result["goals"][:3]:
-            with st.container(border=True):
-                st.markdown(f"**{goal['name']}**")
-                starting = goal["starting_balance"]
-                progress = min(float(starting / goal["target"]), 1.0)
-                st.progress(max(0.0, progress))
-                st.caption(
-                    f"{dollars(starting)} saved / {dollars(goal['target'])} target. "
-                    "Open Goals to view the projected timeline."
-                )
-
-    with st.expander(
-        "Update your finances and upcoming dates",
-        expanded=st.session_state.get("ml_expand_review", False),
-    ):
-        render_quick_review(blocks, result, summary, checkin)
-
-    with st.expander("Explore your detailed financial projection"):
-        st.line_chart(as_chart(result), height=320)
-        st.caption(
-            "Projection assumes your recorded monthly averages and hypothetical "
-            "account rates stay constant. Timing of individual bills is not modeled."
-        )
-        if any(row["negative_amortization"] for row in result["monthly_records"][1:]):
-            st.warning("One or more loans grows because payments do not cover interest.")
+        else:
+            page, label = {
+                "quick_start": ("pages/5_Quick_Start.py", "Finish guided setup"),
+                "decisions": ("pages/3_Explore.py", "Explore a decision"),
+                "goals": ("pages/2_Goals.py", "Review my goals"),
+                "my_money": ("pages/1_My_Money.py", "Edit my finances"),
+            }[target]
+            st.page_link(page, label=label)
 
 
 def render_quick_review(blocks, result, summary, checkin):
@@ -563,64 +494,51 @@ def render_quick_review(blocks, result, summary, checkin):
 
 def render_my_money():
     blocks, result, summary, months, _, checkin, _ = context()
-    st.title("My Money")
-    st.caption("Build a picture of your finances, one block at a time.")
-    top, other = st.columns([3, 1], vertical_alignment="center")
-    with top:
-        st.write(f"**{len(blocks)} building blocks** in your profile")
-    with other:
-        if st.button("＋ Add a block", type="primary", use_container_width=True):
-            add_block_dialog()
-
-    with st.container(border=True):
-        st.markdown("#### Save time with Quick Start")
-        st.caption(
-            "Add multiple income, expense, savings, debt or goal blocks together. "
-            "Guided questions and free private text extraction are available."
-        )
-        if st.button(
-            "✨ Quick Start · add multiple blocks",
-            key="ml_money_quick_start",
-        ):
-            st.switch_page("pages/5_Quick_Start.py")
-
+    st.title("My Finances")
+    st.caption("These are the figures MoneyLab uses for your plan and decisions.")
     if not blocks:
-        st.info(
-            "Nothing here yet. Use Quick Start to add several blocks or "
-            "choose Add a block to enter them individually."
-        )
-    else:
-        groups = {
-            "Income": ("income",),
-            "Everyday spending": ("expense",),
-            "Accounts & savings": ("cash", "hysa", "roth_ira", "account"),
-            "Loans & debt": ("loan",),
-            "Savings goals": ("goal",),
-        }
-        all_ids = [b["id"] for b in blocks]
-        for group_name, kinds in groups.items():
-            members = [b for b in blocks if b["kind"] in kinds]
-            if not members:
-                continue
-            st.markdown(f"#### {group_name}")
-            for block in members:
-                block_card(block, all_ids.index(block["id"]), len(blocks))
+        st.write("Begin with income and regular expenses. You can come back for other details.")
+        if st.button("Start guided setup", type="primary", key="ml_money_quick_start"):
+            st.switch_page("pages/5_Quick_Start.py")
+        if st.button("Add one item", key="ml_money_add_one"):
+            add_block_dialog()
+        return
+    a, b = st.columns(2)
+    if a.button("Add income, expense or account", type="primary"):
+        add_block_dialog()
+    if b.button("Add several items with guided setup", key="ml_money_quick_start"):
+        st.switch_page("pages/5_Quick_Start.py")
+    groups = {
+        "Income": ("income",),
+        "Everyday spending": ("expense",),
+        "Accounts & savings": ("cash", "hysa", "roth_ira", "account"),
+        "Loans & debt": ("loan",),
+        "Savings goals": ("goal",),
+    }
+    all_ids = [b["id"] for b in blocks]
+    for group_name, kinds in groups.items():
+        members = [b for b in blocks if b["kind"] in kinds]
+        if not members:
+            continue
+        st.markdown(f"#### {group_name}")
+        for block in members:
+            block_card(block, all_ids.index(block["id"]), len(blocks))
 
-    st.markdown("#### Add something common")
-    shortcuts = [
-        ("Paycheck", "takehome"),
-        ("Rent", "rent"),
-        ("Checking", "checking"),
-        ("HYSA", "hysa"),
-        ("Emergency goal", "emergency"),
-        ("Student loan", "student"),
-    ]
-    columns = st.columns(3)
-    for index, (label, preset) in enumerate(shortcuts):
-        with columns[index % 3]:
-            if st.button(f"＋ {label}", key=f"shortcut_{preset}",
-                         use_container_width=True):
-                add_block_dialog(preset=preset)
+    with st.expander("Common entries"):
+        shortcuts = [
+            ("Paycheck", "takehome"),
+            ("Rent", "rent"),
+            ("Checking", "checking"),
+            ("HYSA", "hysa"),
+            ("Emergency goal", "emergency"),
+            ("Student loan", "student"),
+        ]
+        columns = st.columns(3)
+        for index, (label, preset) in enumerate(shortcuts):
+            with columns[index % 3]:
+                if st.button(f"＋ {label}", key=f"shortcut_{preset}",
+                             use_container_width=True):
+                    add_block_dialog(preset=preset)
 
     incomes = [b for b in blocks if b["kind"] == "income"]
     destinations = [
@@ -726,10 +644,16 @@ def render_my_money():
     elif incomes:
         st.caption("Add a checking or savings account to enable paycheck routing.")
 
-def render_goals():
-    blocks, result, summary, months, _, _, _ = context()
-    st.title("Your goals")
-    st.caption("Turn something you want into a plan you can follow.")
+def render_goals(*, embedded=False, view=None):
+    if view is None:
+        blocks, _, _, months, _, checkin, _ = context()
+    else:
+        blocks, months, checkin = view
+    if embedded:
+        st.markdown("#### Savings goals")
+    else:
+        st.title("Your goals")
+        st.caption("Turn something you want into a plan you can follow.")
     if st.button("＋ Add a savings goal", type="primary"):
         add_block_dialog(preferred_kind="goal")
 
@@ -763,6 +687,12 @@ def render_goals():
                 f"{dollars(saved)} saved now · {dollars(Decimal(goal['monthly_contribution']))} "
                 "planned per month"
             )
+            hit = next((row["month"] for row in deadline_projection["monthly_records"]
+                        if row["balances"][goal["id"]] >= target), None)
+            if hit is not None:
+                st.caption("Target already reached." if hit == 0 else f"Estimated time to target: {hit} months.")
+            else:
+                st.caption(f"The target is beyond this {projection_horizon}-month projection.")
             projected = outcome["projected_at_deadline"]
             if projected is None:
                 st.info("The selected horizon does not reach this goal's deadline.")
@@ -777,12 +707,24 @@ def render_goals():
                     f"{dollars(outcome['gap_at_deadline'])} below your target."
                 )
                 with st.expander("What could help reach this goal?"):
+                    if checkin["missing"] or not checkin["reviewed"]:
+                        st.info("Review your income, expenses, cash and commitments before testing a higher contribution.")
+                        continue
                     coaching = goal_next_step(
                         blocks, goal["id"], months=months,
                         reviewed=st.session_state.get("ml_reviewed_signature")
                         == profile_to_json(blocks),
                     )
-                    if coaching["feasible_with_buffer"]:
+                    forecast = coaching.get("forecast")
+                    if (coaching["feasible_with_buffer"] and forecast
+                            and not any(row["unfunded_shortfall"] for row in forecast["monthly_records"])):
+                        affected = [
+                            other["name"] for other in forecast["goals"]
+                            if other["id"] != goal["id"]
+                            and other["projected_at_deadline"] is not None
+                            and forecasts[other["id"]]["projected_at_deadline"] is not None
+                            and other["projected_at_deadline"] < forecasts[other["id"]]["projected_at_deadline"]
+                        ]
                         st.write(
                             f"Try **{dollars(coaching['additional_monthly'])} more "
                             f"per month** (total planned contribution "
@@ -791,10 +733,12 @@ def render_goals():
                             "current model without exceeding the first month's "
                             "modeled unallocated buffer."
                         )
+                        if affected:
+                            st.warning("This scenario reduces projected savings for " + ", ".join(affected) + ".")
                     else:
                         st.write(
-                            "An additional transfer within the first month's "
-                            "recorded unallocated budget does not reach this goal. "
+                            "The model could not find an increase that reaches this goal "
+                            "within the recorded monthly room and without a cash shortfall. "
                             "Explore extending its deadline, changing the "
                             "target, or reviewing other spending."
                         )

@@ -35,11 +35,17 @@ def run():
             page = context.new_page()
             page.goto(BASE, wait_until="domcontentloaded", timeout=45000)
             expect(page.get_by_role(
-                "heading", name="MoneyLab", exact=True
+                "heading", name="My Plan", exact=True
             )).to_be_visible(timeout=45000)
             assert_no_horizontal_scroll(page, f"{label} home")
             page.screenshot(path=str(OUTPUT / f"{label}-home.png"),
                             full_page=True)
+
+            page.get_by_role("button", name="Set up my finances").click()
+            expect(page.get_by_role("heading", name="Set up My Finances")).to_be_visible(timeout=20000)
+            expect(page.get_by_text("Step 1 of 4 · Income", exact=True)).to_be_visible()
+            assert_no_horizontal_scroll(page, f"{label} setup")
+            page.screenshot(path=str(OUTPUT / f"{label}-setup.png"), full_page=True)
 
             # Existing direct route must remain reachable even if the page
             # is hidden from primary navigation.

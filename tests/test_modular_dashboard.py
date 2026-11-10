@@ -30,12 +30,9 @@ def test_home_starts_empty_and_uses_native_navigation():
     app = start()
     assert not errors(app), errors(app)
     assert app.session_state["ml_blocks"] == []
-    assert any("What are you trying to do?" in text.value
-               for text in app.markdown)
-    assert any(b.label == "🏡 Can I afford to move out?" for b in app.button)
-    assert any(b.label == "💳 Can I take on a new expense?" for b in app.button)
-    assert any(b.label == "🛟 How financially prepared am I?" for b in app.button)
-    assert any(b.label == "💼 Build my financial picture" for b in app.button)
+    assert any("My Plan" in t.value for t in app.title)
+    assert any(b.label == "Set up my finances" for b in app.button)
+    assert any(link.label == "Try a move-out decision" for link in app.get("page_link"))
     assert len(app.sidebar.radio) == 0
     assert any(x.label == "Save / restore workspace"
                for x in app.sidebar.page_link)
@@ -51,18 +48,17 @@ def test_sample_profile_and_home_metrics():
     metrics = {x.label: x.value for x in app.metric}
     assert metrics["Monthly take-home"] == "$3,800.00"
     assert metrics["Additional monthly flexibility"] == "Review needed"
-    assert any("check-in" in text.value.lower() for text in app.markdown)
-    assert any(b.label == "✨ Quick Start · add more finances" for b in app.button)
+    assert {heading.value for heading in app.subheader} >= {"Your finances today", "Your projected outlook", "Suggested next step"}
 
 
 def test_my_money_shows_existing_blocks():
     app = load_example(start())
     app = navigate(app, "1_My_Money.py")
     assert not errors(app), errors(app)
-    assert any("My Money" in t.value for t in app.title)
+    assert any("My Finances" in t.value for t in app.title)
     assert any("Take-home salary" in m.value for m in app.markdown)
-    assert any(b.label == "＋ Add a block" for b in app.button)
-    assert any(b.label == "✨ Quick Start · add multiple blocks"
+    assert any(b.label == "Add income, expense or account" for b in app.button)
+    assert any(b.label == "Add several items with guided setup"
                for b in app.button)
 
 
@@ -120,7 +116,7 @@ def test_review_action_and_notes_remain_on_home():
 def test_home_explains_single_next_step():
     app = load_example(start())
     assert not errors(app), errors(app)
-    assert any("One useful next step" in item.value for item in app.markdown)
+    assert any("Suggested next step" in item.value for item in app.subheader)
     assert any("Confirm your financial inputs" in item.value for item in app.markdown)
     assert any(b.label == "Review my figures" for b in app.button)
 
@@ -169,3 +165,23 @@ def test_decisions_empty_profile_supports_minimal_inputs():
     assert not errors(app), errors(app)
     assert any(b.label == "Continue" for b in app.button)
     assert app.session_state["ml_blocks"] == []
+
+
+def test_savings_focused_user_sees_timing_and_reviewed_goal_adjustment():
+    app = start()
+    app.session_state["ml_blocks"] = [
+        {"id": "pay", "kind": "income", "name": "Pay", "monthly_amount": "3000"},
+        {"id": "bills", "kind": "expense", "name": "Bills", "monthly_amount": "2200"},
+        {"id": "checking", "kind": "cash", "name": "Checking", "balance": "2000"},
+        {"id": "reserve", "kind": "goal", "name": "Emergency fund", "balance": "8000",
+         "target": "10000", "annual_rate": "0", "target_months": 6,
+         "monthly_contribution": "200"},
+    ]
+    app = app.run()
+    assert not errors(app), errors(app)
+    assert any("Estimated time to target: 10 months" in item.value for item in app.caption)
+    assert any("Review your income" in item.value for item in app.info)
+    app = next(b for b in app.button if b.label == "I've reviewed my entered financial information").click().run()
+    assert not errors(app), errors(app)
+    assert any("$133.34 more" in item.value for item in app.markdown)
+    assert app.session_state["ml_blocks"][3]["monthly_contribution"] == "200"
