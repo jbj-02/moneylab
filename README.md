@@ -1,23 +1,23 @@
 # MoneyLab
 
-MoneyLab is a Python and Streamlit decision simulator for students, recent graduates, and anyone working toward financial independence. Use it to see what a move or a new expense would cost and how changing your plan could affect your goals.
+MoneyLab helps students, recent graduates and early-career professionals turn their recorded finances into a practical plan. Choose a goal, see the saving pace your budget can support, and compare a decision before changing your plan. Python financial services power the current Streamlit interface; the frontend is a replaceable product choice.
 
 [Open MoneyLab](https://moneylab-dev.streamlit.app/) · [Project documentation](docs/README.md)
 
 [![Python checks](https://github.com/jbj-02/moneylab/actions/workflows/tests.yml/badge.svg)](https://github.com/jbj-02/moneylab/actions/workflows/tests.yml)
 
-## Try a decision
+## Build a plan
 
-- **Moving out.** Start with a fictional example, your own numbers, or your My Money profile. Enter your current situation and proposed costs, then review them before calculating. Back and Continue retain your entries. All inputs is available for a single form.
-- **Move timing.** Set a monthly savings amount, a target month, and the cash you want left after moving. Compare waiting, redirecting part of a recorded expense, or choosing a lower rent share and different move-in costs. Compare the timing, cash after the move, and monthly remainder with your current plan.
-- **Purchases and recurring expenses.** Compare a proposed cost with your monthly budget and cash. You can also start by describing a decision in plain English and reviewing the amounts MoneyLab extracted.
-- **My Money and Goals.** Build a profile from income, expenses, loans, accounts, and savings goals. Start empty, add blocks as needed, or use Quick Start. Save and restore your profile and supported scenario drafts with a workspace JSON file.
+- **Start with a priority.** One setup flow asks what matters, your monthly money, then balances and debts. Blank answers remain unknown. The portion of savings assigned to a goal is counted once.
+- **Know your next step.** My Plan ranks shortfalls, growing debt and missed goals. Goal suggestions calculate a saving pace through the full engine and say when a deadline cannot be funded.
+- **Compare before committing.** Test purchases, recurring costs, recorded expenses, income, loan payments or a move. See cash, debt, interest and goal effects. Inspect the exact edits and explicitly approve any plan update; exploring is temporary.
+- **Return to your figures.** My Finances edits the shared profile. Download a workspace backup or enable the documented single-user local store. Public account-based saving remains deferred.
 
 ### Example
 
-If your move-in costs and cash cushion leave a gap of $1,200, saving $200 a month closes it in six months. Cutting a recorded expense by $100 a month and saving that difference brings it down to four months, assuming your budget has room for the transfer.
+An emergency fund has $8,000 saved, a $10,000 target six months away, and $200/month planned. The model shows an $800 deadline gap and tests $333.34/month as an alternative. If recorded commitments leave only $200/month available, it reports that the deadline cannot be funded; you can compare a later date or a reduction you choose to a recorded expense.
 
-The move estimate uses whole months, a fixed savings pace, and the balances and expenses you enter. Cash that you have not allowed for upfront costs can count toward your cushion if it remains accessible after the move. The planner shows a monthly shortfall separately from the upfront target. Move timing comparisons are temporary.
+Projections use monthly averages, constant entered rates and the balances you record. They do not infer borrowing, new income, taxes or daily bill timing. Separate recommendations may use the same available money and must be compared one at a time.
 
 ## Run locally
 
@@ -36,7 +36,7 @@ python -m pip install -r requirements.txt
 python -m streamlit run app.py
 ```
 
-Run the automated suite with `python -m pytest -q`. GitHub Actions also runs desktop and mobile browser smoke tests on pull requests.
+Run the automated suite with `python -m pytest -q`. GitHub Actions also runs desktop and mobile Chromium journeys on pull requests. See the [overhaul notes](docs/product-overhaul.md) for architecture, migration, local-saving setup and hosted persistence requirements.
 
 ## Repository layout
 
@@ -50,7 +50,7 @@ Run the automated suite with `python -m pytest -q`. GitHub Actions also runs des
 
 ## Data and setup
 
-MoneyLab uses figures entered by the user and has no bank connection. Work stays in the Streamlit session until you explicitly export it. The built-in text parser runs without an AI API key. The [optional Quick Start cloud AI feature](docs/cloud_setup.md) requires owner configuration and user consent. Private feedback delivery requires the owner's Formspree endpoint. Setup details are in the [workflow release notes](docs/archive/workflow_release.md).
+MoneyLab uses entered figures and has no bank connection. Public deployments are session-only and disclose that status. For single-user development, `MONEYLAB_LOCAL_STORE` enables private-file SQLite saving only with a loopback server address. This is plaintext local storage, without account authentication, and must not be publicly exposed. Workspace versions 1–3 import into the current format; new exports also preserve unknowns and example-data labels. The optional decision parser runs locally without an AI API key. Private feedback delivery requires the owner's Formspree endpoint.
 
 [Phase 1 submission](docs/phase1_submission.md) · [Phase 1 Colab demo](https://colab.research.google.com/github/jbj-02/moneylab/blob/main/notebooks/phase1_demo.ipynb)
 

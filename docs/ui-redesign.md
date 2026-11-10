@@ -1,5 +1,7 @@
 # MoneyLab experience redesign
 
+This describes the previous three-part release. See [the product overhaul](product-overhaul.md) for the current workflows and architecture decision.
+
 This branch groups the app around three jobs. **My Plan** is the landing page and separates recorded finances, forecasts and suggested actions. **My Finances** is the place to enter and edit data. **Explore Decisions** holds scenario comparisons.
 
 ## Before and after

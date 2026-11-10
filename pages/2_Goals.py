@@ -1,5 +1,4 @@
-"""MoneyLab goals screen."""
+"""Compatibility route: goals now live in the plan."""
+from moneylab.plan_ui import render_home
 
-from moneylab.ui_app import render_goals
-
-render_goals()
+render_home()

@@ -1,5 +1,3 @@
-"""MoneyLab settings screen."""
-
-from moneylab.ui_app import render_settings
+from moneylab.plan_ui import render_settings
 
 render_settings()

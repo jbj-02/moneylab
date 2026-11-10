@@ -1,5 +1,3 @@
-"""MoneyLab home screen."""
-
-from moneylab.ui_app import render_home
+from moneylab.plan_ui import render_home
 
 render_home()
