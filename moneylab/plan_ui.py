@@ -78,7 +78,8 @@ def _comparison(blocks):
     comparison = st.session_state.get("ml_plan_preview")
     if not comparison:
         return
-    st.subheader("Current plan vs alternative")
+    if not comparison.get("purchase_feedback"):
+        st.subheader("Current plan vs alternative")
     stale = None
     try:
         apply_preview(blocks, comparison)
@@ -92,13 +93,13 @@ def _comparison(blocks):
             st.session_state.ml_plan_preview = None
             st.rerun()
         return
-    before, after = comparison["baseline"], comparison["alternative"]
-    months = before["summary"]["months"]
-    _caption(f"{comparison['title']} · {months}-month comparison · your current plan is unchanged")
-    from moneylab.action_ui import model_date, funding_text, render_stress_test
-    from moneylab.action_plan import explain_option
+    months = comparison["baseline"]["summary"]["months"]
+    if not comparison.get("purchase_feedback"):
+        _caption(f"{comparison['title']} · {months}-month comparison · your current plan is unchanged")
+    from moneylab.action_ui import model_date
     anchor = date.fromisoformat(comparison["progress"]["as_of"]) if comparison.get("progress") else model_date(_metadata())
-    _caption(f"These outlooks start at {anchor:%b %d, %Y}. Dates are estimates in whole months.")
+    if not comparison.get("purchase_feedback"):
+        _caption(f"These outlooks start at {anchor:%b %d, %Y}. Dates are estimates in whole months.")
     if comparison.get("progress"):
         progress = comparison["progress"]
         prose(f"**Progress against your chosen schedule:** expected {dollars(progress['expected'])}; recorded {dollars(progress['recorded'])} "
@@ -122,6 +123,52 @@ def _comparison(blocks):
                        ". The monthly model uses one future month and cannot establish whether the original partial-month deadline can be met.")
         _caption("The two outlooks compare the last recorded and proposed balances at the same check-in date. "
                  "Other balances and commitments stay as recorded; update them if they changed.")
+    if purchase := comparison.get("purchase_feedback"):
+        from moneylab.purchase_ui import render_purchase_answer
+        render_purchase_answer({**purchase, "comparison": comparison}, preliminary=not _reviewed(blocks))
+        st.page_link("pages/3_Explore.py", label="Edit purchase")
+        if purchase["floor"] is not None and purchase["after"] < purchase["floor"] and purchase["limit"]:
+            if st.button(f"Test a {dollars(purchase['limit'])} price"):
+                st.session_state.dc_purchase_draft = {
+                    **st.session_state.get("dc_purchase_draft", {}), "price": float(purchase["limit"]),
+                }
+                st.session_state.pop("dc_cost_value", None)
+                st.switch_page("pages/3_Explore.py")
+        with st.expander("See the breakdown"):
+            _comparison_details(blocks, comparison, anchor)
+    else:
+        _comparison_details(blocks, comparison, anchor)
+    reviewed = _reviewed(blocks)
+    if not reviewed:
+        st.info("Confirm your complete figures in My Finances before applying an alternative. You can still explore it here.")
+    choosing_current = comparison["source_signature"] == comparison["candidate_signature"] and not comparison.get("progress")
+    approved = st.checkbox("Use this plan as my selected schedule" if choosing_current else
+                           "I want to replace my plan with these exact changes", key="plan_apply_confirm")
+    a, b = st.columns(2)
+    if a.button("Choose this plan" if choosing_current else "Apply these changes to my plan",
+                 type="primary", disabled=not approved or not reviewed, key="plan_apply"):
+        try:
+            updated, metadata = accept_comparison(blocks, comparison, _metadata(), on_date=anchor)
+            st.session_state.ml_blocks = updated
+            st.session_state.ml_plan_metadata = metadata
+            st.session_state.pop("ml_reviewed_signature", None)
+            st.session_state.ml_plan_preview = None
+            st.session_state.plan_applied = True
+            st.switch_page("pages/0_Home.py")
+        except ValueError as exc:
+            st.error(str(exc))
+    if b.button("Discard alternative", key="plan_discard"):
+        st.session_state.ml_plan_preview = None
+        st.rerun()
+
+
+
+def _comparison_details(blocks, comparison, anchor):
+    from moneylab.action_ui import funding_text, render_stress_test
+    from moneylab.action_plan import explain_option
+    from moneylab.progress import add_months
+
+    before, after = comparison["baseline"], comparison["alternative"]
     # Make the edits concrete before asking for approval.
     original = {b["id"]: b for b in serialize_blocks(blocks)}
     for item in comparison["blocks"]:
@@ -185,31 +232,10 @@ def _comparison(blocks):
             from moneylab.action_plan import MISSING_LABELS
             prose("Not yet confirmed: " + MISSING_LABELS.get(unknown, unknown) + ".")
     render_stress_test(comparison)
-    reviewed = _reviewed(blocks)
-    if not reviewed:
-        st.info("Confirm your complete figures in My Finances before applying an alternative. You can still explore it here.")
-    choosing_current = comparison["source_signature"] == comparison["candidate_signature"] and not comparison.get("progress")
-    approved = st.checkbox("Use this plan as my selected schedule" if choosing_current else
-                           "I want to replace my plan with these exact changes", key="plan_apply_confirm")
-    a, b = st.columns(2)
-    if a.button("Choose this plan" if choosing_current else "Apply these changes to my plan",
-                 type="primary", disabled=not approved or not reviewed, key="plan_apply"):
-        try:
-            updated, metadata = accept_comparison(blocks, comparison, _metadata(), on_date=anchor)
-            st.session_state.ml_blocks = updated
-            st.session_state.ml_plan_metadata = metadata
-            st.session_state.pop("ml_reviewed_signature", None)
-            st.session_state.ml_plan_preview = None
-            st.session_state.plan_applied = True
-            st.switch_page("pages/0_Home.py")
-        except ValueError as exc:
-            st.error(str(exc))
-    if b.button("Discard alternative", key="plan_discard"):
-        st.session_state.ml_plan_preview = None
-        st.rerun()
 
-
-def _remember(comparison, *, origin="pages/0_Home.py"):
+def _remember(comparison, *, origin="pages/0_Home.py", decision=None):
+    if decision is not None:
+        comparison = {**comparison, "purchase_feedback": {k: v for k, v in decision.items() if k != "comparison"}}
     st.session_state.ml_plan_preview = comparison
     st.session_state.ml_plan_preview_origin = origin
     st.session_state.pop("plan_apply_confirm", None)
@@ -230,7 +256,8 @@ def render_comparison():
     if not st.session_state.get("ml_plan_preview"):
         st.switch_page(st.session_state.get("ml_plan_preview_origin", "pages/0_Home.py"))
     eyebrow("A TRIAL RUN FOR YOUR MONEY")
-    st.title("Compare your plan")
+    purchase = st.session_state.ml_plan_preview.get("purchase_feedback")
+    st.title("Can I buy this?" if purchase else "Compare your plan")
     _comparison(blocks)
     st.page_link(st.session_state.get("ml_plan_preview_origin", "pages/0_Home.py"), label="Keep exploring without applying")
 
@@ -245,7 +272,9 @@ def render_home():
         with a:
             st.subheader("A plan you can actually use")
             prose("1. Choose what matters to you.\n2. Add your pay, spending and savings.\n3. Get a clear next step, backed by your numbers.")
-            if st.button("Set up my finances", type="primary", key="ml_home_quick_start"):
+            if st.button("Test a decision", type="primary"):
+                st.switch_page("pages/3_Explore.py")
+            if st.button("Set up my finances", key="ml_home_quick_start"):
                 st.switch_page("pages/5_Quick_Start.py")
         with b:
             with st.container(border=True):
@@ -254,7 +283,6 @@ def render_home():
                 if st.button("Try a fictional plan", key="plan_example_home"):
                     load_example()
                     st.rerun()
-                st.page_link("pages/7_Moving_Out_Alpha.py", label="Try a move-out decision")
         _smart_entry()
         return
     reviewed = _reviewed(blocks)
@@ -452,24 +480,31 @@ def render_setup():
 
 def render_decisions():
     blocks, _, _, months, _, _, _ = context()
-    if not blocks:
-        # A temporary snapshot is still useful for someone evaluating one cost.
-        from moneylab.decision_ui import render_decision_page
-        render_decision_page()
-        return
-    eyebrow("GIVE A DECISION A TRIAL RUN")
-    st.title("Explore Decisions")
-    prose("Use your current plan as the starting point. See the tradeoffs before changing it.")
-    choices = ("One-time purchase", "Recurring commitment", "Change an expense", "Change income", "Pay down debt", "Moving out")
+    st.title("Test a decision")
     saved_cost = st.session_state.get("ml_profile_cost_draft")
-    default_kind = "Recurring commitment" if saved_cost and saved_cost["cost_type"] == "recurring" else "One-time purchase"
-    kind = st.radio("What would you like to compare?", choices, index=choices.index(default_kind), horizontal=True, key="dc_cost_kind")
-    if kind == "Moving out":
-        prose("Compare staying with moving, including deposits, rent and the savings cushion you want to keep.")
+    default = ("Test another change" if st.session_state.get("dc_cost_kind") == "Recurring commitment"
+               or (saved_cost and saved_cost["cost_type"] == "recurring") else "Can I buy this?")
+    choices = ("Can I buy this?", "Can I move out?", "Test another change")
+    choice = st.radio("What are you deciding?", choices, index=choices.index(default), key="dc_question")
+    if choice == "Can I buy this?":
+        from moneylab.purchase_ui import render_purchase
+        render_purchase(blocks, months, _metadata())
+        _pending(blocks)
+        return
+    if choice == "Can I move out?":
         if st.button("Open move-out comparison", type="primary"):
-            st.session_state.move_start_mode = "Use My Money figures"
+            st.session_state.move_quick_entry = True
             st.switch_page("pages/7_Moving_Out_Alpha.py")
         return
+    if not blocks:
+        from moneylab.decision_ui import DECISIONS, _empty_profile_decision
+        _empty_profile_decision(DECISIONS[0])
+        return
+    if st.session_state.get("dc_cost_kind") == "One-time purchase":
+        st.session_state.pop("dc_cost_kind")
+    kind = st.radio("What would you like to change?",
+                   ("Recurring commitment", "Change an expense", "Change income", "Pay down debt"),
+                   key="dc_cost_kind")
     amount = 0
     frequency = "monthly"
     selected = None
@@ -488,17 +523,17 @@ def render_decisions():
                                  key=f"plan_decision_amount_{selected_id}")
     else:
         amount = st.number_input("Cost amount ($)", min_value=0.0, max_value=1e8,
-                                 value=None if "dc_cost_value" in st.session_state else float(saved_cost["cost"]) if saved_cost else 200.0,
+                                 value=float(saved_cost["cost"]) if saved_cost and saved_cost["cost_type"] == "recurring" else None,
                                  step=25.0, format="%.2f", key="dc_cost_value")
         if kind == "Recurring commitment":
             frequency = st.selectbox("How often is this cost paid?", list(FREQUENCIES),
                                      index=list(FREQUENCIES).index(saved_cost["frequency"] if saved_cost else "monthly"),
                                      format_func=lambda k: FREQUENCIES[k][0], key="dc_cost_frequency")
-            _caption(f"Monthly average: {dollars(monthly_equivalent(amount, frequency))}.")
+            _caption(f"Monthly average: {dollars(monthly_equivalent(amount or 0, frequency))}.")
         _caption("Include taxes and extra costs you expect. A purchase uses recorded checking / cash only; no borrowing or goal withdrawals are assumed.")
     if not _reviewed(blocks):
         st.info("This is a preliminary comparison. Confirm complete figures in My Finances before applying changes.")
-    if st.button("Compare with my current plan", type="primary", key="plan_compare_decision"):
+    if st.button("Compare with my current plan", type="primary", key="plan_compare_decision", disabled=amount is None):
         try:
             from moneylab.scenario_changes import apply_scenario_changes
             if kind == "Pay down debt":

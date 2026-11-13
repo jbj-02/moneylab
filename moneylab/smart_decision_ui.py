@@ -66,6 +66,9 @@ def _route(draft, selected, frequency):
         st.session_state.dc_guest_show_result = False
         st.session_state.dc_guest_step = 0
         st.session_state.dc_decision_type = "💳 Can I take on a cost?"
+        st.session_state.dc_question = "Can I buy this?" if intent == "purchase" else "Test another change"
+        st.session_state.pop("dc_purchase_result", None)
+        st.session_state.pop("dc_purchase_draft", None)
         st.session_state.dc_cost_kind = (
             "One-time purchase" if intent == "purchase"
             else "Recurring commitment"

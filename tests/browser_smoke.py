@@ -41,7 +41,9 @@ def navigate(page, label):
 
 
 def number(page, label, value):
-    page.get_by_role('spinbutton', name=label, exact=True).fill(str(value))
+    field = page.get_by_role('spinbutton', name=label, exact=True)
+    field.fill(str(value))
+    field.press('Tab')
 
 
 def confirm(page):
@@ -130,12 +132,34 @@ def graduate_journey(browser, viewport, label):
     dialog.get_by_role('button', name='Save changes', exact=True).click()
     expect(dialog).not_to_be_visible()
     expect(page.get_by_text('Rent / housing · $950.00', exact=True)).to_be_visible()
-    navigate(page, 'Explore Decisions')
-    page.get_by_text('Moving out', exact=True).click()
+    navigate(page, 'Test a decision')
+    page.get_by_text('Can I move out?', exact=True).click()
     page.get_by_role('button', name='Open move-out comparison', exact=True).click()
-    expect(page.get_by_role('heading', name='Moving Out Decision Lab')).to_be_visible()
-    expect(page.get_by_role('radio', name='Use My Money figures', exact=True)).to_be_checked()
-    shot(page, f'{label}-graduate-move')
+    expect(page.get_by_role('heading', name='Can I move out?', exact=True)).to_be_visible()
+    expect(page.get_by_text('Using your recorded figures.', exact=False)).to_be_visible()
+    expect(page.get_by_role('spinbutton', name='Your current housing cost ($/month)', exact=True)).to_have_value('950.00')
+    page.get_by_role('button', name='Continue', exact=True).click()
+    expect(page.get_by_text('Step 2 of 2 · The proposed move', exact=True)).to_be_visible()
+    number(page, 'Your share of new rent ($/month)', 1100)
+    expect(page.get_by_role('spinbutton', name='Your share of new rent ($/month)', exact=True)).to_have_value('1100.00')
+    number(page, 'Security deposit & fees ($)', 600)
+    expect(page.get_by_role('spinbutton', name='Security deposit & fees ($)', exact=True)).to_have_value('600.00')
+    page.get_by_role('button', name='Back', exact=True).click()
+    expect(page.get_by_text('Step 1 of 2 · Your situation', exact=True)).to_be_visible()
+    page.get_by_role('button', name='Continue', exact=True).click()
+    expect(page.get_by_text('Step 2 of 2 · The proposed move', exact=True)).to_be_visible()
+    expect(page.get_by_role('spinbutton', name='Your share of new rent ($/month)', exact=True)).to_have_value('1100.00')
+    page.get_by_role('button', name='Compare stay vs move', exact=True).click()
+    expect(page.get_by_role('heading', name='What moving would change')).to_be_visible()
+    expect(page.get_by_text('Preliminary estimate.', exact=False).first).to_be_visible()
+    expect(page.get_by_text('after recorded bills, debt and planned goal transfers.', exact=False).first).to_be_visible()
+    shot(page, f'{label}-move-decision')
+    page.get_by_role('button', name='Edit move', exact=True).click()
+    expect(page.get_by_text('Step 1 of 2 · Your situation', exact=True)).to_be_visible()
+    page.get_by_role('button', name='Continue', exact=True).click()
+    expect(page.get_by_role('spinbutton', name='Security deposit & fees ($)', exact=True)).to_have_value('600.00')
+    original = export_profile(page)
+    assert not any(b.get('monthly_amount') == '1100.00' for b in original)
     context.close()
 
 
@@ -163,17 +187,27 @@ def savings_and_purchase_journey(browser, viewport, label):
     assert after[3]['monthly_contribution'] == '333.34'
     navigate(page, 'My Plan')
     confirm(page)
-    navigate(page, 'Explore Decisions')
+    navigate(page, 'Test a decision')
     number(page, 'Cost amount ($)', 1200)
+    number(page, 'Minimum cash to keep ($)', 1000)
     page.get_by_role('button', name='Compare with my current plan', exact=True).click()
-    expect(page.get_by_role('heading', name='Current plan vs alternative')).to_be_visible()
+    expect(page.get_by_role('heading', name='What this purchase changes')).to_be_visible()
+    expect(page.get_by_text('Buying now leaves $800.00 in checking and cash.', exact=True)).to_be_visible()
+    expect(page.get_by_text('$200.00 below your $1,000.00 cushion', exact=False).first).to_be_visible()
+    expect(page.get_by_text('You can spend up to $1,000.00 today', exact=False)).to_be_visible()
     shot(page, f'{label}-purchase-comparison')
+    page.get_by_role('link', name='Edit purchase', exact=True).click()
+    expect(page.get_by_role('spinbutton', name='Cost amount ($)', exact=True)).to_have_value('1200.00')
+    expect(page.get_by_role('spinbutton', name='Minimum cash to keep ($)', exact=True)).to_have_value('1000.00')
+    number(page, 'Cost amount ($)', 900)
+    page.get_by_role('button', name='Compare with my current plan', exact=True).click()
+    expect(page.get_by_text('This keeps $100.00 above your cushion today.', exact=False)).to_be_visible()
     exported = export_profile(page)
     assert exported == after, 'Exploring a purchase must not change the actual plan'
-    navigate(page, 'Explore Decisions')
+    navigate(page, 'Test a decision')
     page.get_by_role('link', name='Review pending alternative', exact=True).click()
     page.get_by_role('button', name='Discard alternative', exact=True).click()
-    expect(page.get_by_role('heading', name='Current plan vs alternative')).to_have_count(0)
+    expect(page.get_by_role('heading', name='What this purchase changes')).to_have_count(0)
     context.close()
 
 
@@ -353,13 +387,45 @@ def local_continuity_journey(browser):
     print('local: new-session persistence and deletion passed', flush=True)
 
 
+def purchase_feedback_journey(browser, viewport, label):
+    for baseline in (True, False):
+        url = os.environ.get("MONEYLAB_BASELINE_TEST_URL") if baseline else BASE
+        if not url:
+            continue
+        context = browser.new_context(viewport=viewport, reduced_motion="reduce")
+        page = context.new_page()
+        page.goto(url, wait_until="domcontentloaded")
+        page.get_by_role("button", name="Try a fictional plan", exact=True).click()
+        navigate(page, "Explore Decisions" if baseline else "Test a decision")
+        number(page, "Cost amount ($)", 200)
+        if not baseline:
+            number(page, "Minimum cash to keep ($)", 2100)
+        page.get_by_role("button", name="Compare with my current plan", exact=True).click()
+        if baseline:
+            expect(page.get_by_text("$1,650.00 at month 18", exact=False)).to_be_visible()
+        else:
+            expect(page.get_by_text("Buying now leaves $2,000.00 in checking and cash.", exact=True)).to_be_visible()
+            expect(page.get_by_text("The $350.00 gap at month 18 was already there.", exact=False)).to_be_visible()
+            expect(page.get_by_text("You can spend up to $100.00 today", exact=False)).to_be_visible()
+            expect(page.get_by_text("Preliminary estimate.", exact=False)).to_be_visible()
+        shot(page, f"{label}-purchase-{'before' if baseline else 'after'}")
+        if not baseline:
+            page.get_by_role("button", name="Test a $100.00 price", exact=True).click()
+            expect(page.get_by_role("spinbutton", name="Cost amount ($)", exact=True)).to_have_value("100.00")
+            page.get_by_role("button", name="Compare with my current plan", exact=True).click()
+            expect(page.get_by_text("This leaves exactly your chosen cushion today.", exact=False)).to_be_visible()
+        context.close()
+
+
+
 def run():
     OUTPUT.mkdir(parents=True, exist_ok=True)
     with sync_playwright() as pw:
-        browser = pw.chromium.launch(headless=True, args=['--no-sandbox'])
+        browser = pw.chromium.launch(headless=True, args=['--no-sandbox'],
+                                     executable_path=os.environ.get('MONEYLAB_CHROMIUM_PATH'))
         for viewport, label in (({'width':1440,'height':1000}, 'desktop'),
                                 ({'width':390,'height':844}, 'mobile')):
-            for journey in (graduate_journey, savings_and_purchase_journey, struggling_journey, legacy_move_journey, action_plan_journey, dashboard_summary_journey):
+            for journey in (graduate_journey, savings_and_purchase_journey, struggling_journey, legacy_move_journey, action_plan_journey, dashboard_summary_journey, purchase_feedback_journey):
                 journey(browser, viewport, label)
                 print(f'{label}: {journey.__name__} passed', flush=True)
         local_continuity_journey(browser)

@@ -91,6 +91,7 @@ def _money(field, title=None, *, required=False, signed=False, help_text=None):
         step=25.0, format="%.2f",
         placeholder="Required" if required else "Unknown (leave blank)",
         key=f"move_{field}", help=help_text,
+        persist_state="page" if st.session_state.get("move_quick_entry") else None,
     )
 
 
@@ -146,6 +147,7 @@ def _profile_loader():
             }
             st.session_state.move_step = 0
             st.session_state.move_profile_notes = proposal["notes"]
+            st.session_state.move_quick_profile = profile
             _reset_result()
             st.rerun()
         except ValueError as exc:
@@ -302,36 +304,45 @@ def _review_inputs():
 
 def _input_form():
     _restore_inputs()
+    quick = st.session_state.get("move_quick_entry", False)
     if "move_input_layout" not in st.session_state:
         st.session_state.move_input_layout = st.session_state.get("move_layout_preference", "Guided steps")
-    guided = st.radio(
+    guided = quick or st.radio(
         "How would you like to enter the details?",
         ["Guided steps", "All inputs"], horizontal=True,
         key="move_input_layout",
     ) == "Guided steps"
-    st.session_state.move_layout_preference = st.session_state.move_input_layout
-    step = min(max(st.session_state.get("move_step", 0), 0), 2)
+    if not quick:
+        st.session_state.move_layout_preference = st.session_state.move_input_layout
+    last_step = 1 if quick else 2
+    step = min(max(st.session_state.get("move_step", 0), 0), last_step)
     if guided:
-        st.progress((step + 1) / 3, text=f"Step {step + 1} of 3 · " +
+        st.progress((step + 1) / (last_step + 1), text=f"Step {step + 1} of {last_step + 1} · " +
                     ("Your situation", "The proposed move", "Review")[step])
-    with st.form("move_alpha_form", border=False):
+    # Quick steps commit edits as they happen so Back cannot discard a form buffer.
+    with (st.container() if quick else st.form("move_alpha_form", border=False)):
+        submit = st.button if quick else st.form_submit_button
         if not guided or step == 0:
             _current_fields()
         if not guided or step == 1:
             _proposed_fields()
         if guided and step == 2:
             _review_inputs()
-        elif not guided:
-            _review_options()
+        elif not guided or (quick and step == last_step):
+            if quick:
+                with st.expander("Review options"):
+                    _review_options()
+            else:
+                _review_options()
         back, forward = st.columns(2)
         with back:
-            previous = st.form_submit_button(
+            previous = submit(
                 "Back", disabled=not guided or step == 0,
                 use_container_width=True,
             )
         with forward:
-            proceed = st.form_submit_button(
-                "Continue" if guided and step < 2 else "Compare stay vs move",
+            proceed = submit(
+                "Continue" if guided and step < last_step else "Compare stay vs move",
                 type="primary", use_container_width=True,
             )
     visible = FIELDS if not guided else (CURRENT_FIELDS if step == 0 else
@@ -341,7 +352,7 @@ def _input_form():
         if previous:
             st.session_state.move_step = step - 1
             st.rerun()
-        if guided and step < 2:
+        if guided and step < last_step:
             required = ("income", "current_housing") if step == 0 else ("rent",)
             for field in required:
                 value = _preset(field)
@@ -638,6 +649,19 @@ def _profile_review(report):
 
 
 def _render_result(report):
+    if st.session_state.get("move_quick_entry"):
+        from moneylab.move_feedback_ui import render_move_answer
+
+        render_move_answer(report, st.session_state.move_inputs_at_run, _calculate,
+                           st.session_state.move_run_options, money, _markdown)
+        _result_navigation()
+        with st.expander("See the breakdown"):
+            _render_detailed_result(report, quick=True)
+        return
+    _render_detailed_result(report)
+
+
+def _render_detailed_result(report, *, quick=False):
     st.subheader("Your moving decision, side by side")
     delta, upfront = report["monthly_change"], report["upfront"]
     direction = "increase" if delta >= 0 else "decrease"
@@ -663,7 +687,8 @@ def _render_result(report):
             "A negative remainder is a modeled shortfall, not available cash."
         )
 
-    render_move_goal(report, st.session_state.move_inputs_at_run, money)
+    if not quick:
+        render_move_goal(report, st.session_state.move_inputs_at_run, money)
     st.divider()
     details = report["details"]
     with st.expander("Included in this comparison", expanded=False):
@@ -763,28 +788,8 @@ def _render_result(report):
             use_container_width=True,
         )
 
-    _markdown("#### Next steps")
-    a, b = st.columns(2)
-    if a.button("Edit original assumptions", key="move_edit",
-                use_container_width=True):
-        # Form widgets are not rendered on the result screen, so Streamlit
-        # may purge their keys. Restore from the immutable run snapshot.
-        for field, value in st.session_state.get("move_inputs_at_run", {}).items():
-            st.session_state[f"move_{field}"] = (
-                None if value is None else float(value)
-            )
-        opts = st.session_state.get("move_run_options", {})
-        st.session_state.move_confirm = bool(opts.get("reviewed", False))
-        st.session_state.move_include_goals = bool(opts.get("include_goals", False))
-        st.session_state.move_use_savings = bool(opts.get("use_savings_for_upfront", False))
-        st.session_state.move_editing = True
-        st.session_state.move_step = 0
-        st.session_state.move_draft_values = dict(st.session_state.get("move_inputs_at_run", {}))
-        st.session_state.pop("move_variant_result", None)
-        st.rerun()
-    if b.button("Explore another decision", key="move_other_decision",
-                use_container_width=True):
-        st.switch_page("pages/3_Explore.py")
+    if not quick:
+        _result_navigation()
     with st.expander("More move comparisons"):
         _variation(report)
     _profile_review(report)
@@ -821,11 +826,52 @@ def _render_result(report):
     )
 
 
+
+def _result_navigation():
+    a, b = st.columns(2)
+    if a.button("Edit move" if st.session_state.get("move_quick_entry") else "Edit original assumptions", key="move_edit",
+                use_container_width=True):
+        # Form widgets are not rendered on the result screen, so Streamlit
+        # may purge their keys. Restore from the immutable run snapshot.
+        for field, value in st.session_state.get("move_inputs_at_run", {}).items():
+            st.session_state[f"move_{field}"] = (
+                None if value is None else float(value)
+            )
+        opts = st.session_state.get("move_run_options", {})
+        st.session_state.move_confirm = bool(opts.get("reviewed", False))
+        st.session_state.move_include_goals = bool(opts.get("include_goals", False))
+        st.session_state.move_use_savings = bool(opts.get("use_savings_for_upfront", False))
+        st.session_state.move_editing = True
+        st.session_state.move_step = 0
+        st.session_state.move_draft_values = dict(st.session_state.get("move_inputs_at_run", {}))
+        st.session_state.pop("move_variant_result", None)
+        st.rerun()
+    if b.button("Explore another decision", key="move_other_decision",
+                use_container_width=True):
+        st.switch_page("pages/3_Explore.py")
+
 def render():
     _restore_inputs()
-    st.title("Moving Out Decision Lab")
+    quick = st.session_state.get("move_quick_entry", False)
+    st.title("Can I move out?" if quick else "Moving Out Decision Lab")
     st.caption("Compare staying with a potential move, without needing a complete profile.")
     profile = st.session_state.get("ml_blocks", [])
+    if quick and not st.session_state.get("move_quick_initialized"):
+        st.session_state.move_quick_initialized = True
+        if not st.session_state.get("move_draft_values"):
+            st.session_state.move_start_mode = "Use My Money figures" if profile else "Enter my own numbers"
+            st.session_state.move_draft_source = _source()
+            if profile:
+                housing = suggest_housing_id(profile)
+                proposal = profile_to_moving(profile, housing)
+                st.session_state.move_draft_values = {
+                    field: float(value) if value is not None else None
+                    for field, value in proposal["values"].items()
+                }
+                st.session_state.move_profile_notes = proposal["notes"]
+                st.session_state.move_quick_profile = profile
+                st.session_state.move_draft_options = {"move_include_goals": True}
+                _restore_inputs()
     modes = ["Try fictional example", "Enter my own numbers"]
     if profile:
         modes.append("Use My Money figures")
@@ -833,11 +879,29 @@ def render():
     if st.session_state.get("move_start_mode") not in modes:
         prior = st.session_state.get("move_draft_source", "Try fictional example")
         st.session_state.move_start_mode = prior if prior in modes else "Enter my own numbers"
-    st.radio(
-        "Where should we get the figures?",
-        modes, key="move_start_mode",
-        horizontal=True, on_change=_switch_mode,
-    )
+    if quick:
+        prior_profile = st.session_state.get("move_quick_profile")
+        if prior_profile is not None and prior_profile != profile and _source() == "Use My Money figures":
+            st.warning("Your recorded finances changed. Reload them below or edit the decision figures before comparing.")
+        with st.expander("Change which figures to use", expanded=prior_profile is not None and prior_profile != profile):
+            st.radio(
+                "Where should we get the figures?",
+                modes, key="move_start_mode",
+                horizontal=True, on_change=_switch_mode,
+            )
+            if _source() == "Use My Money figures":
+                _profile_loader()
+        if _source() == "Use My Money figures":
+            _write("Using your recorded figures. You can edit them here for this comparison.")
+            summary = _section_summary((("income", "Take-home"), ("current_housing", "Housing"), ("checking", "Checking")))
+            st.caption(summary)
+        st.page_link("pages/3_Explore.py", label="Back to Test a decision")
+    else:
+        st.radio(
+            "Where should we get the figures?",
+            modes, key="move_start_mode",
+            horizontal=True, on_change=_switch_mode,
+        )
     st.session_state.move_draft_source = _source()
     if _source() == "Try fictional example":
         st.info(
@@ -845,9 +909,9 @@ def render():
             "plus debt payments and move-in costs in the expandable sections. "
             "These are not your personal finances."
         )
-    elif _source() == "Use My Money figures":
+    elif _source() == "Use My Money figures" and not quick:
         _profile_loader()
-    else:
+    elif _source() == "Enter my own numbers":
         st.caption(
             "Enter your own numbers. Unknown costs can stay blank; "
             "enter 0 only for confirmed zero expenses."

@@ -68,27 +68,17 @@ def test_move_guided_validation_and_export_between_steps():
     assert next(n for n in app.number_input if n.key == 'move_income').value == 3200
 
 
-def test_guest_purchase_back_recalculate_and_export():
+def test_guest_purchase_recalculate_and_export_without_a_profile():
     app = start('pages/3_Explore.py')
-    set_number(app, 'dc_guest_income', 3500.0)
-    set_number(app, 'dc_guest_spending', 2000.0)
-    set_number(app, 'dc_guest_checking', 6000.0)
-    app = click(app, 'Continue')
-    set_number(app, 'dc_guest_cost', 1200.0)
-    app = click(app, 'Continue')
-    app = click(app, 'Back')
-    assert next(n for n in app.number_input if n.key == 'dc_guest_cost').value == 1200
-    app = click(app, 'Continue')
-    app = click(app, 'Check with these assumptions')
-    assert next(m for m in app.metric if m.label == 'Checking after this one-time cost').value == '$4,800.00'
-    assert not app.number_input
-    app = click(app, 'Back to edit assumptions')
-    assert not app.metric
-    app = click(app, 'Continue')
-    set_number(app, 'dc_guest_cost', 2200.0)
-    app = click(app, 'Continue')
-    app = click(app, 'Check with these assumptions')
-    assert next(m for m in app.metric if m.label == 'Checking after this one-time cost').value == '$3,800.00'
+    set_number(app, 'dc_purchase_checking', 6000.0)
+    set_number(app, 'dc_purchase_floor', 5000.0)
+    set_number(app, 'dc_cost_value', 1200.0)
+    app = click(app, 'Compare with my current plan')
+    assert any('$4,800.00' in m.value for m in app.markdown)
+    assert any('$200.00 below' in m.value for m in app.markdown)
+    set_number(app, 'dc_cost_value', 2200.0)
+    app = click(app, 'Compare with my current plan')
+    assert any('$3,800.00' in m.value for m in app.markdown)
     app = app.switch_page('pages/6_Settings.py').run()
     assert not app.exception
     from moneylab.workspace_session import capture_decision_drafts
@@ -99,6 +89,7 @@ def test_guest_purchase_back_recalculate_and_export():
 
 def test_manual_recurring_frequency_survives_review_and_back():
     app = start('pages/3_Explore.py')
+    app = app.radio(key='dc_question').set_value('Test another change').run()
     set_number(app, 'dc_guest_income', 3000.0)
     set_number(app, 'dc_guest_spending', 1000.0)
     set_number(app, 'dc_guest_checking', 1000.0)
