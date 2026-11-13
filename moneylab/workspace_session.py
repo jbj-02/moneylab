@@ -81,6 +81,9 @@ def capture_decision_drafts(state):
 def restore_decision_drafts(state, drafts):
     checked = validated_decision_drafts(drafts)
     state.pop("ml_profile_cost_draft", None)
+    for key in ("dc_question", "dc_purchase_draft", "dc_purchase_result", "dc_purchase_floor",
+                "dc_purchase_checking", "dc_cost_kind", "dc_cost_frequency"):
+        state.pop(key, None)
     for field in FIELDS:
         state.pop(f"move_{field}", None)
     for field in (
@@ -133,6 +136,7 @@ def restore_decision_drafts(state, drafts):
     state["dc_guest_compared"] = False
     state["dc_profile_compared"] = False
     if cost is not None:
+        state["dc_question"] = "Test another change" if cost["cost_type"] == "recurring" else "Can I buy this?"
         state["dc_decision_type"] = "💳 Can I take on a cost?"
         if cost["source"] == "profile":
             state["ml_profile_cost_draft"] = {

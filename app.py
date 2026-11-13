@@ -15,7 +15,7 @@ if "ml_saved_scenarios" not in st.session_state:
 
 home = st.Page("pages/0_Home.py", title="My Plan", default=True)
 money = st.Page("pages/1_My_Money.py", title="My Finances", url_path="money")
-explore = st.Page("pages/3_Explore.py", title="Explore Decisions", url_path="explore")
+explore = st.Page("pages/3_Explore.py", title="Test a decision", url_path="explore")
 settings = st.Page("pages/6_Settings.py", title="Settings & data", url_path="settings")
 # Existing bookmarks stay reachable; old tools leave the primary experience.
 hidden = [

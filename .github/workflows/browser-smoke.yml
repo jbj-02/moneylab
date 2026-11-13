@@ -10,6 +10,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -39,8 +41,24 @@ jobs:
           done
           cat streamlit.log
           exit 1
+      - name: Launch the pre-change app for comparison screenshots
+        if: github.event_name == 'pull_request'
+        run: |
+          git worktree add --detach "$RUNNER_TEMP/moneylab-before" 533dbe46754717c2774b24558d9905af86631f86
+          cd "$RUNNER_TEMP/moneylab-before"
+          nohup python -m streamlit run app.py --server.headless=true \
+            --server.address=127.0.0.1 --server.port=8503 > "$GITHUB_WORKSPACE/streamlit-before.log" 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8503/_stcore/health >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat "$GITHUB_WORKSPACE/streamlit-before.log"
+          exit 1
       - name: Run desktop and mobile Chromium journeys
         env:
+          MONEYLAB_BASELINE_TEST_URL: ${{ github.event_name == 'pull_request' && 'http://127.0.0.1:8503' || '' }}
           MONEYLAB_PERSISTENCE_TEST_URL: http://127.0.0.1:8502
         run: python tests/browser_smoke.py
       - name: Upload fictional browser screenshots and logs
@@ -52,4 +70,5 @@ jobs:
             artifacts/browser/
             streamlit.log
             streamlit-local.log
+            streamlit-before.log
           retention-days: 7

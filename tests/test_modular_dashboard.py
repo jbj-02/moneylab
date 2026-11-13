@@ -96,7 +96,7 @@ def test_editing_original_after_preview_blocks_stale_apply():
 def test_purchase_comparison_is_immutable_and_can_be_discarded():
     app = navigate(reviewed_profile(), '3_Explore.py')
     original = deepcopy(app.session_state['ml_blocks'])
-    app = next(n for n in app.number_input if n.key == 'dc_cost_value').set_value(1200.0).run()
+    next(n for n in app.number_input if n.key == 'dc_cost_value').set_value(1200.0)
     app = click(app, 'Compare with my current plan')
     assert app.session_state['ml_blocks'] == original
     assert app.session_state['ml_plan_preview']['alternative']['monthly_records'][0]['cash_savings'] == 800
@@ -151,7 +151,7 @@ def test_legacy_goals_bookmark_now_opens_integrated_plan():
 
 def test_weekly_recurring_cost_keeps_cadence_and_exports_reviewed_inputs():
     app = navigate(reviewed_profile(), '3_Explore.py')
-    app = next(r for r in app.radio if r.key == 'dc_cost_kind').set_value('Recurring commitment').run()
+    app = app.radio(key='dc_question').set_value('Test another change').run()
     next(n for n in app.number_input if n.key == 'dc_cost_value').set_value(45.0)
     app = next(s for s in app.selectbox if s.key == 'dc_cost_frequency').set_value('weekly').run()
     app = click(app, 'Compare with my current plan')

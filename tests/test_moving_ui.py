@@ -77,7 +77,7 @@ def test_feedback_link_is_not_a_private_data_endpoint():
 def test_home_promotes_decision_without_quick_start():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=25).run()
     assert not errors(app), errors(app)
-    assert any(link.label == "Try a move-out decision" for link in app.get("page_link"))
+    assert any(button.label == "Test a decision" for button in app.button)
     assert app.session_state["ml_blocks"] == []
 
 
