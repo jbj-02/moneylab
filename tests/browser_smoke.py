@@ -41,7 +41,9 @@ def navigate(page, label):
 
 
 def number(page, label, value):
-    page.get_by_role('spinbutton', name=label, exact=True).fill(str(value))
+    field = page.get_by_role('spinbutton', name=label, exact=True)
+    field.fill(str(value))
+    field.press('Tab')
 
 
 def confirm(page):
@@ -143,6 +145,7 @@ def graduate_journey(browser, viewport, label):
     page.get_by_role('button', name='Back', exact=True).click()
     expect(page.get_by_text('Step 1 of 2 · Your situation', exact=True)).to_be_visible()
     page.get_by_role('button', name='Continue', exact=True).click()
+    expect(page.get_by_text('Step 2 of 2 · The proposed move', exact=True)).to_be_visible()
     expect(page.get_by_role('spinbutton', name='Your share of new rent ($/month)', exact=True)).to_have_value('1100.00')
     page.get_by_role('button', name='Compare stay vs move', exact=True).click()
     expect(page.get_by_role('heading', name='What moving would change')).to_be_visible()
