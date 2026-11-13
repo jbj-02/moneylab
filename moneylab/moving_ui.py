@@ -91,6 +91,7 @@ def _money(field, title=None, *, required=False, signed=False, help_text=None):
         step=25.0, format="%.2f",
         placeholder="Required" if required else "Unknown (leave blank)",
         key=f"move_{field}", help=help_text,
+        persist_state="page" if st.session_state.get("move_quick_entry") else None,
     )
 
 
@@ -318,7 +319,9 @@ def _input_form():
     if guided:
         st.progress((step + 1) / (last_step + 1), text=f"Step {step + 1} of {last_step + 1} · " +
                     ("Your situation", "The proposed move", "Review")[step])
-    with st.form("move_alpha_form", border=False):
+    # Quick steps commit edits as they happen so Back cannot discard a form buffer.
+    with (st.container() if quick else st.form("move_alpha_form", border=False)):
+        submit = st.button if quick else st.form_submit_button
         if not guided or step == 0:
             _current_fields()
         if not guided or step == 1:
@@ -333,12 +336,12 @@ def _input_form():
                 _review_options()
         back, forward = st.columns(2)
         with back:
-            previous = st.form_submit_button(
+            previous = submit(
                 "Back", disabled=not guided or step == 0,
                 use_container_width=True,
             )
         with forward:
-            proceed = st.form_submit_button(
+            proceed = submit(
                 "Continue" if guided and step < last_step else "Compare stay vs move",
                 type="primary", use_container_width=True,
             )
