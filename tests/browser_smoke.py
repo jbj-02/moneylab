@@ -39,6 +39,12 @@ def navigate(page, label):
     if not link.is_visible() or box is None or box['x'] < 0:
         page.get_by_role('button', name='Expand sidebar', exact=True).click()
     link.click()
+    titles={'My Plan':re.compile(r'^(My Plan|Current plan vs alternative)$'),
+            'Can I buy this?':'Can I buy this?', 'Plan a move':'Plan a move',
+            'Edit figures':'Edit figures', 'Settings & data':'Save or restore your workspace'}
+    if label in titles:
+        expect(page.get_by_role('heading',level=1).first).to_have_text(titles[label])
+    expect(page.get_by_test_id('stApp')).to_have_attribute('data-test-script-state','notRunning')
     # Streamlit keeps its mobile drawer open after choosing a destination.
     if page.viewport_size['width'] < 768:
         collapse = page.get_by_role('button', name='Collapse sidebar', exact=True)
@@ -59,7 +65,7 @@ def show_details(page):
 
 
 def resume_test(page):
-    page.get_by_role('heading',level=1).first.wait_for()
+    expect(page.get_by_role('heading',level=1).first).to_have_text(re.compile(r'^(My Plan|Current plan vs alternative)$'))
     expect(page.get_by_test_id('stApp')).to_have_attribute('data-test-script-state','notRunning')
     if page.get_by_role('heading',name='Current plan vs alternative',exact=True).count():
         return
