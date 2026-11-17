@@ -22,7 +22,7 @@ def context():
     # Keep continuity at the page boundary as well as in the navigation shell.
     sync_local()
     if _metadata().get("is_example"):
-        st.info("Fictional example plan. Replace these figures in My Finances before using it for yourself.")
+        st.info("Fictional example plan. Replace these figures in Edit figures before using it for yourself.")
     return financial_context()
 
 
@@ -48,6 +48,8 @@ def _review(blocks):
     if unknown:
         names = {**EXPENSES, "income": "take-home income", "checking": "checking balance", "savings": "savings balance", "debts": "debts"}
         st.info("Not yet confirmed: " + ", ".join(names[k] for k in unknown) + ". Estimates only include recorded figures.")
+        prose('Answer each missing figure before confirming the whole plan. Blank amounts are not confirmed zeros.')
+        return
     confirmed = st.checkbox("My entries include all income, regular spending, balances and debts (including any $0 amounts)",
                             key="plan_review_confirmation")
     if st.button("Confirm my figures", disabled=not confirmed, key="plan_confirm_figures"):
@@ -136,38 +138,10 @@ def _comparison(blocks):
                     left = str(old[key]) if key == "target_months" else dollars(Decimal(old[key]))
                     right = str(item[key]) if key == "target_months" else dollars(Decimal(item[key]))
                     prose(f"**{item['name']}**, {label}: {left} → {right}")
-    cashflow = after["monthly_records"][1]["net_cash_flow"]
-    cashflow_change = cashflow - before["monthly_records"][1]["net_cash_flow"]
-    st.metric("First-month remainder after bills, debt & saving", dollars(cashflow),
-              delta=dollars(cashflow_change) if cashflow_change else None)
-    a, b, c = st.columns(3)
-    for col, field, label in ((a, "ending_cash_savings", "Cash at the end"),
-                               (b, "ending_debt", "Debt at the end"),
-                               (c, "total_interest", "Interest paid / accrued")):
-        change = after["summary"][field] - before["summary"][field]
-        col.metric(label, dollars(after["summary"][field]),
-                   delta=dollars(change) if change else None,
-                   delta_color="inverse" if field in ("ending_debt", "total_interest") else "normal")
-    _chart(before, after)
-    goals_before = {g["id"]: g for g in before["goals"]}
-    for goal in after["goals"]:
-        old = goals_before.get(goal["id"])
-        if old:
-            # Compare each plan at its OWN deadline, which is labeled explicitly.
-            prose(f"**{goal['name']}**: {dollars(old['projected_at_deadline'])} at month {old['target_months']} → "
-                     f"{dollars(goal['projected_at_deadline'])} at month {goal['target_months']} "
-                     f"({'target reached' if goal['on_track'] else 'below target'}).")
+    from moneylab.result_ui import render_comparison_summary
+    render_comparison_summary(comparison)
+    st.page_link("pages/1_My_Money.py",label="Edit figures")
     analysis = explain_option(comparison, comparison.get("focus_goal_id"))
-    for goal in analysis["effects"]["goals"]:
-        if goal["completion_after"] is not None:
-            prose(f"**{goal['name']} projected target date:** around {add_months(anchor, goal['completion_after']):%b %d, %Y} "
-                  f"({goal['completion_after']} months from this plan date).")
-        else:
-            prose(f"**{goal['name']}:** target not reached within {analysis['effects']['searched_months']} months.")
-    with st.expander("Where the money comes from, and what gives"):
-        funding_text(analysis)
-        for text in analysis["tradeoffs"]:
-            prose(text)
     preference = _metadata().get("action_preference", {})
     if preference.get("focus") == "cash" and analysis["effects"]["min_cash_after"] < Decimal(preference.get("cash_floor", "0")):
         st.warning("This option falls below the checking/cash cushion you selected. Review that tradeoff before approving it.")
@@ -177,17 +151,55 @@ def _comparison(blocks):
                    f"The first gap is {dollars(shortfall['unfunded_shortfall'])}. No borrowing is assumed.")
     if any(r["negative_amortization"] for r in after["monthly_records"][1:]):
         st.warning("At least one loan grows because payments do not cover interest.")
-    with st.expander("What this comparison assumes"):
-        prose("Amounts repeat monthly from now. Interest uses the entered constant rates; income is after tax. "
-                 "Savings transfers use available monthly money after recorded expenses and debt payments, in profile order. "
-                 "A larger transfer to one goal can delay another. Inflation, unexpected costs and daily bill timing are excluded.")
-        for unknown in _metadata().get("unknown", []):
-            from moneylab.action_plan import MISSING_LABELS
-            prose("Not yet confirmed: " + MISSING_LABELS.get(unknown, unknown) + ".")
-    render_stress_test(comparison)
+    with st.expander("How we calculated this"):
+        cashflow = after["monthly_records"][1]["net_cash_flow"]
+        cashflow_change = cashflow - before["monthly_records"][1]["net_cash_flow"]
+        st.metric("First-month remainder after bills, debt & saving", dollars(cashflow),
+                  delta=dollars(cashflow_change) if cashflow_change else None)
+        a, b, c = st.columns(3)
+        for col, field, label in ((a, "ending_cash_savings", "Cash at the end"),
+                                   (b, "ending_debt", "Debt at the end"),
+                                   (c, "total_interest", "Interest paid / accrued")):
+            change = after["summary"][field] - before["summary"][field]
+            col.metric(label, dollars(after["summary"][field]),
+                       delta=dollars(change) if change else None,
+                       delta_color="inverse" if field in ("ending_debt", "total_interest") else "normal")
+        _chart(before, after)
+        goals_before = {g["id"]: g for g in before["goals"]}
+        for goal in after["goals"]:
+            old = goals_before.get(goal["id"])
+            if old:
+                # Compare each plan at its OWN deadline, which is labeled explicitly.
+                prose(f"**{goal['name']}**: {dollars(old['projected_at_deadline'])} at month {old['target_months']} → "
+                         f"{dollars(goal['projected_at_deadline'])} at month {goal['target_months']} "
+                         f"({'target reached' if goal['on_track'] else 'below target'}).")
+        for goal in analysis["effects"]["goals"]:
+            if goal["completion_after"] is not None:
+                prose(f"**{goal['name']} projected target date:** around {add_months(anchor, goal['completion_after']):%b %d, %Y} "
+                      f"({goal['completion_after']} months from this plan date).")
+            else:
+                prose(f"**{goal['name']}:** target not reached within {analysis['effects']['searched_months']} months.")
+        with st.expander("Where the money comes from, and what gives"):
+            funding_text(analysis)
+            for text in analysis["tradeoffs"]:
+                prose(text)
+        with st.expander("What this comparison assumes"):
+            prose("Amounts repeat monthly from now. Interest uses the entered constant rates; income is after tax. "
+                     "Savings transfers use available monthly money after recorded expenses and debt payments, in profile order. "
+                     "A larger transfer to one goal can delay another. Inflation, unexpected costs and daily bill timing are excluded.")
+            for unknown in _metadata().get("unknown", []):
+                from moneylab.action_plan import MISSING_LABELS
+                prose("Not yet confirmed: " + MISSING_LABELS.get(unknown, unknown) + ".")
+        render_stress_test(comparison)
     reviewed = _reviewed(blocks)
     if not reviewed:
-        st.info("Confirm your complete figures in My Finances before applying an alternative. You can still explore it here.")
+        st.info("Confirm your complete figures before applying an alternative. Your original plan is still unchanged.")
+        with st.expander("Review figures to apply", expanded=True):
+            if _metadata()["unknown"]:
+                from moneylab.result_ui import render_missing
+                render_missing(blocks, _metadata(), first_only=True, prefix="comparison_missing")
+            else:
+                _review(blocks)
     choosing_current = comparison["source_signature"] == comparison["candidate_signature"] and not comparison.get("progress")
     approved = st.checkbox("Use this plan as my selected schedule" if choosing_current else
                            "I want to replace my plan with these exact changes", key="plan_apply_confirm")
@@ -230,73 +242,89 @@ def render_comparison():
     if not st.session_state.get("ml_plan_preview"):
         st.switch_page(st.session_state.get("ml_plan_preview_origin", "pages/0_Home.py"))
     eyebrow("A TRIAL RUN FOR YOUR MONEY")
-    st.title("Compare your plan")
+    st.title("Test a change")
     _comparison(blocks)
     st.page_link(st.session_state.get("ml_plan_preview_origin", "pages/0_Home.py"), label="Keep exploring without applying")
 
 
 def render_home():
     blocks, result, summary, months, _, _, _ = context()
-    eyebrow("YOUR FINANCIAL PLAN")
+    eyebrow("MONEYLAB · A CLEARER NEXT STEP")
     st.title("My Plan")
     if not blocks:
-        hero("Make room for what comes next.", "Know where you stand, build a plan for a goal, and see what a big decision would change. Start with what you know; fill in the rest later.")
-        a, b = st.columns([2, 1])
-        with a:
-            st.subheader("A plan you can actually use")
-            prose("1. Choose what matters to you.\n2. Add your pay, spending and savings.\n3. Get a clear next step, backed by your numbers.")
-            if st.button("Set up my finances", type="primary", key="ml_home_quick_start"):
+        hero("What would you like to figure out?", "Start with a goal or a decision. Enter the figures you know, then see what they mean and what you could change.", label="START WITH YOUR QUESTION")
+        a, b, c = st.columns(3)
+        with a, st.container(border=True):
+            st.subheader("Reach a savings goal")
+            prose("See your projected gap and test one way to close it.")
+            if st.button("Plan a savings goal", type="primary", key="ml_home_quick_start"):
                 st.switch_page("pages/5_Quick_Start.py")
-        with b:
-            with st.container(border=True):
-                st.markdown("**Just exploring?**")
-                prose("See how the plan works with fictional figures, or check a move before setting everything up.")
-                if st.button("Try a fictional plan", key="plan_example_home"):
-                    load_example()
-                    st.rerun()
-                st.page_link("pages/7_Moving_Out_Alpha.py", label="Try a move-out decision")
-        _smart_entry()
+        with b, st.container(border=True):
+            st.subheader("Test a purchase")
+            prose("See what a cost changes before spending the money.")
+            if st.button("Test a purchase", key="result_start_purchase"):
+                st.session_state.plan_decision_start = "One-time purchase"
+                st.switch_page("pages/3_Explore.py")
+        with c, st.container(border=True):
+            st.subheader("Plan a move")
+            prose("Compare rent, moving costs and the cushion left over.")
+            if st.button('Test a move',key='result_start_move'):
+                # Reuse confirmed purchase facts when there is no full profile.
+                # The combined monthly total is not split into invented expenses.
+                if st.session_state.get('move_draft_source') != 'Enter my own numbers':
+                    draft=st.session_state.get('dc_guest_draft',{})
+                    seed={field:draft[key] for field,key in (('income','dc_guest_income'),('checking','dc_guest_checking'))
+                          if draft.get(key) is not None}
+                    st.session_state.move_draft_values=seed
+                    st.session_state.move_draft_source='Enter my own numbers'
+                    for field,value in seed.items():
+                        st.session_state[f'move_{field}']=value
+                st.session_state.move_start_mode = 'Enter my own numbers'
+                st.switch_page('pages/7_Moving_Out_Alpha.py')
+        _caption("No bank connection needed. Blank answers stay unknown; confirmed $0 amounts stay zero.")
+        if st.button("Try a fictional plan", key="plan_example_home"):
+            load_example()
+            st.rerun()
         return
+    from moneylab.result_ui import render_goal_result
+    from moneylab.action_ui import action_context, render_followthrough
     reviewed = _reviewed(blocks)
-    from moneylab.action_ui import action_context, render_next_actions, render_followthrough
-    plan = action_context(blocks, _metadata(), reviewed, months)
-    from moneylab.action_ui import model_date
-    _caption(f"Recorded plan date: {model_date(_metadata()):%b %d, %Y}. Update your balances with a progress check-in as time passes.")
-    render_next_actions(blocks, plan, _metadata(), reviewed)
+    answer = render_goal_result(blocks, _metadata(), reviewed)
+    if answer is None:
+        flow = result["monthly_records"][1]["net_cash_flow"]
+        hero(f"Your recorded plan leaves {dollars(flow)} a month." if flow >= 0 else
+             f"Your recorded plan spends {dollars(-flow)} more than it receives each month.",
+             "Add a savings target to see what this means for your goal, or test a purchase or move using these same figures.", label="YOUR MONTHLY PICTURE")
+        if st.button("Add a savings goal",type="primary",key="plan_add_goal"):
+            add_block_dialog(preferred_kind="goal")
+        st.page_link("pages/1_My_Money.py",label="Edit figures")
+        st.page_link("pages/3_Explore.py",label="Test a decision")
+        if _metadata()['unknown']:
+            from moneylab.result_ui import render_missing
+            render_missing(blocks,_metadata(),first_only=True,prefix='home_missing')
+        with st.expander("How we calculated this"):
+            a, b, c = st.columns(3)
+            a.metric("Monthly take-home", dollars(summary["monthly_income"]))
+            b.metric("After bills, debt & saving", dollars(flow))
+            c.metric("Cash available today", dollars(result["monthly_records"][0]["cash_savings"]))
+            _chart(result)
     _pending(blocks)
     if st.session_state.pop("plan_applied", False):
-        st.success("Your approved changes are now in your plan. Review your updated figures when you are ready.")
-    # Signed cash flow remains visible when the user is struggling; never mask it as $0.
-    flow = result["monthly_records"][1]["net_cash_flow"]
-    a, b, c = st.columns(3)
-    a.metric("Monthly take-home", dollars(summary["monthly_income"]))
-    b.metric("After bills, debt & saving", dollars(flow))
-    c.metric("Cash available today", dollars(result["monthly_records"][0]["cash_savings"]))
-    _caption("Recorded figures only. The monthly remainder includes transfers the model can fund; existing cash may temporarily cover a deficit.")
-    if not reviewed:
-        with st.expander("Complete or confirm your financial picture", expanded=True):
+        st.success("Your approved changes are now in your plan.")
+    if not reviewed and not _metadata()['unknown']:
+        with st.expander("Confirm your figures before applying a change"):
             _review(blocks)
-            st.page_link("pages/1_My_Money.py", label="Edit my finances")
     goals = [g for g in blocks if g["kind"] == "goal"]
-    st.subheader("What you're working toward")
-    if not goals:
-        prose("Give your savings a purpose. Add a target and a deadline to see a practical saving pace.")
-        if st.button("Add a savings goal", key="plan_add_goal"):
-            add_block_dialog(preferred_kind="goal")
-    for goal in goals:
-        outlook = plan["goals"][goal["id"]]
-        with st.container(border=True):
-            goal_summary(goal["name"], outlook["starting"], outlook["target"], on_track=outlook["on_track"])
-            st.progress(float(min(outlook["starting"] / outlook["target"], 1)))
-            _caption(f"{dollars(outlook['planned'])}/month planned · month {outlook['deadline']} target · {dollars(outlook['projected'])} projected then")
-            if st.button("Explore ways to reach this goal", key=f"action_goal_open_{goal['id']}"):
-                st.session_state.ml_selected_action = {"id": f"goal:{goal['id']}", "kind": "goal", "goal_id": goal["id"]}
-                st.switch_page("pages/10_Action_Plan.py")
-            render_followthrough(blocks, goal, _metadata())
-    st.subheader("Where your plan could take you")
-    _caption(f"{months} months from the recorded plan date, if your monthly pattern continues.")
-    _chart(result)
-    _smart_entry()
+    if goals:
+        with st.expander("Your goals & progress", expanded=bool(_metadata().get('accepted_plan'))):
+            plan = action_context(blocks, _metadata(), reviewed, months)
+            for goal in goals:
+                outlook = plan['goals'][goal['id']]
+                with st.container(border=True):
+                    goal_summary(goal['name'],outlook['starting'],outlook['target'],on_track=outlook['on_track'])
+                    st.progress(float(min(outlook['starting']/outlook['target'],1)))
+                    _caption(f"{dollars(outlook['planned'])}/month planned · {outlook['deadline']} months · {dollars(outlook['projected'])} projected")
+                    render_followthrough(blocks,goal,_metadata())
 
 
 def _smart_entry():
@@ -308,7 +336,7 @@ def _smart_entry():
 def render_finances():
     blocks, _, summary, _, _, _, _ = context()
     eyebrow("THE FIGURES BEHIND YOUR PLAN")
-    st.title("My Finances")
+    st.title("Edit figures")
     prose("Update your numbers once. Your plan and decisions use the same financial picture.")
     from moneylab.action_ui import model_date
     _caption(f"Goal timelines are relative to the recorded plan date, {model_date(_metadata()):%b %d, %Y}. Use a progress check-in to advance that date.")
@@ -316,6 +344,10 @@ def render_finances():
         if st.button("Set up my finances", type="primary"):
             st.switch_page("pages/5_Quick_Start.py")
         return
+    if _metadata()['unknown']:
+        from moneylab.result_ui import render_missing
+        render_missing(blocks, _metadata(), prefix='edit_missing')
+    st.page_link('pages/0_Home.py',label='Back to my result')
     st.metric("Monthly take-home minus bills & debt", dollars(summary["monthly_income"] - summary["monthly_expenses"] - summary["first_month_loan_payments"]))
     groups = (("Monthly money", ("income", "expense")),
               ("Balances & debt", ("cash", "loan", "hysa", "roth_ira", "account")),
@@ -353,17 +385,18 @@ def render_finances():
 
 def render_setup():
     eyebrow("A LITTLE CLARITY GOES A LONG WAY")
-    st.title("Build your financial plan")
+    st.title("Plan a savings goal")
     if st.session_state.get("ml_blocks"):
-        st.info("You already have a plan. Edit its figures in My Finances; setup will never replace it.")
-        st.page_link("pages/1_My_Money.py", label="Edit my finances")
+        st.info("You already have a plan. Edit its figures in Edit figures; setup will never replace it.")
+        st.page_link("pages/1_My_Money.py", label="Edit figures")
         return
     draft = dict(st.session_state.get("plan_setup_draft", {}))
     step = st.session_state.get("plan_setup_step", 0)
-    titles = ("What matters to you", "Your monthly picture", "Balances & review")
+    titles = ("Your goal", "Your monthly money", "Cash, savings & debt")
     st.progress((step + 1) / 3)
     _caption(f"Step {step + 1} of 3 · {titles[step]}")
     st.subheader(titles[step])
+    _caption(("Choose the amount and deadline you want to test.", "These figures tell us whether extra saving has somewhere to come from.", "Confirm what you already have, without counting goal savings twice.")[step])
     _caption("Blank means unknown. Enter $0 when you know there is nothing to record. Your answers stay here when you go Back.")
 
     def field(label, key, parent=st, help=None):
@@ -393,7 +426,7 @@ def render_setup():
         with st.form("plan_setup_monthly_form"):
             values["income"] = field("Monthly take-home pay ($)", "income", help="Money you receive after tax and payroll deductions. Include regular income you expect to continue.")
             st.markdown("**Everyday spending, per month**")
-            _caption("Include what you pay yourself. Keep debt payments separate below.")
+            _caption("Monthly averages are fine. Separate dining out from groceries so you can test a specific change. Keep debt payments separate below.")
             a, b = st.columns(2)
             for index, (key, label) in enumerate(EXPENSES.items()):
                 values[key] = field(f"{label} ($)", key, a if index % 2 == 0 else b)
@@ -418,7 +451,7 @@ def render_setup():
                 values["goal_saved"] = field("Of your total savings, already set aside for this goal ($)", "goal_saved")
                 values["goal_monthly"] = field("What do you currently plan to save each month? ($)", "goal_monthly", help="Enter $0 if you are not saving yet. MoneyLab will show the pace needed for your deadline.")
             if status == "I have debt":
-                _caption("Start with one loan. Add any others in My Finances after setup.")
+                _caption("Start with one loan. Add any others in Edit figures after setup.")
                 values["debt_balance"] = field("Debt balance ($)", "debt_balance")
                 values["debt_rate"] = st.number_input("Annual interest rate (%)", min_value=0.0, max_value=100.0,
                                                       value=draft.get("debt_rate"), step=0.1, key="setup_debt_rate")
@@ -450,19 +483,26 @@ def render_setup():
                     st.error(str(exc))
 
 
+def _decision_description():
+    from moneylab.smart_decision_ui import render_smart_decision_entry
+    with st.expander("Describe a decision instead"):
+        render_smart_decision_entry("decisions")
+
+
 def render_decisions():
     blocks, _, _, months, _, _, _ = context()
     if not blocks:
-        # A temporary snapshot is still useful for someone evaluating one cost.
-        from moneylab.decision_ui import render_decision_page
-        render_decision_page()
+        from moneylab.purchase_start import render_purchase_start
+        render_purchase_start(_decision_description)
+        st.page_link('pages/7_Moving_Out_Alpha.py',label='Test a move instead')
         return
     eyebrow("GIVE A DECISION A TRIAL RUN")
-    st.title("Explore Decisions")
+    st.title("Test a decision")
     prose("Use your current plan as the starting point. See the tradeoffs before changing it.")
+    _decision_description()
     choices = ("One-time purchase", "Recurring commitment", "Change an expense", "Change income", "Pay down debt", "Moving out")
     saved_cost = st.session_state.get("ml_profile_cost_draft")
-    default_kind = "Recurring commitment" if saved_cost and saved_cost["cost_type"] == "recurring" else "One-time purchase"
+    default_kind = st.session_state.pop('plan_decision_start', None) or ("Recurring commitment" if saved_cost and saved_cost["cost_type"] == "recurring" else "One-time purchase")
     kind = st.radio("What would you like to compare?", choices, index=choices.index(default_kind), horizontal=True, key="dc_cost_kind")
     if kind == "Moving out":
         prose("Compare staying with moving, including deposits, rent and the savings cushion you want to keep.")
@@ -477,7 +517,7 @@ def render_decisions():
         match = {"Change an expense": "expense", "Change income": "income", "Pay down debt": "loan"}[kind]
         options = [b for b in blocks if b["kind"] == match]
         if not options:
-            st.info("Add this type of financial entry in My Finances before comparing a change.")
+            st.info("Add this type of financial entry in Edit figures before comparing a change.")
             return
         selected_id = st.selectbox("Choose a recorded item", [b["id"] for b in options],
                                    format_func=lambda v: next(b["name"] for b in options if b["id"] == v))
@@ -497,7 +537,7 @@ def render_decisions():
             _caption(f"Monthly average: {dollars(monthly_equivalent(amount, frequency))}.")
         _caption("Include taxes and extra costs you expect. A purchase uses recorded checking / cash only; no borrowing or goal withdrawals are assumed.")
     if not _reviewed(blocks):
-        st.info("This is a preliminary comparison. Confirm complete figures in My Finances before applying changes.")
+        st.info("This is a preliminary comparison. Confirm complete figures in Edit figures before applying changes.")
     if st.button("Compare with my current plan", type="primary", key="plan_compare_decision"):
         try:
             from moneylab.scenario_changes import apply_scenario_changes

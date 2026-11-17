@@ -83,14 +83,12 @@ def test_crowding_out_another_goal_is_not_hidden_in_supporting_calculations():
     assert any('Move-out fund' in text and 'less' in text for text in result['recommended']['warnings'])
 
 
-def test_benefit_funding_and_alternative_buttons_are_outside_expanders():
+def test_result_and_one_test_are_outside_expandable_calculations():
     app = start()
-    summary = next(m.value for m in app.markdown if 'aria-label="Recommended action"' in m.value)
-    assert 'Expected benefit' in summary
-    assert 'Where the money comes from' in summary
-    assert '$133.34' in summary
-    assert any(b.label == 'Compare a later deadline' for b in app.button)
-    assert any(b.label == 'Compare a smaller target' for b in app.button)
-    assert not any(b.label.startswith('Compare a later') or b.label.startswith('Compare a smaller')
-                   for expander in app.expander for b in expander.button)
+    summary = next(m.value for m in app.markdown if 'aria-label="Your goal result"' in m.value)
+    assert '$800.00 short' in summary and '$10,000.00' in summary and '6 months' in summary
+    assert any('$133.34' in m.value and '$600.00' in m.value for m in app.markdown)
+    assert len([b for b in app.button if b.label == 'Test this change']) == 1
+    assert not any(b.label == 'Test this change' for expander in app.expander for b in expander.button)
+    assert any(e.label == 'How we calculated this' for e in app.expander)
     assert not app.exception

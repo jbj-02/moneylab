@@ -18,7 +18,7 @@ FOCUSES = {
 }
 DEFAULT_PREFERENCE = {"focus": "balanced", "goal_id": None, "cash_floor": "0.00"}
 MISSING_LABELS = {
-    "income": "take-home income", "housing": "housing costs", "food": "food spending",
+    "income": "take-home income", "housing": "housing costs", "food": "groceries", "dining": "dining out & takeaways",
     "transport": "transport costs", "bills": "regular bills", "other": "other spending",
     "checking": "checking/cash balance", "savings": "savings balance", "debts": "debts and payments",
 }

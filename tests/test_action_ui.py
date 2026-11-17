@@ -40,11 +40,11 @@ def open_goal(app):
 
 def test_dashboard_has_finding_funding_and_reason_for_ranking():
     app = start()
-    assert any(h.value == 'What should I do next?' for h in app.subheader)
-    assert any(e.label == 'How MoneyLab worked this out' for e in app.expander)
+    assert any('$800.00 short' in m.value for m in app.markdown)
+    assert any(e.label == 'How we calculated this' for e in app.expander)
     assert any('Month 1 funding' in m.value for m in app.markdown)
-    assert any('nearer deadline' in c.value for c in app.caption)
-    assert any(b.label == 'View action & alternatives' for b in app.button)
+    assert any('$133.34' in m.value and '$600.00' in m.value for m in app.markdown)
+    assert any(b.label == 'Test this change' for b in app.button)
 
 
 def test_goal_options_show_current_finish_and_smaller_target_tradeoff():
@@ -108,7 +108,7 @@ def test_stress_result_never_replaces_the_candidate_or_actual_profile():
 
 def test_acceptance_displays_chosen_schedule_and_storage_status():
     app = start()
-    app = click(app, 'Preview this saving pace')
+    app = click(app, 'Test this change')
     app = next(c for c in app.checkbox if c.key == 'plan_apply_confirm').check().run()
     app = click(app, 'Apply these changes to my plan')
     assert 'accepted_plan' in app.session_state['ml_plan_metadata']
@@ -150,7 +150,8 @@ def test_incomplete_profile_action_names_missing_figures_and_blocks_approval():
     app = start(reviewed=False)
     app.session_state['ml_plan_metadata'] = {'priority':'Build an emergency fund','unknown':['debts','savings']}
     app = app.run()
-    assert any('debts and payments' in m.value and 'savings balance' in m.value for m in app.markdown)
+    assert any('debts and payments' in m.value for m in app.markdown)
+    assert not any(b.label == 'Test this change' for b in app.button)
     app = open_goal(app)
     app = click(app, 'Inspect this option')
     app.switch_page('pages/9_Compare_Plan.py')
@@ -164,7 +165,7 @@ def test_selected_schedule_survives_an_actual_local_store_round_trip(tmp_path, m
     from moneylab.profile_store import LocalProfileStore
     store = LocalProfileStore(tmp_path / 'private')
     monkeypatch.setattr(session, 'configured_local_store', lambda address: store)
-    app = click(start(), 'Preview this saving pace')
+    app = click(start(), 'Test this change')
     app = next(c for c in app.checkbox if c.key == 'plan_apply_confirm').check().run()
     app = click(app, 'Apply these changes to my plan')
     chosen = app.session_state['ml_plan_metadata']['accepted_plan']

@@ -9,14 +9,14 @@ MoneyLab helps students, recent graduates and early-career professionals turn th
 ## Build a plan
 
 - **Start with a priority.** One setup flow asks what matters, your monthly money, then balances and debts. Blank answers remain unknown. The portion of savings assigned to a goal is counted once.
-- **Know your next step.** My Plan explains why an action comes first, where its money would come from, and what it changes elsewhere. Edit your priority and compare a current pace, increased saving, a later date, a smaller target or an expense reduction you select.
+- **Understand the answer first.** My Plan states the goal, deadline and projected gap, then offers one engine-verified change. Select **Test this change** to compare the current and adjusted goal outcomes and the money left each month. Arithmetic and assumptions stay under **How we calculated this**.
 - **Compare before committing.** Test purchases, recurring costs, recorded expenses, income, loan payments or a move. See cash, debt, interest and goal effects. Inspect the exact edits and explicitly approve any plan update; exploring is temporary.
 - **Test uncertainty and follow through.** Stress the same income, expense or one-time-cost assumption against both plans. After approval, see the chosen contribution, target and projected date; compare a new recorded balance with that schedule before updating it.
-- **Return to your figures.** My Finances edits the shared profile. Backups and the opt-in single-user local store preserve your selected schedule and preference. Public account-based saving remains deferred.
+- **Return to your figures.** **Edit figures** updates the shared profile. Blank answers remain unknown; entering a confirmed $0 resolves only that field. Backups and the opt-in single-user local store preserve your selected schedule and preference. Public account-based saving remains deferred.
 
 ### Example
 
-An emergency fund has $8,000 saved, a $10,000 target six months away, and $200/month planned. The model shows an $800 deadline gap and tests $333.34/month as an alternative. If recorded commitments leave only $200/month available, it reports that the deadline cannot be funded; you can compare a later date or a reduction you choose to a recorded expense.
+An emergency fund has $3,620 saved, a $5,000 target six months away, and $100/month planned. MoneyLab projects a $780 gap. If the recorded budget includes $300/month of dining out, the model verifies that cutting it by $130/month and directing the saving to the goal closes the gap. When enough money is already left each month, it tests setting that aside first. Otherwise, it offers a modeled later date or asks for a missing figure.
 
 Projections use monthly averages, constant entered rates and the balances you record. They do not infer borrowing, new income, taxes or daily bill timing. Separate recommendations may use the same available money and must be compared one at a time.
 
@@ -37,7 +37,7 @@ python -m pip install -r requirements.txt
 python -m streamlit run app.py
 ```
 
-Run the automated suite with `python -m pytest -q`. GitHub Actions also runs desktop and mobile Chromium journeys on pull requests. See the [action-plan notes](docs/action-plan.md) for calculations, dates and validation, and the [overhaul notes](docs/product-overhaul.md) for local-saving setup and hosted persistence requirements.
+Run the automated suite with `python -m pytest -q`. GitHub Actions also runs desktop and mobile Chromium journeys on pull requests. See the [result-first notes](docs/result-first-experience.md) for the experience, suggestion rules and validation, the [action-plan notes](docs/action-plan.md) for progress and stress tests, and the [overhaul notes](docs/product-overhaul.md) for local-saving setup and hosted persistence requirements.
 
 ## Repository layout
 

@@ -1,0 +1,51 @@
+{
+  "captured_at": "2026-11-17T11:03:00.996698-05:00",
+  "source": "local feature branch, not production",
+  "baseline_commit": "533dbe46754717c2774b24558d9905af86631f86",
+  "branch": "feature/result-first-experience",
+  "fictional_data": true,
+  "viewports": [
+    {
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "capture_height": 1100,
+  "cases": [
+    "on-track goal",
+    "recorded dining cut rescues goal",
+    "modeled later deadline",
+    "missing income and explicit zero",
+    "back navigation and retained entries",
+    "edit source; reject stale proposal",
+    "export immutable original; explicit application",
+    "direct temporary purchase"
+  ],
+  "screenshots": [
+    "desktop-after-applied.png",
+    "desktop-after-comparison.png",
+    "desktop-after-later-date.png",
+    "desktop-after-missing-figure.png",
+    "desktop-after-on-track.png",
+    "desktop-after-rescue-result.png",
+    "desktop-after-welcome.png",
+    "desktop-before-goal.png",
+    "desktop-before-welcome.png",
+    "mobile-after-applied.png",
+    "mobile-after-comparison.png",
+    "mobile-after-later-date.png",
+    "mobile-after-missing-figure.png",
+    "mobile-after-on-track.png",
+    "mobile-after-rescue-result.png",
+    "mobile-after-welcome.png",
+    "mobile-before-goal.png",
+    "mobile-before-welcome.png"
+  ],
+  "python_tests_passed": 517,
+  "browser_journeys_passed": 22,
+  "local_persistence_and_deletion": "passed"
+}

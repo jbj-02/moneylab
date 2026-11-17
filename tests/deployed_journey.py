@@ -51,7 +51,7 @@ def capture(app, folder, label, title, screenshots, *, focus=None):
     if focus is not None:
         focus.scroll_into_view_if_needed()
     path = folder / f'{label}.png'
-    page.screenshot(path=str(path), full_page=True)
+    page.screenshot(path=str(path), full_page=True, animations='disabled')
     screenshots.append({'file':path.name, 'title':title, 'viewport':{'width':old['width'],'height':height}})
     page.set_viewport_size(old)
 
@@ -70,34 +70,36 @@ def run(args):
                 tls = response.security_details()
                 restore_profile(app, fictional_profile())
                 confirm(app)
-                summary = app.get_by_role('region', name='Recommended action', exact=True)
-                expect(summary).to_contain_text('Save $333.34/month')
-                expect(summary).to_contain_text('4 months sooner')
-                expect(summary).to_contain_text('$133.34 of the $600.00')
-                expect(summary).to_contain_text('$466.66')
-                expect(app.get_by_role('button', name='Compare a later deadline', exact=True)).to_be_visible()
-                expect(app.get_by_role('button', name='Compare a smaller target', exact=True)).to_be_visible()
-                expander = app.get_by_test_id('stExpander').filter(has=app.get_by_text('How MoneyLab worked this out', exact=True))
+                summary = app.get_by_role('region', name='Your goal result', exact=True)
+                expect(summary).to_contain_text('$800.00 short')
+                expect(summary).to_contain_text('$10,000.00')
+                expect(app.get_by_text('Setting aside $133.34',exact=False)).to_be_visible()
+                expect(app.get_by_role('button',name='Test this change',exact=True)).to_be_visible()
+                expander = app.get_by_test_id('stExpander').filter(has=app.get_by_text('How we calculated this', exact=True))
                 collapsed = expander.evaluate('(e)=>{const d=e.matches("details")?e:e.querySelector("details");return d?!d.open:null}')
                 assert collapsed is True, 'Supporting calculations must start collapsed'
                 assert app.evaluate('document.documentElement.scrollWidth <= innerWidth + 4')
-                capture(app,folder,f'{label}-01-dashboard','Recommendation, benefit, funding and two alternatives',shots)
+                capture(app,folder,f'{label}-01-dashboard','Plain-language goal result and one verified change',shots)
                 expander.locator('summary').click()
                 expect(expander.get_by_text('Month 1 funding:',exact=True)).to_be_visible()
                 expander.locator('summary').click()
-                app.get_by_role('button',name='Compare a later deadline',exact=True).click()
+                app.get_by_text('Other changes to explore',exact=True).click()
+                app.get_by_role('button',name='Choose a different goal adjustment',exact=True).click()
+                app.get_by_text('Give myself more time',exact=True).click()
+                app.get_by_role('button',name='Inspect this option',exact=True).click()
                 expect(app.get_by_role('heading',name='Current plan vs alternative',exact=True)).to_be_visible()
-                expect(app.get_by_text('10,000.00 at month 10',exact=False)).to_be_visible()
+                expect(app.get_by_text('allow 10 months instead of 6',exact=False)).to_be_visible()
                 capture(app,folder,f'{label}-02-later','Alternative: keep $200/month and allow ten months',shots)
                 app.get_by_role('button',name='Discard alternative',exact=True).click()
-                expect(app.get_by_role('heading',name='My Plan',exact=True)).to_be_visible()
-                app.get_by_role('button',name='Compare a smaller target',exact=True).click()
+                expect(app.get_by_role('heading',name='What should I do?',exact=True)).to_be_visible()
+                app.get_by_text('Choose a smaller target',exact=True).click()
+                app.get_by_role('button',name='Inspect this option',exact=True).click()
                 expect(app.get_by_role('heading',name='Current plan vs alternative',exact=True)).to_be_visible()
                 expect(app.get_by_text('savings target: $10,000.00 → $9,200.00',exact=False)).to_be_visible()
                 capture(app,folder,f'{label}-03-smaller','Alternative: a smaller $9,200 target at six months',shots)
                 app.get_by_role('button',name='Discard alternative',exact=True).click()
-                expect(app.get_by_role('heading',name='My Plan',exact=True)).to_be_visible()
-                app.get_by_role('button',name='Preview this saving pace',exact=True).click()
+                navigate(app,'My Plan')
+                app.get_by_role('button',name='Test this change',exact=True).click()
                 expect(app.get_by_role('heading',name='Current plan vs alternative',exact=True)).to_be_visible()
                 capture(app,folder,f'{label}-04-recommendation','Recommended option before explicit approval',shots)
                 original = download_workspace(app)
@@ -108,8 +110,7 @@ def run(args):
                 app.get_by_role('button',name='Apply these changes to my plan',exact=True).click()
                 expect(app.get_by_role('heading',name='My Plan',exact=True)).to_be_visible()
                 expect(app.get_by_text('Your chosen plan:',exact=False).first.locator('..')).to_contain_text('$333.34/month')
-                # Complete the existing post-change review, then capture the final plan.
-                confirm(app)
+                # Approval completes this journey; later edits require a fresh figure review.
                 capture(app,folder,f'{label}-05-approved','Approved plan with the chosen $333.34/month schedule',shots,
                         focus=app.get_by_text('Your chosen plan:',exact=False).first)
                 chosen = download_workspace(app)
@@ -118,7 +119,7 @@ def run(args):
                 assert not app.get_by_test_id('stException').count()
                 journeys.append({'viewport':label,'status':'passed','url':app.page.url,
                                  'app_frame_url':app.frame.url,'tls':tls,
-                                 'checks':['visible recommendation/benefit/funding/two alternatives',
+                                 'checks':['visible goal, deadline, gap and one verified change',
                                            'supporting calculations initially collapsed','both alternatives opened and discarded',
                                            'exploration preserved exported profile','explicit approval updated and tracked the contribution']})
                 print(f'{label}: deployed journey passed',flush=True)
@@ -136,7 +137,7 @@ def run(args):
         encoded=base64.b64encode((folder/shot['file']).read_bytes()).decode()
         cards.append(f'<figure><figcaption>{escape(shot["file"])} · {escape(shot["title"])}</figcaption><img src="data:image/png;base64,{encoded}" alt="{escape(shot["title"])}"></figure>')
     html='''<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>MoneyLab deployed journey</title><style>body{font:16px/1.5 system-ui;background:#f6f7f3;color:#173f3e;max-width:1100px;margin:32px auto;padding:0 20px}figure{margin:30px 0}figcaption{font-weight:650;margin-bottom:10px}img{display:block;max-width:100%;border:1px solid #d3dfd7;border-radius:12px}a{color:inherit}</style><h1>MoneyLab: deployed user journey</h1>'''
-    html+=f'<p>Validated <a href="{escape(args.url)}">{escape(args.url)}</a> on desktop and mobile. Captured {escape(captured)}. All figures are fictional. TLS verification remained enabled.</p><p>Passed: visible recommendation, benefit, funding and two alternatives; expandable calculations; both alternatives; immutable exploration; explicit approval; selected schedule in exported data.</p>'
+    html+=f'<p>Validated <a href="{escape(args.url)}">{escape(args.url)}</a> on desktop and mobile. Captured {escape(captured)}. All figures are fictional. TLS verification remained enabled.</p><p>Passed: visible goal, deadline, gap and one verified change; expandable calculations; both alternatives; immutable exploration; explicit approval; selected schedule in exported data.</p>'
     html+=''.join(cards)+'</html>'
     (folder/'index.html').write_text(html)
 

@@ -28,7 +28,7 @@ def monthly_step():
 
 def test_setup_begins_with_priority_not_income():
     app = start()
-    assert any(t.value == 'Build your financial plan' for t in app.title)
+    assert any(t.value == 'Plan a savings goal' for t in app.title)
     assert any(r.key == 'setup_priority' for r in app.radio)
     assert not any(n.key == 'setup_income' for n in app.number_input)
     assert not app.text_area
@@ -62,7 +62,8 @@ def test_unknowns_remain_explicit_and_build_requires_approval():
     assert blocks[1]['monthly_amount'] == '0.00'
     assert 'food' in app.session_state['ml_plan_metadata']['unknown']
     assert 'housing' not in app.session_state['ml_plan_metadata']['unknown']
-    assert any('Not yet confirmed' in i.value for i in app.info)
+    assert app.session_state['ml_plan_metadata']['unknown']
+    assert any(n.value is None for n in app.number_input)
 
 
 def test_goal_balance_cannot_be_counted_twice():
