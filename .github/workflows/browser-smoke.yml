@@ -46,6 +46,7 @@ jobs:
           python tests/browser_smoke.py
           python tests/result_first_browser.py
           python tests/journey_audit.py
+          python tests/move_result_browser.py
       - name: Upload fictional browser screenshots and logs
         if: always()
         uses: actions/upload-artifact@v4

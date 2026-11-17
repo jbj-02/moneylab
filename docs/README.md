@@ -1,5 +1,6 @@
 # MoneyLab documentation
 
+- [Move result rent-edit validation](validation/move-result-rent-edit-2026-11-17/README.md) shows the focused monthly summary and inline proposed-rent recalculation on desktop and mobile.
 - [Streamlined task journeys](streamlined-journeys.md) records the current simplified savings, purchase and move paths, measured counts, and desktop/mobile screenshots.
 - [Result-first experience](result-first-experience.md) describes the new goal answer, verified change, simpler navigation and before/after validation.
 - [Explainable action plans](action-plan.md) describes the current recommendations, alternatives, stress scenarios, progress check-ins and calculation boundaries.

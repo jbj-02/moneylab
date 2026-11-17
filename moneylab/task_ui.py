@@ -222,6 +222,26 @@ def _goal_lines(comparison):
             h.prose(f"**{goal['name']}:** the existing {money(after)} gap in {goal['deadline']} months stays the same.")
 
 
+def _move_result_value(flow):
+    if flow < 0:
+        return f'{money(-flow)} short'
+    if flow > 0:
+        return f'{money(flow)} left'
+    return money(flow)
+
+
+def _move_with_rent(result, rent):
+    """Recalculate a detached move scenario while preserving its source plan."""
+    updated={**result['inputs'],'rent':float(rent)}
+    facts=moving_impact(
+        result['source'],
+        None if updated['housing_id']=='zero' else updated['housing_id'],
+        updated['rent'],updated['extra'],updated['upfront'],
+        reduce_id=updated.get('reduce_id'),
+    )
+    return {**result,'facts':facts,'inputs':updated,'version':result.get('version',0)+1}
+
+
 def render_purchase():
     h=_h();blocks,*_=h.context();metadata=h._metadata()
     st.title('Can I buy this?')
@@ -318,12 +338,33 @@ def render_move():
             return
         facts=result['facts'];comparison=facts['comparison'];recurring=facts['recurring']
         missing=metadata.get('unknown',[]) if blocks else []
-        flow=recurring['alternative']['monthly_records'][1]['net_cash_flow']
+        month=recurring['alternative']['monthly_records'][1]
+        flow=month['net_cash_flow']
+        income=month['income']
+        commitments=income-flow
         monthly=('a monthly shortfall of '+money(-flow)) if flow<0 else (money(flow)+' left each month')
         h.prose(f"Moving needs **{money(facts['upfront'])} upfront**"+('. Add the missing budget figures to check the monthly impact.' if missing else f" and would leave **{monthly}**."))
+        st.metric('Money left in first month','Not checked' if missing else _move_result_value(flow))
+        with st.container(horizontal=True):
+            st.metric('Monthly take-home pay','Not checked' if missing else money(income))
+            st.metric('Projected monthly expenses and commitments','Not checked' if missing else money(commitments))
         with st.container(horizontal=True):
             st.metric('Upfront costs',money(facts['upfront']))
-            st.metric('Money left each month','Not checked' if missing else money(flow))
+        rent_key=f"task_move_result_rent_{result.get('version',0)}"
+        edited_rent=st.number_input(
+            'Proposed rent ($/month)',min_value=0.0,max_value=1e8,
+            value=float(facts['rent']),format='%.2f',key=rent_key,
+            help='Press Enter or leave this field to update the temporary comparison.',
+        )
+        if Decimal(str(edited_rent))!=facts['rent']:
+            try:
+                updated=_move_with_rent(result,edited_rent)
+                st.session_state.task_move_result=updated
+                st.session_state.task_move_draft=updated['inputs']
+                st.session_state.pop('plan_apply_confirm',None)
+                st.rerun()
+            except ValueError as exc:
+                st.error(str(exc))
         if comparison:
             h._caption(f"Cash immediately after the move: {money(facts['remaining'])}. Monthly figure is the first month, after the savings transfers the model can fund.")
             if not missing:
@@ -342,10 +383,10 @@ def render_move():
                     (f" and upfront costs of {money(alternative['upfront'])}" if alternative['upfront']!=facts['upfront'] else '')+
                     '. This monthly budget preserves the goal outcomes in your current plan.')
             if st.button('Test this alternative',type='primary',key='move_test_alternative'):
-                updated={**result['inputs'],'rent':float(alternative['rent']),'upfront':float(alternative['upfront'])}
-                new=moving_impact(result['source'],None if updated['housing_id']=='zero' else updated['housing_id'],updated['rent'],updated['extra'],updated['upfront'],reduce_id=updated.get('reduce_id'))
-                st.session_state.task_move_result={**result,'facts':new,'inputs':updated}
-                st.session_state.task_move_draft=updated
+                updated={**result,'inputs':{**result['inputs'],'upfront':float(alternative['upfront'])}}
+                updated=_move_with_rent(updated,alternative['rent'])
+                st.session_state.task_move_result=updated
+                st.session_state.task_move_draft=updated['inputs']
                 st.session_state.pop('plan_apply_confirm',None)
                 st.rerun()
         elif not comparison:
@@ -424,7 +465,7 @@ def render_move():
                 elif housing_id=='zero':
                     housing_id=None
                 facts=moving_impact(source,housing_id,rent,extra,upfront,reduce_id=reduce_id)
-                st.session_state.task_move_result=dict(facts=facts,source_signature=source_signature,source=source,inputs=inputs)
+                st.session_state.task_move_result=dict(facts=facts,source_signature=source_signature,source=source,inputs=inputs,version=0)
                 st.session_state.task_move_editing=False
                 st.session_state.pop('plan_apply_confirm',None)
                 st.rerun()

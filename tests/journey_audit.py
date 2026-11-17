@@ -159,7 +159,7 @@ def run(args):
                             nav(page,'Plan a move',audit)
                             for field,value in [('New rent share ($/month)',1700),('Other monthly costs: change ($)',150),('Total upfront costs ($)',1200)]: audit.enter(field,value)
                             audit.click('See impact')
-                            expect(page.get_by_test_id('stMetric').filter(has_text='Money left each month')).to_contain_text('-$250.00')
+                            expect(page.get_by_test_id('stMetric').filter(has_text='Money left in first month')).to_contain_text('$250.00 short')
                             expect(page.get_by_role('button',name='Test this alternative',exact=True)).to_be_visible()
                         records.append(dict(viewport=label,**audit.record()));shot(page,folder,f'{label}-{args.mode}-move')
                         original=export(page)['workspace']['blocks']
@@ -171,7 +171,7 @@ def run(args):
                             for field,value in [('New rent share ($/month)','1700.00'),('Other monthly costs: change ($)','150.00'),('Total upfront costs ($)','1200.00')]:
                                 expect(page.get_by_role('spinbutton',name=field,exact=True)).to_have_value(value)
                             page.get_by_role('button',name='See impact',exact=True).click();page.get_by_role('button',name='Test this alternative',exact=True).click()
-                            expect(page.get_by_test_id('stMetric').filter(has_text='Money left each month')).to_contain_text('$0.00')
+                            expect(page.get_by_test_id('stMetric').filter(has_text='Money left in first month')).to_contain_text('$0.00')
                             shot(page,folder,f'{label}-after-move-alternative')
                             assert_original(export(page)['workspace']['blocks'])
                             nav(page,'Plan a move')

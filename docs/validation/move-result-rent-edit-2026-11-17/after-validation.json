@@ -1,0 +1,12 @@
+[
+  {
+    "viewport": "desktop",
+    "mode": "after",
+    "status": "passed"
+  },
+  {
+    "viewport": "mobile",
+    "mode": "after",
+    "status": "passed"
+  }
+]
