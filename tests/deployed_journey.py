@@ -110,8 +110,7 @@ def run(args):
                 app.get_by_role('button',name='Apply these changes to my plan',exact=True).click()
                 expect(app.get_by_role('heading',name='My Plan',exact=True)).to_be_visible()
                 expect(app.get_by_text('Your chosen plan:',exact=False).first.locator('..')).to_contain_text('$333.34/month')
-                # Complete the existing post-change review, then capture the final plan.
-                confirm(app)
+                # Approval completes this journey; later edits require a fresh figure review.
                 capture(app,folder,f'{label}-05-approved','Approved plan with the chosen $333.34/month schedule',shots,
                         focus=app.get_by_text('Your chosen plan:',exact=False).first)
                 chosen = download_workspace(app)
