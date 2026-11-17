@@ -138,13 +138,16 @@ def render_goal_result(blocks, metadata, reviewed):
     st.page_link('pages/1_My_Money.py',label='Edit figures')
     with st.expander('How we calculated this'):
         outlook = answer['outlook']
-        a,b,c=st.columns(3)
-        a.metric('Monthly take-home',money(answer['baseline']['summary']['monthly_income']))
-        b.metric('After bills, debt & saving',money(answer['flow']))
-        c.metric('Cash available today',money(answer['baseline']['monthly_records'][0]['cash_savings']))
-        prose(f"Start with {money(outlook['starting'])} saved for this goal. "
-              f"The model projects {money(outlook['projected'])} in {outlook['deadline']} months "
-              'using the recorded saving pace, available money and entered interest rate.')
+        if answer['missing']:
+            _caption('A complete projection needs the missing figures. No blank has been confirmed as $0.')
+        else:
+            a,b,c=st.columns(3)
+            a.metric('Monthly take-home',money(answer['baseline']['summary']['monthly_income']))
+            b.metric('After bills, debt & saving',money(answer['flow']))
+            c.metric('Cash available today',money(answer['baseline']['monthly_records'][0]['cash_savings']))
+            prose(f"Start with {money(outlook['starting'])} saved for this goal. "
+                  f"The model projects {money(outlook['projected'])} in {outlook['deadline']} months "
+                  'using the recorded saving pace, available money and entered interest rate.')
         if answer['analysis']:
             funding_text(answer['analysis'])
             for text in answer['analysis']['tradeoffs']:
@@ -154,7 +157,8 @@ def render_goal_result(blocks, metadata, reviewed):
                      'The tested cut is at most half that entry and $150/month. This is an option to judge, not an assumption that a cut is practical for you.')
         _caption(f"Plan date: {model_date(metadata):%b %d, %Y}. Monthly averages repeat; daily bill timing and unexpected costs are excluded. "
                  'Savings use available money after bills and debt, in the order of recorded accounts. Goal money is not counted as checking.')
-        _chart(answer['baseline'])
+        if not answer['missing']:
+            _chart(answer['baseline'])
     with st.expander('Other changes to explore'):
         render_priorities(blocks, metadata)
         if st.button('Choose a different goal adjustment',key='result_more_options'):

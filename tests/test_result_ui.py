@@ -28,6 +28,7 @@ def test_a_missing_figure_cannot_be_silently_confirmed_as_zero():
     assert not any(b.label=='Test this change' for b in app.button)
     number=next(n for n in app.number_input if n.key=='result_missing_income')
     assert number.value is None
+    assert not any(m.label=='Monthly take-home' for m in app.metric)
     app=click(app,'Use this figure')
     assert app.error and app.session_state['ml_plan_metadata']['unknown']==['income','food']
     next(n for n in app.number_input if n.key=='result_missing_income').set_value(0.0)

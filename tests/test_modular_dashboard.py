@@ -110,6 +110,7 @@ def test_purchase_comparison_is_immutable_and_can_be_discarded():
 def test_struggling_user_sees_negative_remainder_and_realistic_guidance():
     app = start()
     app.session_state['ml_blocks'] = savings_profile('2000')
+    app.session_state['ml_plan_metadata'] = {'priority':'Build an emergency fund','unknown':[]}
     app = app.run()
     assert next(m for m in app.metric if m.label == 'After bills, debt & saving').value == '-$200.00'
     assert any('Recorded bills run short' in w.value for w in app.warning)
