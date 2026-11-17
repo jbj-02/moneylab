@@ -36,7 +36,7 @@ def nav(page,label,audit=None):
         page.get_by_role('button',name='Expand sidebar',exact=True).click()
         if audit: audit.actions.append('Open mobile menu')
     link.click()
-    if audit: audit.actions.append('Open '+label);audit.screen()
+    if audit: audit.actions.append('Open '+label);audit.screen();audit.view(label)
     if page.viewport_size['width']<768:
         collapse=page.get_by_role('button',name='Collapse sidebar',exact=True)
         if collapse.is_visible():
@@ -68,13 +68,19 @@ def export(page):
 class Audit:
     def __init__(self,page,name):
         self.page,self.name=page,name
-        self.actions=[];self.inputs=[];self.screens=[];self.screen()
+        self.actions=[];self.inputs=[];self.screens=[];self.views=['My Plan'];self.screen()
+    def view(self,label):
+        if label not in self.views: self.views.append(label)
     def screen(self):
         route=urlparse(self.page.url).path or '/'
         if route not in self.screens: self.screens.append(route)
     def click(self,label,role='button'):
         self.page.get_by_role(role,name=label,exact=True).click()
         self.actions.append(label);self.screen()
+        if label=='Test this change': self.view('Goal comparison')
+        elif label in ('Test a purchase','Can I buy this?'): self.view('Purchase form')
+        elif label=='Open move-out comparison': self.view('Move form')
+        elif label in ('See impact','Compare with my current plan','Compare stay vs move','Test this purchase'): self.view('Result')
     def text(self,label):
         self.page.get_by_text(label,exact=True).click();self.actions.append(label);self.screen()
     def enter(self,label,value):
@@ -83,7 +89,7 @@ class Audit:
         self.inputs.append({'label':label,'value':value})
     def record(self):
         self.screen()
-        return dict(journey=self.name,screens=len(self.screens),routes=self.screens,inputs=len(self.inputs),clicks=len(self.actions),actions=self.actions,entered=self.inputs)
+        return dict(journey=self.name,screens=len(self.screens),routes=self.screens.copy(),visible_screens=len(self.views),views=self.views.copy(),inputs=len(self.inputs),clicks=len(self.actions),actions=self.actions,entered=self.inputs)
 
 
 def shot(page,folder,name):
@@ -193,6 +199,7 @@ def run(args):
         browser.close()
     payload=dict(mode=args.mode,url=args.url,figures=FIGURES,records=records,
                  definitions={'screens':'Distinct task routes/steps visited, including My Plan. Inline results on the same task route are not an extra screen.',
+                              'visible_screens':'Logical views visited, including My Plan, the task form and the result; an inline replacement result is a separate visible view. Layout toggles and disclosures are not separate screens.',
                               'inputs':'New scenario figures entered for the matched case; existing profile fields and defaults not edited are excluded.',
                               'clicks':'Control activations, including navigation, disclosures and mobile menu controls; input typing/focus and fixture setup are excluded.',
                               'move_before':'Working All inputs path. Counts include choosing the move, loading the profile, switching layout, expanding changed bills and including the existing goal.'})

@@ -14,15 +14,15 @@ MoneyLab now gives savings, purchases and moving their own short paths. The side
 
 Baseline: `bec32bc59c7f49faddfda5f5923dfcb58429211c`, the latest authored result-first version in PR #10. That branch was ahead of `main` when this work started. This change is stacked on that branch rather than silently merging it. Both versions were run locally in Chromium before and after implementation, at desktop **1440 × 1000** and mobile **390 × 844**, with the same fictional profile. These are branch validation captures, not a claim that the public deployment has changed.
 
-| Journey to first useful answer | Screens before → after | New figures before → after | Desktop clicks before → after | Mobile clicks before → after |
-| --- | --- | --- | --- | --- |
-| See savings result | 1 → 1 | 0 → 0 | 0 → 0 | 0 → 0 |
-| Test its suggested change | 2 → 1 | 0 → 0 | 1 → 1 | 1 → 1 |
-| Check a purchase | 3 → 2 | 1 → 1 | 2 → 2 | 4 → 4 |
-| Plan a move | 3 → 2 | 4 → 3 | 8 → 2 | 10 → 4 |
-| Guest purchase, cash answer | 2 → 2 | 4 → 2 | 2 → 2 | 2 → 2 |
+| Journey to first useful answer | Visible screens before → after | Page routes before → after | New figures before → after | Desktop clicks before → after | Mobile clicks before → after |
+| --- | --- | --- | --- | --- | --- |
+| See savings result | 1 → 1 | 1 → 1 | 0 → 0 | 0 → 0 | 0 → 0 |
+| Test its suggested change | 2 → 2 | 2 → 1 | 0 → 0 | 1 → 1 | 1 → 1 |
+| Check a purchase | 3 → 3 | 3 → 2 | 1 → 1 | 2 → 2 | 4 → 4 |
+| Plan a move | 4 → 3 | 3 → 2 | 4 → 3 | 8 → 2 | 10 → 4 |
+| Guest purchase, cash answer | 3 → 3 | 2 → 2 | 4 → 2 | 2 → 2 | 2 → 2 |
 
-**Definitions:** screens are distinct task routes, including the starting My Plan screen; inline form/result states share a route. New figures count the scenario amounts entered for this matched case, excluding already saved profile figures and untouched defaults. Clicks count control activations, including navigation, disclosures and opening/closing the mobile drawer; typing, field focus and fixture setup are excluded. The savings test row starts at the displayed goal result. The before move walk uses the working **All inputs** path: navigate, select moving, open comparison, load profile, select All inputs, open monthly costs, include the saved goal, compare. Exact traces and figures are in the [before JSON](validation/streamlined-2026-11-17/before-audit.json) and [after JSON](validation/streamlined-2026-11-17/after-audit.json).
+**Definitions:** visible screens include the starting My Plan view, the task form and the first result. An inline replacement result counts as another visible screen. Layout toggles and disclosures are controls within a screen. Page routes are distinct URLs; inline form/result states share a route. The JSON keeps the original route count in `screens` and labels the user-visible count `visible_screens`. New figures count the scenario amounts entered for this matched case, excluding already saved profile figures and untouched defaults. Clicks count control activations, including navigation, disclosures and opening/closing the mobile drawer; typing, field focus and fixture setup are excluded. The savings test row includes the displayed goal result and its comparison. The before move walk uses the working **All inputs** path: navigate, select moving, open comparison, load profile, select All inputs, open monthly costs, include the saved goal, compare. Exact traces and figures are in the [before JSON](validation/streamlined-2026-11-17/before-audit.json) and [after JSON](validation/streamlined-2026-11-17/after-audit.json).
 
 The goal already had an immediate answer and the purchase already took two desktop control clicks. Their gains are fewer comparison routes and competing controls. Guest purchase asks less because its answer is explicitly limited to cash today; it no longer requires monthly totals before giving that answer.
 

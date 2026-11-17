@@ -49,8 +49,11 @@
       "journey": "goal",
       "screens": 1,
       "routes": [
-        "/",
-        "/compare"
+        "/"
+      ],
+      "visible_screens": 1,
+      "views": [
+        "My Plan"
       ],
       "inputs": 0,
       "clicks": 0,
@@ -67,6 +70,11 @@
         "/",
         "/compare"
       ],
+      "visible_screens": 2,
+      "views": [
+        "My Plan",
+        "Goal comparison"
+      ],
       "inputs": 0,
       "clicks": 1,
       "actions": [
@@ -82,6 +90,12 @@
         "/",
         "/explore",
         "/compare"
+      ],
+      "visible_screens": 3,
+      "views": [
+        "My Plan",
+        "Test a decision",
+        "Result"
       ],
       "inputs": 1,
       "clicks": 2,
@@ -104,6 +118,13 @@
         "/",
         "/explore",
         "/moving-alpha"
+      ],
+      "visible_screens": 4,
+      "views": [
+        "My Plan",
+        "Test a decision",
+        "Move form",
+        "Result"
       ],
       "inputs": 4,
       "clicks": 8,
@@ -144,6 +165,12 @@
         "/",
         "/explore"
       ],
+      "visible_screens": 3,
+      "views": [
+        "My Plan",
+        "Purchase form",
+        "Result"
+      ],
       "inputs": 4,
       "clicks": 2,
       "actions": [
@@ -174,8 +201,11 @@
       "journey": "goal",
       "screens": 1,
       "routes": [
-        "/",
-        "/compare"
+        "/"
+      ],
+      "visible_screens": 1,
+      "views": [
+        "My Plan"
       ],
       "inputs": 0,
       "clicks": 0,
@@ -192,6 +222,11 @@
         "/",
         "/compare"
       ],
+      "visible_screens": 2,
+      "views": [
+        "My Plan",
+        "Goal comparison"
+      ],
       "inputs": 0,
       "clicks": 1,
       "actions": [
@@ -207,6 +242,12 @@
         "/",
         "/explore",
         "/compare"
+      ],
+      "visible_screens": 3,
+      "views": [
+        "My Plan",
+        "Test a decision",
+        "Result"
       ],
       "inputs": 1,
       "clicks": 4,
@@ -231,6 +272,13 @@
         "/",
         "/explore",
         "/moving-alpha"
+      ],
+      "visible_screens": 4,
+      "views": [
+        "My Plan",
+        "Test a decision",
+        "Move form",
+        "Result"
       ],
       "inputs": 4,
       "clicks": 10,
@@ -273,6 +321,12 @@
         "/",
         "/explore"
       ],
+      "visible_screens": 3,
+      "views": [
+        "My Plan",
+        "Purchase form",
+        "Result"
+      ],
       "inputs": 4,
       "clicks": 2,
       "actions": [
@@ -301,6 +355,7 @@
   ],
   "definitions": {
     "screens": "Distinct task routes/steps visited, including My Plan. Inline results on the same task route are not an extra screen.",
+    "visible_screens": "Logical views visited, including My Plan, the task form and the result; an inline replacement result is a separate visible view. Layout toggles and disclosures are not separate screens.",
     "inputs": "New scenario figures entered for the matched case; existing profile fields and defaults not edited are excluded.",
     "clicks": "Control activations, including navigation, disclosures and mobile menu controls; input typing/focus and fixture setup are excluded.",
     "move_before": "Working All inputs path. Counts include choosing the move, loading the profile, switching layout, expanding changed bills and including the existing goal."
