@@ -37,10 +37,13 @@ def theme():
     .ml-goal {padding:.15rem 0 .5rem}.ml-goal-title {font-size:1.05rem;font-weight:700;margin-bottom:.3rem}
     .ml-goal-amount {font-size:1.65rem;font-weight:700;letter-spacing:-.03em;color:#173f3e}
     .ml-goal-small {font-size:.85rem;color:#58706a}
+    .ml-result {background:#e6efe6;border-left:5px solid #17665a;border-radius:0 18px 18px 0;padding:1.5rem 1.75rem;margin:1rem 0 1.5rem}
+    .ml-result h2 {font-size:1.85rem !important;line-height:1.4;letter-spacing:-.025em;margin:0;max-width:840px}
     @media(max-width:768px) {
       .block-container{padding:1.4rem 1rem 3rem} h1{font-size:2rem !important}
       .ml-hero{padding:1.4rem;border-radius:16px}.ml-hero h2{font-size:1.6rem !important}
       .ml-action-grid{grid-template-columns:1fr;gap:1rem}
+      .ml-result{padding:1.1rem 1.2rem;margin:.6rem 0 1.3rem}.ml-result h2{font-size:1.4rem !important;line-height:1.45}
       [data-testid="stMetric"]{padding:.8rem} [data-testid="stMetricValue"]{font-size:1.5rem}
     }
     @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto !important}}

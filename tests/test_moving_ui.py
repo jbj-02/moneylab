@@ -77,8 +77,27 @@ def test_feedback_link_is_not_a_private_data_endpoint():
 def test_home_promotes_decision_without_quick_start():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=25).run()
     assert not errors(app), errors(app)
-    assert any(link.label == "Try a move-out decision" for link in app.get("page_link"))
+    assert any(b.label == 'Test a move' for b in app.button)
     assert app.session_state["ml_blocks"] == []
+
+
+def test_home_move_starts_with_unknown_personal_figures():
+    app=AppTest.from_file(str(ROOT/'app.py'),default_timeout=30).run()
+    app=next(b for b in app.button if b.label=='Test a move').click().run()
+    assert not errors(app)
+    assert next(r for r in app.radio if r.key=='move_start_mode').value=='Enter my own numbers'
+    assert next(n for n in app.number_input if n.key=='move_income').value is None
+    assert next(n for n in app.number_input if n.key=='move_checking').value is None
+
+
+def test_home_move_reuses_purchase_pay_and_checking_without_inventing_expenses():
+    app=AppTest.from_file(str(ROOT/'app.py'),default_timeout=30).run()
+    app.session_state['dc_guest_draft']={'dc_guest_income':3500.0,'dc_guest_checking':6000.0,'dc_guest_spending':2000.0}
+    app=next(b for b in app.button if b.label=='Test a move').click().run()
+    assert not errors(app)
+    assert next(n for n in app.number_input if n.key=='move_income').value==3500
+    assert next(n for n in app.number_input if n.key=='move_checking').value==6000
+    assert next(n for n in app.number_input if n.key=='move_current_housing').value is None
 
 
 

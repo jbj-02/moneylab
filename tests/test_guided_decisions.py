@@ -68,50 +68,45 @@ def test_move_guided_validation_and_export_between_steps():
     assert next(n for n in app.number_input if n.key == 'move_income').value == 3200
 
 
-def test_guest_purchase_back_recalculate_and_export():
+def test_guest_purchase_recalculate_restore_draft_and_export():
     app = start('pages/3_Explore.py')
-    set_number(app, 'dc_guest_income', 3500.0)
-    set_number(app, 'dc_guest_spending', 2000.0)
-    set_number(app, 'dc_guest_checking', 6000.0)
-    app = click(app, 'Continue')
-    set_number(app, 'dc_guest_cost', 1200.0)
-    app = click(app, 'Continue')
-    app = click(app, 'Back')
-    assert next(n for n in app.number_input if n.key == 'dc_guest_cost').value == 1200
-    app = click(app, 'Continue')
-    app = click(app, 'Check with these assumptions')
-    assert next(m for m in app.metric if m.label == 'Checking after this one-time cost').value == '$4,800.00'
-    assert not app.number_input
-    app = click(app, 'Back to edit assumptions')
-    assert not app.metric
-    app = click(app, 'Continue')
-    set_number(app, 'dc_guest_cost', 2200.0)
-    app = click(app, 'Continue')
-    app = click(app, 'Check with these assumptions')
-    assert next(m for m in app.metric if m.label == 'Checking after this one-time cost').value == '$3,800.00'
+    for key,value in [('income',3500.0),('spending',2000.0),('checking',6000.0),('cost',1200.0)]:
+        set_number(app, 'dc_guest_'+key, value)
+    app = click(app, 'Test this purchase')
+    assert [m.value for m in app.metric if m.label == 'Checking now'] == ['$6,000.00','$4,800.00']
     app = app.switch_page('pages/6_Settings.py').run()
-    assert not app.exception
     from moneylab.workspace_session import capture_decision_drafts
     drafts = capture_decision_drafts(app.session_state._state.filtered_state)
-    assert Decimal(drafts[0]['values']['cost']) == 2200
+    assert Decimal(drafts[0]['values']['cost']) == 1200
+    app = app.switch_page('pages/3_Explore.py').run()
+    assert next(n for n in app.number_input if n.key == 'dc_guest_cost').value == 1200
+    set_number(app, 'dc_guest_cost', 2200.0)
+    app = click(app, 'Test this purchase')
+    assert [m.value for m in app.metric if m.label == 'Checking now'] == ['$6,000.00','$3,800.00']
     assert app.session_state['ml_blocks'] == []
 
 
-def test_manual_recurring_frequency_survives_review_and_back():
+def test_manual_recurring_frequency_survives_navigation_and_recalculation():
     app = start('pages/3_Explore.py')
-    set_number(app, 'dc_guest_income', 3000.0)
-    set_number(app, 'dc_guest_spending', 1000.0)
-    set_number(app, 'dc_guest_checking', 1000.0)
-    app = click(app, 'Continue')
+    for key,value in [('income',3000.0),('spending',1000.0),('checking',1000.0),('cost',30.0)]:
+        set_number(app, 'dc_guest_'+key, value)
     next(r for r in app.radio if r.key == 'dc_guest_cost_kind').set_value('recurring')
     next(r for r in app.selectbox if r.key == 'dc_guest_frequency').set_value('weekly')
-    set_number(app, 'dc_guest_cost', 30.0)
-    app = click(app, 'Continue')
-    app = click(app, 'Back')
+    app = click(app, 'Test this purchase')
+    assert [m.value for m in app.metric if m.label == 'Money left each month'] == ['$2,000.00','$1,870.00']
+    app = app.switch_page('pages/0_Home.py').run().switch_page('pages/3_Explore.py').run()
     assert next(r for r in app.selectbox if r.key == 'dc_guest_frequency').value == 'weekly'
-    app = click(app, 'Continue')
-    app = click(app, 'Check with these assumptions')
-    assert next(m for m in app.metric if m.label == 'Monthly flexibility after the new cost').value == '$1,870.00'
+    assert app.session_state['ml_blocks'] == []
+
+
+def test_purchase_snapshot_preserves_a_confirmed_zero_income_and_signed_deficit():
+    app=start('pages/3_Explore.py')
+    for key,value in [('income',0.0),('spending',100.0),('checking',500.0),('cost',20.0)]:
+        set_number(app,'dc_guest_'+key,value)
+    app=click(app,'Test this purchase')
+    assert not app.exception
+    assert [m.value for m in app.metric if m.label=='Money left each month']==['-$100.00','-$100.00']
+    assert app.session_state['ml_blocks']==[]
 
 
 def test_switching_source_clears_all_guided_example_values():

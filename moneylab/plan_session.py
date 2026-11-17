@@ -20,7 +20,7 @@ def load_example():
 def restore(payload):
     blocks, scenarios, drafts, metadata = plan_from_json(payload)
     for key in list(st.session_state):
-        if key.startswith(("setup_", "plan_goal_", "plan_setup_", "smart_", "edit_", "dc_", "move_", "action_")):
+        if key.startswith(("setup_", "plan_goal_", "plan_setup_", "smart_", "edit_", "dc_", "move_", "action_", "purchase_", "result_", "comparison_missing_")):
             st.session_state.pop(key, None)
     st.session_state.pop("ml_selected_action", None)
     st.session_state.pop("ml_action_drafts", None)

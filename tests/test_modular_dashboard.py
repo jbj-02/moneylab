@@ -45,7 +45,7 @@ def test_home_starts_empty_with_one_setup_and_optional_example():
     app = start()
     assert app.session_state['ml_blocks'] == []
     assert any(t.value == 'My Plan' for t in app.title)
-    assert any(b.label == 'Set up my finances' for b in app.button)
+    assert any(b.label == 'Plan a savings goal' for b in app.button)
     assert any(b.label == 'Try a fictional plan' for b in app.button)
     assert not app.sidebar.slider
 
@@ -53,10 +53,9 @@ def test_home_starts_empty_with_one_setup_and_optional_example():
 def test_sample_discloses_example_and_shows_signed_monthly_remainder():
     app = sample()
     assert any('Fictional example plan' in i.value for i in app.info)
-    metrics = {m.label:m.value for m in app.metric}
-    assert metrics['Monthly take-home'] == '$3,800.00'
-    assert metrics['After bills, debt & saving'] == '$905.00'
-    assert any(b.label == 'Preview this saving pace' for b in app.button)
+    assert any('Summer travel fund' in m.value for m in app.markdown)
+    assert any('projected to be' in m.value for m in app.markdown)
+    assert any(b.label == 'Test this change' for b in app.button)
 
 
 def test_finances_has_compact_grouped_rows_and_single_entry_edit():
@@ -73,7 +72,7 @@ def test_finances_has_compact_grouped_rows_and_single_entry_edit():
 def test_preview_does_not_edit_profile_and_requires_explicit_approval():
     app = reviewed_profile()
     original = deepcopy(app.session_state['ml_blocks'])
-    app = click(app, 'Preview this saving pace')
+    app = click(app, 'Test this change')
     assert app.session_state['ml_blocks'] == original
     assert next(b for b in app.button if b.label == 'Apply these changes to my plan').disabled
     checkbox = next(c for c in app.checkbox if c.key == 'plan_apply_confirm')
@@ -113,7 +112,7 @@ def test_struggling_user_sees_negative_remainder_and_realistic_guidance():
     app.session_state['ml_blocks'] = savings_profile('2000')
     app = app.run()
     assert next(m for m in app.metric if m.label == 'After bills, debt & saving').value == '-$200.00'
-    assert any('Cash runs short' in m.value for m in app.markdown)
+    assert any('Recorded bills run short' in w.value for w in app.warning)
     assert not app.exception
 
 

@@ -19,6 +19,7 @@ def errors(app):
 
 
 def enter_smart_request(app, sentence):
+    app = app.switch_page("pages/3_Explore.py").run()
     box = next(x for x in app.text_area
                if x.label == "What are you thinking about doing?")
     app = box.set_value(sentence).run()
@@ -116,21 +117,11 @@ def test_guest_recurring_decision_runs_calculation_with_reviewed_values():
                   if b.label == "Open my decision with these values")
     app = button.click().run()
     assert not errors(app), errors(app)
-    spending = next(x for x in app.number_input
-                    if x.label == "Recorded monthly expenses ($)")
-    spending.set_value(1000.00)
-    checking = next(x for x in app.number_input
-                    if x.label == "Checking / cash balance ($)")
-    checking.set_value(1000.00)
-    app = next(b for b in app.button if b.label == "Continue").click().run()
-    app = next(b for b in app.button if b.label == "Continue").click().run()
-    # Review preserved inputs before calculating.
-    submit = next(b for b in app.button
-                  if b.label == "Check with these assumptions")
-    app = submit.click().run()
+    next(x for x in app.number_input if x.key == 'dc_guest_spending').set_value(1000.0)
+    next(x for x in app.number_input if x.key == 'dc_guest_checking').set_value(1000.0)
+    app = next(b for b in app.button if b.label == 'Test this purchase').click().run()
     assert not errors(app), errors(app)
-    metrics = {m.label: m.value for m in app.metric}
-    assert metrics.get("Monthly flexibility after the new cost") == "$1,955.00", {"metrics": metrics, "cost_kind": app.session_state.get("dc_guest_cost_kind"), "income": app.session_state.get("dc_guest_income"), "spending": app.session_state.get("dc_guest_spending"), "checking": app.session_state.get("dc_guest_checking"), "errors": [e.value for e in app.error], "infos": [i.value for i in app.info]}
+    assert [m.value for m in app.metric if m.label == 'Money left each month'] == ['$2,000.00','$1,955.00']
     assert app.session_state["ml_blocks"] == []
 
 

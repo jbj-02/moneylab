@@ -62,6 +62,7 @@ def _route(draft, selected, frequency):
         st.session_state.pop("move_result", None)
         st.session_state.move_confirm = False
     else:
+        st.session_state.pop('purchase_start_result',None)
         st.session_state.dc_guest_draft = {}
         st.session_state.dc_guest_show_result = False
         st.session_state.dc_guest_step = 0

@@ -5,7 +5,7 @@ from moneylab.blocks import serialize_blocks
 from moneylab.engine import validate_money, validate_annual_interest_rate
 
 EXPENSES = {
-    "housing": "Rent / housing", "food": "Groceries & dining",
+    "housing": "Rent / housing", "food": "Groceries", "dining": "Dining out & takeaways",
     "transport": "Transport", "bills": "Utilities, phone & subscriptions",
     "other": "Other regular spending",
 }
