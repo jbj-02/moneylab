@@ -23,7 +23,7 @@ class HostedApp:
         self.page, self.frame = page, frame
 
     def __getattr__(self, name):
-        if name in ('viewport_size', 'expect_download', 'screenshot'):
+        if name in ('viewport_size', 'expect_download', 'expect_response', 'screenshot'):
             return getattr(self.page, name)
         return getattr(self.frame, name)
 

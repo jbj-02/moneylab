@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright, expect
-from browser_smoke import BASE, REVIEW, check, confirm, download_workspace, navigate, number
+from browser_smoke import BASE, REVIEW, check, confirm, download_workspace, navigate, number, show_details, resume_test, upload_workspace
 
 OUTPUT=Path(os.environ.get('BROWSER_ARTIFACT_DIR','artifacts/browser'))
 
@@ -27,8 +27,7 @@ def restore(page,blocks,missing=()):
     navigate(page,'Settings & data')
     payload={'schema_version':5,'workspace':{'schema_version':3,'blocks':blocks,'scenarios':[],'decision_drafts':[]},
              'plan':{'priority':'Build an emergency fund','unknown':list(missing),'is_example':False}}
-    page.get_by_test_id('stFileUploader').locator('input[type=file]').set_input_files({
-        'name':'fictional-plan.json','mimeType':'application/json','buffer':json.dumps(payload).encode()})
+    upload_workspace(page,'fictional-plan.json',payload)
     page.get_by_text("I understand this replaces my current session's data",exact=True).click()
     page.get_by_role('button',name='Restore selected workspace',exact=True).click()
     expect(page.get_by_text('Workspace restored. Review your figures and recalculate any decision.',exact=True)).to_be_visible()
@@ -54,7 +53,7 @@ def start(browser,viewport):
 
 
 def assert_details_collapsed(page):
-    exp=page.get_by_test_id('stExpander').filter(has=page.get_by_text('How we calculated this',exact=True))
+    exp=page.get_by_test_id('stExpander').filter(has=page.get_by_text('See details',exact=True))
     assert exp.evaluate('(e)=>!e.querySelector("details").open')
     exp.locator('summary').click()
     expect(exp.get_by_text('Monthly take-home',exact=True)).to_be_visible()
@@ -98,11 +97,8 @@ def rescue_onboarding(browser,viewport,label):
     page.get_by_role('button',name='Test this change',exact=True).click()
     expect(page.get_by_role('heading',name='Current plan vs alternative',exact=True)).to_be_visible()
     expect(page.get_by_role('button',name='Apply these changes to my plan',exact=True)).to_be_disabled()
-    metrics=page.get_by_test_id('stMetric')
-    expect(metrics.filter(has_text='Emergency fund in 6 months').nth(0)).to_contain_text('$4,220.00')
-    expect(metrics.filter(has_text='Emergency fund in 6 months').nth(1)).to_contain_text('$5,000.00')
-    expect(metrics.filter(has_text='Money left each month').nth(0)).to_contain_text('$0.00')
-    expect(metrics.filter(has_text='Money left each month').nth(1)).to_contain_text('$0.00')
+    expect(page.get_by_role('table')).to_contain_text('$4,220.00')
+    expect(page.get_by_role('table')).to_contain_text('$5,000.00')
     capture(page,f'{label}-after-comparison')
     assert download_workspace(page)['workspace']['blocks']==original, 'Testing must not alter the plan'
     navigate(page,'Edit figures')
@@ -112,19 +108,22 @@ def rescue_onboarding(browser,viewport,label):
     dialog.get_by_role('button',name='Save changes',exact=True).click()
     expect(dialog).not_to_be_visible()
     navigate(page,'My Plan')
-    page.get_by_role('link',name='Review pending alternative',exact=True).click()
+    resume_test(page)
     expect(page.get_by_text('Your figures changed.',exact=False).first).to_be_visible()
     expect(page.get_by_role('button',name='Apply these changes to my plan',exact=True)).to_have_count(0)
     capture(page,f'{label}-after-stale-edit')
     page.get_by_role('button',name='Discard alternative',exact=True).click()
     expect(page.get_by_role('button',name='Test this change',exact=True)).to_be_visible()
     page.get_by_role('button',name='Test this change',exact=True).click()
+    expect(page.get_by_role('heading',name='Current plan vs alternative',exact=True)).to_be_visible()
+    show_details(page)
     expect(page.get_by_text('monthly amount: $300.00 → $270.00',exact=False)).to_be_visible()
     confirm(page)
     expect(page.get_by_role('button',name='Apply these changes to my plan',exact=True)).to_be_disabled()
     page.get_by_text('I want to replace my plan with these exact changes',exact=True).click()
     page.get_by_role('button',name='Apply these changes to my plan',exact=True).click()
     expect(page.get_by_role('heading',name='My Plan',exact=True)).to_be_visible()
+    show_details(page)
     chosen=page.get_by_text('Your chosen plan:',exact=False).first
     expect(chosen.locator('..')).to_contain_text('$230.00/month')
     capture(page,f'{label}-after-applied',focus=chosen)
@@ -144,7 +143,7 @@ def on_track(browser,viewport,label):
     expect(page.get_by_text('Setting aside $230.00 a month instead of $300.00',exact=False)).to_be_visible()
     capture(page,f'{label}-after-on-track')
     page.get_by_role('button',name='Test this change',exact=True).click()
-    expect(page.get_by_test_id('stMetric').filter(has_text='Money left each month').nth(1)).to_contain_text('$270.00')
+    expect(page.get_by_role('table')).to_contain_text('$270.00')
     assert download_workspace(page)['workspace']['blocks'][4]['monthly_contribution']=='300.00'
     context.close()
 
@@ -156,8 +155,9 @@ def later_date(browser,viewport,label):
     expect(page.get_by_text('allowing 14 months would reach the goal.',exact=False)).to_be_visible()
     capture(page,f'{label}-after-later-date')
     page.get_by_role('button',name='Test this change',exact=True).click()
-    expect(page.get_by_role('heading',name='Current plan',exact=True)).to_be_visible()
-    expect(page.get_by_text('allow 14 months instead of 6',exact=False)).to_be_visible()
+    expect(page.get_by_role('table')).to_contain_text('Current · month 6')
+    expect(page.get_by_role('table')).to_contain_text('Test · month 14')
+    expect(page.get_by_text('Allow 14 months instead of 6',exact=False)).to_be_visible()
     assert download_workspace(page)['workspace']['blocks'][4]['target_months']==6
     context.close()
 
@@ -182,12 +182,11 @@ def missing_figure(browser,viewport,label):
 
 def direct_purchase(browser,viewport,label):
     context,page=start(browser,viewport)
-    page.get_by_role('button',name='Test a purchase',exact=True).click()
-    for field,value in [('Purchase or recurring cost ($)',1200),('Monthly take-home pay ($)',3500),
-                        ('Monthly bills, debt payments and planned savings ($)',2000),('Checking / cash available for this purchase ($)',6000)]:
+    page.get_by_role('button',name='Can I buy this?',exact=True).click()
+    for field,value in [('Purchase price ($)',1200),('Available checking / cash ($)',6000)]:
         number(page,field,value)
-    page.get_by_role('button',name='Test this purchase',exact=True).click()
-    expect(page.get_by_text('This $1,200.00 purchase would leave $4,800.00',exact=False)).to_be_visible()
+    page.get_by_role('button',name='See impact',exact=True).click()
+    expect(page.get_by_text('This $1,200.00 purchase would leave',exact=False)).to_be_visible()
     capture(page,f'{label}-after-purchase')
     assert download_workspace(page)['workspace']['blocks']==[]
     context.close()

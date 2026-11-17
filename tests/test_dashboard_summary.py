@@ -90,5 +90,5 @@ def test_result_and_one_test_are_outside_expandable_calculations():
     assert any('$133.34' in m.value and '$600.00' in m.value for m in app.markdown)
     assert len([b for b in app.button if b.label == 'Test this change']) == 1
     assert not any(b.label == 'Test this change' for expander in app.expander for b in expander.button)
-    assert any(e.label == 'How we calculated this' for e in app.expander)
+    assert any(e.label == 'See details' for e in app.expander)
     assert not app.exception

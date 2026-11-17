@@ -22,7 +22,7 @@ def set_number(app, key, value):
 
 
 def test_move_guided_back_preserves_income_rent_and_unknown_savings():
-    app = start('pages/7_Moving_Out_Alpha.py')
+    app = start('pages/13_Detailed_Move.py')
     assert app.session_state['move_step'] == 0 if 'move_step' in app.session_state else True
     mode = next(r for r in app.radio if r.key == 'move_start_mode')
     app = mode.set_value('Enter my own numbers').run()
@@ -49,7 +49,7 @@ def test_move_guided_back_preserves_income_rent_and_unknown_savings():
 
 
 def test_move_guided_validation_and_export_between_steps():
-    app = start('pages/7_Moving_Out_Alpha.py')
+    app = start('pages/13_Detailed_Move.py')
     app = next(r for r in app.radio if r.key == 'move_start_mode').set_value('Enter my own numbers').run()
     app = click(app, 'Continue')
     assert app.error
@@ -63,13 +63,13 @@ def test_move_guided_validation_and_export_between_steps():
     drafts = capture_decision_drafts(app.session_state._state.filtered_state)
     assert Decimal(drafts[0]['values']['income']) == 3200
     assert drafts[0]['source'] == 'entered'
-    app = app.switch_page('pages/7_Moving_Out_Alpha.py').run()
+    app = app.switch_page('pages/13_Detailed_Move.py').run()
     app = click(app, 'Back')
     assert next(n for n in app.number_input if n.key == 'move_income').value == 3200
 
 
 def test_guest_purchase_recalculate_restore_draft_and_export():
-    app = start('pages/3_Explore.py')
+    app = start('pages/12_More_Decisions.py')
     for key,value in [('income',3500.0),('spending',2000.0),('checking',6000.0),('cost',1200.0)]:
         set_number(app, 'dc_guest_'+key, value)
     app = click(app, 'Test this purchase')
@@ -78,7 +78,7 @@ def test_guest_purchase_recalculate_restore_draft_and_export():
     from moneylab.workspace_session import capture_decision_drafts
     drafts = capture_decision_drafts(app.session_state._state.filtered_state)
     assert Decimal(drafts[0]['values']['cost']) == 1200
-    app = app.switch_page('pages/3_Explore.py').run()
+    app = app.switch_page('pages/12_More_Decisions.py').run()
     assert next(n for n in app.number_input if n.key == 'dc_guest_cost').value == 1200
     set_number(app, 'dc_guest_cost', 2200.0)
     app = click(app, 'Test this purchase')
@@ -87,20 +87,20 @@ def test_guest_purchase_recalculate_restore_draft_and_export():
 
 
 def test_manual_recurring_frequency_survives_navigation_and_recalculation():
-    app = start('pages/3_Explore.py')
+    app = start('pages/12_More_Decisions.py')
     for key,value in [('income',3000.0),('spending',1000.0),('checking',1000.0),('cost',30.0)]:
         set_number(app, 'dc_guest_'+key, value)
     next(r for r in app.radio if r.key == 'dc_guest_cost_kind').set_value('recurring')
     next(r for r in app.selectbox if r.key == 'dc_guest_frequency').set_value('weekly')
     app = click(app, 'Test this purchase')
     assert [m.value for m in app.metric if m.label == 'Money left each month'] == ['$2,000.00','$1,870.00']
-    app = app.switch_page('pages/0_Home.py').run().switch_page('pages/3_Explore.py').run()
+    app = app.switch_page('pages/0_Home.py').run().switch_page('pages/12_More_Decisions.py').run()
     assert next(r for r in app.selectbox if r.key == 'dc_guest_frequency').value == 'weekly'
     assert app.session_state['ml_blocks'] == []
 
 
 def test_purchase_snapshot_preserves_a_confirmed_zero_income_and_signed_deficit():
-    app=start('pages/3_Explore.py')
+    app=start('pages/12_More_Decisions.py')
     for key,value in [('income',0.0),('spending',100.0),('checking',500.0),('cost',20.0)]:
         set_number(app,'dc_guest_'+key,value)
     app=click(app,'Test this purchase')
@@ -110,7 +110,7 @@ def test_purchase_snapshot_preserves_a_confirmed_zero_income_and_signed_deficit(
 
 
 def test_switching_source_clears_all_guided_example_values():
-    app = start('pages/7_Moving_Out_Alpha.py')
+    app = start('pages/13_Detailed_Move.py')
     app = click(app, 'Continue')
     app = click(app, 'Continue')
     app = click(app, 'Compare stay vs move')
@@ -124,7 +124,7 @@ def test_switching_source_clears_all_guided_example_values():
 
 
 def test_move_goal_comparison_shows_the_change_in_timing():
-    app = start('pages/7_Moving_Out_Alpha.py')
+    app = start('pages/13_Detailed_Move.py')
     app = click(app, 'Continue')
     app = click(app, 'Continue')
     app = click(app, 'Compare stay vs move')

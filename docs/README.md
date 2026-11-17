@@ -1,5 +1,6 @@
 # MoneyLab documentation
 
+- [Streamlined task journeys](streamlined-journeys.md) records the current simplified savings, purchase and move paths, measured counts, and desktop/mobile screenshots.
 - [Result-first experience](result-first-experience.md) describes the new goal answer, verified change, simpler navigation and before/after validation.
 - [Explainable action plans](action-plan.md) describes the current recommendations, alternatives, stress scenarios, progress check-ins and calculation boundaries.
 - [Product overhaul](product-overhaul.md) covers the current plan-first experience, audit, feature decisions, frontend tradeoffs, persistence and validation.

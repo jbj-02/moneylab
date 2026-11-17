@@ -1,0 +1,363 @@
+{
+  "mode": "before",
+  "url": "http://127.0.0.1:8550",
+  "figures": [
+    {
+      "id": "pay",
+      "kind": "income",
+      "name": "Take-home pay",
+      "monthly_amount": "2400"
+    },
+    {
+      "id": "rent",
+      "kind": "expense",
+      "name": "Rent",
+      "monthly_amount": "1500"
+    },
+    {
+      "id": "bills",
+      "kind": "expense",
+      "name": "Other regular costs",
+      "monthly_amount": "500"
+    },
+    {
+      "id": "dining",
+      "kind": "expense",
+      "name": "Dining out & takeaways",
+      "monthly_amount": "300"
+    },
+    {
+      "id": "cash",
+      "kind": "cash",
+      "name": "Checking",
+      "balance": "2500"
+    },
+    {
+      "id": "goal",
+      "kind": "goal",
+      "name": "Emergency fund",
+      "balance": "3620",
+      "annual_rate": "0",
+      "monthly_contribution": "100",
+      "target": "5000",
+      "target_months": 6
+    }
+  ],
+  "records": [
+    {
+      "viewport": "desktop",
+      "journey": "goal",
+      "screens": 1,
+      "routes": [
+        "/"
+      ],
+      "visible_screens": 1,
+      "views": [
+        "My Plan"
+      ],
+      "inputs": 0,
+      "clicks": 0,
+      "actions": [
+        "Test this change"
+      ],
+      "entered": []
+    },
+    {
+      "viewport": "desktop",
+      "journey": "goal_test",
+      "screens": 2,
+      "routes": [
+        "/",
+        "/compare"
+      ],
+      "visible_screens": 2,
+      "views": [
+        "My Plan",
+        "Goal comparison"
+      ],
+      "inputs": 0,
+      "clicks": 1,
+      "actions": [
+        "Test this change"
+      ],
+      "entered": []
+    },
+    {
+      "viewport": "desktop",
+      "journey": "purchase",
+      "screens": 3,
+      "routes": [
+        "/",
+        "/explore",
+        "/compare"
+      ],
+      "visible_screens": 3,
+      "views": [
+        "My Plan",
+        "Test a decision",
+        "Result"
+      ],
+      "inputs": 1,
+      "clicks": 2,
+      "actions": [
+        "Open Test a decision",
+        "Compare with my current plan"
+      ],
+      "entered": [
+        {
+          "label": "Cost amount ($)",
+          "value": 200
+        }
+      ]
+    },
+    {
+      "viewport": "desktop",
+      "journey": "move",
+      "screens": 3,
+      "routes": [
+        "/",
+        "/explore",
+        "/moving-alpha"
+      ],
+      "visible_screens": 4,
+      "views": [
+        "My Plan",
+        "Test a decision",
+        "Move form",
+        "Result"
+      ],
+      "inputs": 4,
+      "clicks": 8,
+      "actions": [
+        "Open Test a decision",
+        "Moving out",
+        "Open move-out comparison",
+        "Use My Money figures",
+        "All inputs",
+        "Open monthly cost changes",
+        "Include my 1 existing savings goal(s)",
+        "Compare stay vs move"
+      ],
+      "entered": [
+        {
+          "label": "Your share of new rent ($/month)",
+          "value": 1700
+        },
+        {
+          "label": "Security deposit & fees ($)",
+          "value": 1000
+        },
+        {
+          "label": "Moving costs ($)",
+          "value": 200
+        },
+        {
+          "label": "Utilities ($/month)",
+          "value": 150
+        }
+      ]
+    },
+    {
+      "viewport": "desktop",
+      "journey": "guest_purchase",
+      "screens": 2,
+      "routes": [
+        "/",
+        "/explore"
+      ],
+      "visible_screens": 3,
+      "views": [
+        "My Plan",
+        "Purchase form",
+        "Result"
+      ],
+      "inputs": 4,
+      "clicks": 2,
+      "actions": [
+        "Test a purchase",
+        "Test this purchase"
+      ],
+      "entered": [
+        {
+          "label": "Purchase or recurring cost ($)",
+          "value": 200
+        },
+        {
+          "label": "Monthly take-home pay ($)",
+          "value": 2400
+        },
+        {
+          "label": "Monthly bills, debt payments and planned savings ($)",
+          "value": 2400
+        },
+        {
+          "label": "Checking / cash available for this purchase ($)",
+          "value": 2500
+        }
+      ]
+    },
+    {
+      "viewport": "mobile",
+      "journey": "goal",
+      "screens": 1,
+      "routes": [
+        "/"
+      ],
+      "visible_screens": 1,
+      "views": [
+        "My Plan"
+      ],
+      "inputs": 0,
+      "clicks": 0,
+      "actions": [
+        "Test this change"
+      ],
+      "entered": []
+    },
+    {
+      "viewport": "mobile",
+      "journey": "goal_test",
+      "screens": 2,
+      "routes": [
+        "/",
+        "/compare"
+      ],
+      "visible_screens": 2,
+      "views": [
+        "My Plan",
+        "Goal comparison"
+      ],
+      "inputs": 0,
+      "clicks": 1,
+      "actions": [
+        "Test this change"
+      ],
+      "entered": []
+    },
+    {
+      "viewport": "mobile",
+      "journey": "purchase",
+      "screens": 3,
+      "routes": [
+        "/",
+        "/explore",
+        "/compare"
+      ],
+      "visible_screens": 3,
+      "views": [
+        "My Plan",
+        "Test a decision",
+        "Result"
+      ],
+      "inputs": 1,
+      "clicks": 4,
+      "actions": [
+        "Open mobile menu",
+        "Open Test a decision",
+        "Close mobile menu",
+        "Compare with my current plan"
+      ],
+      "entered": [
+        {
+          "label": "Cost amount ($)",
+          "value": 200
+        }
+      ]
+    },
+    {
+      "viewport": "mobile",
+      "journey": "move",
+      "screens": 3,
+      "routes": [
+        "/",
+        "/explore",
+        "/moving-alpha"
+      ],
+      "visible_screens": 4,
+      "views": [
+        "My Plan",
+        "Test a decision",
+        "Move form",
+        "Result"
+      ],
+      "inputs": 4,
+      "clicks": 10,
+      "actions": [
+        "Open mobile menu",
+        "Open Test a decision",
+        "Close mobile menu",
+        "Moving out",
+        "Open move-out comparison",
+        "Use My Money figures",
+        "All inputs",
+        "Open monthly cost changes",
+        "Include my 1 existing savings goal(s)",
+        "Compare stay vs move"
+      ],
+      "entered": [
+        {
+          "label": "Your share of new rent ($/month)",
+          "value": 1700
+        },
+        {
+          "label": "Security deposit & fees ($)",
+          "value": 1000
+        },
+        {
+          "label": "Moving costs ($)",
+          "value": 200
+        },
+        {
+          "label": "Utilities ($/month)",
+          "value": 150
+        }
+      ]
+    },
+    {
+      "viewport": "mobile",
+      "journey": "guest_purchase",
+      "screens": 2,
+      "routes": [
+        "/",
+        "/explore"
+      ],
+      "visible_screens": 3,
+      "views": [
+        "My Plan",
+        "Purchase form",
+        "Result"
+      ],
+      "inputs": 4,
+      "clicks": 2,
+      "actions": [
+        "Test a purchase",
+        "Test this purchase"
+      ],
+      "entered": [
+        {
+          "label": "Purchase or recurring cost ($)",
+          "value": 200
+        },
+        {
+          "label": "Monthly take-home pay ($)",
+          "value": 2400
+        },
+        {
+          "label": "Monthly bills, debt payments and planned savings ($)",
+          "value": 2400
+        },
+        {
+          "label": "Checking / cash available for this purchase ($)",
+          "value": 2500
+        }
+      ]
+    }
+  ],
+  "definitions": {
+    "screens": "Distinct task routes/steps visited, including My Plan. Inline results on the same task route are not an extra screen.",
+    "visible_screens": "Logical views visited, including My Plan, the task form and the result; an inline replacement result is a separate visible view. Layout toggles and disclosures are not separate screens.",
+    "inputs": "New scenario figures entered for the matched case; existing profile fields and defaults not edited are excluded.",
+    "clicks": "Control activations, including navigation, disclosures and mobile menu controls; input typing/focus and fixture setup are excluded.",
+    "move_before": "Working All inputs path. Counts include choosing the move, loading the profile, switching layout, expanding changed bills and including the existing goal."
+  }
+}

@@ -1,3 +1,3 @@
-from moneylab.plan_ui import render_decisions
+from moneylab.task_ui import render_purchase
 
-render_decisions()
+render_purchase()
