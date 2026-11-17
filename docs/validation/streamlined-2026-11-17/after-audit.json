@@ -1,0 +1,264 @@
+{
+  "mode": "after",
+  "url": "http://127.0.0.1:8554",
+  "figures": [
+    {
+      "id": "pay",
+      "kind": "income",
+      "name": "Take-home pay",
+      "monthly_amount": "2400"
+    },
+    {
+      "id": "rent",
+      "kind": "expense",
+      "name": "Rent",
+      "monthly_amount": "1500"
+    },
+    {
+      "id": "bills",
+      "kind": "expense",
+      "name": "Other regular costs",
+      "monthly_amount": "500"
+    },
+    {
+      "id": "dining",
+      "kind": "expense",
+      "name": "Dining out & takeaways",
+      "monthly_amount": "300"
+    },
+    {
+      "id": "cash",
+      "kind": "cash",
+      "name": "Checking",
+      "balance": "2500"
+    },
+    {
+      "id": "goal",
+      "kind": "goal",
+      "name": "Emergency fund",
+      "balance": "3620",
+      "annual_rate": "0",
+      "monthly_contribution": "100",
+      "target": "5000",
+      "target_months": 6
+    }
+  ],
+  "records": [
+    {
+      "viewport": "desktop",
+      "journey": "goal",
+      "screens": 1,
+      "routes": [
+        "/"
+      ],
+      "inputs": 0,
+      "clicks": 0,
+      "actions": [
+        "Test this change"
+      ],
+      "entered": []
+    },
+    {
+      "viewport": "desktop",
+      "journey": "goal_test",
+      "screens": 1,
+      "routes": [
+        "/"
+      ],
+      "inputs": 0,
+      "clicks": 1,
+      "actions": [
+        "Test this change"
+      ],
+      "entered": []
+    },
+    {
+      "viewport": "desktop",
+      "journey": "purchase",
+      "screens": 2,
+      "routes": [
+        "/",
+        "/explore"
+      ],
+      "inputs": 1,
+      "clicks": 2,
+      "actions": [
+        "Open Can I buy this?",
+        "See impact"
+      ],
+      "entered": [
+        {
+          "label": "Purchase price ($)",
+          "value": 200
+        }
+      ]
+    },
+    {
+      "viewport": "desktop",
+      "journey": "move",
+      "screens": 2,
+      "routes": [
+        "/",
+        "/moving-alpha"
+      ],
+      "inputs": 3,
+      "clicks": 2,
+      "actions": [
+        "Open Plan a move",
+        "See impact"
+      ],
+      "entered": [
+        {
+          "label": "New rent share ($/month)",
+          "value": 1700
+        },
+        {
+          "label": "Other monthly costs: change ($)",
+          "value": 150
+        },
+        {
+          "label": "Total upfront costs ($)",
+          "value": 1200
+        }
+      ]
+    },
+    {
+      "viewport": "desktop",
+      "journey": "guest_purchase",
+      "screens": 2,
+      "routes": [
+        "/",
+        "/explore"
+      ],
+      "inputs": 2,
+      "clicks": 2,
+      "actions": [
+        "Can I buy this?",
+        "See impact"
+      ],
+      "entered": [
+        {
+          "label": "Purchase price ($)",
+          "value": 200
+        },
+        {
+          "label": "Available checking / cash ($)",
+          "value": 2500
+        }
+      ]
+    },
+    {
+      "viewport": "mobile",
+      "journey": "goal",
+      "screens": 1,
+      "routes": [
+        "/"
+      ],
+      "inputs": 0,
+      "clicks": 0,
+      "actions": [
+        "Test this change"
+      ],
+      "entered": []
+    },
+    {
+      "viewport": "mobile",
+      "journey": "goal_test",
+      "screens": 1,
+      "routes": [
+        "/"
+      ],
+      "inputs": 0,
+      "clicks": 1,
+      "actions": [
+        "Test this change"
+      ],
+      "entered": []
+    },
+    {
+      "viewport": "mobile",
+      "journey": "purchase",
+      "screens": 2,
+      "routes": [
+        "/",
+        "/explore"
+      ],
+      "inputs": 1,
+      "clicks": 4,
+      "actions": [
+        "Open mobile menu",
+        "Open Can I buy this?",
+        "Close mobile menu",
+        "See impact"
+      ],
+      "entered": [
+        {
+          "label": "Purchase price ($)",
+          "value": 200
+        }
+      ]
+    },
+    {
+      "viewport": "mobile",
+      "journey": "move",
+      "screens": 2,
+      "routes": [
+        "/",
+        "/moving-alpha"
+      ],
+      "inputs": 3,
+      "clicks": 4,
+      "actions": [
+        "Open mobile menu",
+        "Open Plan a move",
+        "Close mobile menu",
+        "See impact"
+      ],
+      "entered": [
+        {
+          "label": "New rent share ($/month)",
+          "value": 1700
+        },
+        {
+          "label": "Other monthly costs: change ($)",
+          "value": 150
+        },
+        {
+          "label": "Total upfront costs ($)",
+          "value": 1200
+        }
+      ]
+    },
+    {
+      "viewport": "mobile",
+      "journey": "guest_purchase",
+      "screens": 2,
+      "routes": [
+        "/",
+        "/explore"
+      ],
+      "inputs": 2,
+      "clicks": 2,
+      "actions": [
+        "Can I buy this?",
+        "See impact"
+      ],
+      "entered": [
+        {
+          "label": "Purchase price ($)",
+          "value": 200
+        },
+        {
+          "label": "Available checking / cash ($)",
+          "value": 2500
+        }
+      ]
+    }
+  ],
+  "definitions": {
+    "screens": "Distinct task routes/steps visited, including My Plan. Inline results on the same task route are not an extra screen.",
+    "inputs": "New scenario figures entered for the matched case; existing profile fields and defaults not edited are excluded.",
+    "clicks": "Control activations, including navigation, disclosures and mobile menu controls; input typing/focus and fixture setup are excluded.",
+    "move_before": "Working All inputs path. Counts include choosing the move, loading the profile, switching layout, expanding changed bills and including the existing goal."
+  }
+}

@@ -15,10 +15,11 @@ def test_one_modelled_test_has_a_prefilled_comparison_and_no_implicit_applicatio
     app=click(app,'Test this change')
     assert app.session_state['ml_blocks']==original
     assert app.session_state['ml_plan_preview']['blocks'][2]['monthly_amount']=='170.00'
-    assert [m.value for m in app.metric if m.label=='Emergency fund in 6 months']==['$4,220.00','$5,000.00']
-    assert [m.value for m in app.metric if m.label=='Money left each month']==['$0.00','$0.00']
+    assert len(app.table)==1
+    assert app.table[0].value.iloc[0].tolist()==['$4,220.00','$5,000.00']
+    assert app.table[0].value.iloc[2].tolist()==['$0.00','$0.00']
     assert next(b for b in app.button if b.key=='plan_apply').disabled
-    assert any(e.label=='How we calculated this' for e in app.expander)
+    assert any(e.label=='See details' for e in app.expander)
 
 
 def test_a_missing_figure_cannot_be_silently_confirmed_as_zero():

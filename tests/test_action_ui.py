@@ -41,7 +41,7 @@ def open_goal(app):
 def test_dashboard_has_finding_funding_and_reason_for_ranking():
     app = start()
     assert any('$800.00 short' in m.value for m in app.markdown)
-    assert any(e.label == 'How we calculated this' for e in app.expander)
+    assert any(e.label == 'See details' for e in app.expander)
     assert any('Month 1 funding' in m.value for m in app.markdown)
     assert any('$133.34' in m.value and '$600.00' in m.value for m in app.markdown)
     assert any(b.label == 'Test this change' for b in app.button)

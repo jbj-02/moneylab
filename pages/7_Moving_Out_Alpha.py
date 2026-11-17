@@ -1,5 +1,5 @@
 """Moving Out Alpha entrypoint, shared with decision-first navigation."""
 
-from moneylab.moving_ui import render
+from moneylab.task_ui import render_move
 
-render()
+render_move()

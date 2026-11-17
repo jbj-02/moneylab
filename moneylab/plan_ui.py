@@ -9,10 +9,10 @@ import streamlit as st
 
 from moneylab.blocks import profile_to_json, serialize_blocks
 from moneylab.cadence import FREQUENCIES, monthly_equivalent
-from moneylab.design import eyebrow, goal_summary, hero
+from moneylab.design import eyebrow, hero
 from moneylab.plan_setup import EXPENSES, PRIORITIES, build_profile
 from moneylab.planning import apply_preview, goal_outlook, preview, signature
-from moneylab.progress import accept_comparison, add_months, tracking_signature
+from moneylab.progress import add_months, tracking_signature
 from moneylab.plan_session import DEFAULT_METADATA, delete_local, load_example, restore, snapshot, sync_local
 from moneylab.profile_store import plan_from_json
 from moneylab.ui_app import add_block_dialog, as_csv, block_amount, context as financial_context, dollars, edit_block_dialog
@@ -80,7 +80,7 @@ def _comparison(blocks):
     comparison = st.session_state.get("ml_plan_preview")
     if not comparison:
         return
-    st.subheader("Current plan vs alternative")
+
     stale = None
     try:
         apply_preview(blocks, comparison)
@@ -151,7 +151,7 @@ def _comparison(blocks):
                    f"The first gap is {dollars(shortfall['unfunded_shortfall'])}. No borrowing is assumed.")
     if any(r["negative_amortization"] for r in after["monthly_records"][1:]):
         st.warning("At least one loan grows because payments do not cover interest.")
-    with st.expander("How we calculated this"):
+    with st.expander("See details"):
         cashflow = after["monthly_records"][1]["net_cash_flow"]
         cashflow_change = cashflow - before["monthly_records"][1]["net_cash_flow"]
         st.metric("First-month remainder after bills, debt & saving", dollars(cashflow),
@@ -191,42 +191,21 @@ def _comparison(blocks):
                 from moneylab.action_plan import MISSING_LABELS
                 prose("Not yet confirmed: " + MISSING_LABELS.get(unknown, unknown) + ".")
         render_stress_test(comparison)
-    reviewed = _reviewed(blocks)
-    if not reviewed:
-        st.info("Confirm your complete figures before applying an alternative. Your original plan is still unchanged.")
-        with st.expander("Review figures to apply", expanded=True):
-            if _metadata()["unknown"]:
-                from moneylab.result_ui import render_missing
-                render_missing(blocks, _metadata(), first_only=True, prefix="comparison_missing")
-            else:
-                _review(blocks)
-    choosing_current = comparison["source_signature"] == comparison["candidate_signature"] and not comparison.get("progress")
-    approved = st.checkbox("Use this plan as my selected schedule" if choosing_current else
-                           "I want to replace my plan with these exact changes", key="plan_apply_confirm")
-    a, b = st.columns(2)
-    if a.button("Choose this plan" if choosing_current else "Apply these changes to my plan",
-                 type="primary", disabled=not approved or not reviewed, key="plan_apply"):
-        try:
-            updated, metadata = accept_comparison(blocks, comparison, _metadata(), on_date=anchor)
-            st.session_state.ml_blocks = updated
-            st.session_state.ml_plan_metadata = metadata
-            st.session_state.pop("ml_reviewed_signature", None)
-            st.session_state.ml_plan_preview = None
-            st.session_state.plan_applied = True
-            st.switch_page("pages/0_Home.py")
-        except ValueError as exc:
-            st.error(str(exc))
-    if b.button("Discard alternative", key="plan_discard"):
-        st.session_state.ml_plan_preview = None
-        st.rerun()
+    from moneylab.task_ui import apply_controls, _missing
+    missing=_missing(_metadata())
+    apply_controls(blocks,comparison,missing=missing)
 
 
-def _remember(comparison, *, origin="pages/0_Home.py"):
+def _remember(comparison, *, origin="pages/0_Home.py", inline=False):
     st.session_state.ml_plan_preview = comparison
     st.session_state.ml_plan_preview_origin = origin
     st.session_state.pop("plan_apply_confirm", None)
     st.session_state.pop("ml_stress_result", None)
-    st.switch_page("pages/9_Compare_Plan.py")
+    st.session_state.ml_preview_inline=inline
+    if inline:
+        st.rerun()
+    else:
+        st.switch_page("pages/9_Compare_Plan.py")
 
 
 def _pending(blocks):
@@ -242,13 +221,17 @@ def render_comparison():
     if not st.session_state.get("ml_plan_preview"):
         st.switch_page(st.session_state.get("ml_plan_preview_origin", "pages/0_Home.py"))
     eyebrow("A TRIAL RUN FOR YOUR MONEY")
-    st.title("Test a change")
+    st.title("Current plan vs alternative")
     _comparison(blocks)
     st.page_link(st.session_state.get("ml_plan_preview_origin", "pages/0_Home.py"), label="Keep exploring without applying")
 
 
 def render_home():
     blocks, result, summary, months, _, _, _ = context()
+    if st.session_state.get('ml_preview_inline') and st.session_state.get('ml_plan_preview'):
+        from moneylab.task_ui import render_goal_test
+        render_goal_test(blocks)
+        return
     eyebrow("MONEYLAB · A CLEARER NEXT STEP")
     st.title("My Plan")
     if not blocks:
@@ -262,32 +245,17 @@ def render_home():
         with b, st.container(border=True):
             st.subheader("Test a purchase")
             prose("See what a cost changes before spending the money.")
-            if st.button("Test a purchase", key="result_start_purchase"):
+            if st.button("Can I buy this?", key="result_start_purchase"):
                 st.session_state.plan_decision_start = "One-time purchase"
                 st.switch_page("pages/3_Explore.py")
         with c, st.container(border=True):
             st.subheader("Plan a move")
             prose("Compare rent, moving costs and the cushion left over.")
-            if st.button('Test a move',key='result_start_move'):
-                # Reuse confirmed purchase facts when there is no full profile.
-                # The combined monthly total is not split into invented expenses.
-                if st.session_state.get('move_draft_source') != 'Enter my own numbers':
-                    draft=st.session_state.get('dc_guest_draft',{})
-                    seed={field:draft[key] for field,key in (('income','dc_guest_income'),('checking','dc_guest_checking'))
-                          if draft.get(key) is not None}
-                    st.session_state.move_draft_values=seed
-                    st.session_state.move_draft_source='Enter my own numbers'
-                    for field,value in seed.items():
-                        st.session_state[f'move_{field}']=value
-                st.session_state.move_start_mode = 'Enter my own numbers'
+            if st.button('Plan a move',key='result_start_move'):
                 st.switch_page('pages/7_Moving_Out_Alpha.py')
         _caption("No bank connection needed. Blank answers stay unknown; confirmed $0 amounts stay zero.")
-        if st.button("Try a fictional plan", key="plan_example_home"):
-            load_example()
-            st.rerun()
         return
-    from moneylab.result_ui import render_goal_result
-    from moneylab.action_ui import action_context, render_followthrough
+    from moneylab.task_ui import render_goal as render_goal_result
     reviewed = _reviewed(blocks)
     answer = render_goal_result(blocks, _metadata(), reviewed)
     if answer is None:
@@ -302,29 +270,14 @@ def render_home():
         if _metadata()['unknown']:
             from moneylab.result_ui import render_missing
             render_missing(blocks,_metadata(),first_only=True,prefix='home_missing')
-        with st.expander("How we calculated this"):
+        with st.expander("See details"):
             a, b, c = st.columns(3)
             a.metric("Monthly take-home", dollars(summary["monthly_income"]))
             b.metric("After bills, debt & saving", dollars(flow))
             c.metric("Cash available today", dollars(result["monthly_records"][0]["cash_savings"]))
             _chart(result)
-    _pending(blocks)
     if st.session_state.pop("plan_applied", False):
         st.success("Your approved changes are now in your plan.")
-    if not reviewed and not _metadata()['unknown']:
-        with st.expander("Confirm your figures before applying a change"):
-            _review(blocks)
-    goals = [g for g in blocks if g["kind"] == "goal"]
-    if goals:
-        with st.expander("Your goals & progress", expanded=bool(_metadata().get('accepted_plan'))):
-            plan = action_context(blocks, _metadata(), reviewed, months)
-            for goal in goals:
-                outlook = plan['goals'][goal['id']]
-                with st.container(border=True):
-                    goal_summary(goal['name'],outlook['starting'],outlook['target'],on_track=outlook['on_track'])
-                    st.progress(float(min(outlook['starting']/outlook['target'],1)))
-                    _caption(f"{dollars(outlook['planned'])}/month planned · {outlook['deadline']} months · {dollars(outlook['projected'])} projected")
-                    render_followthrough(blocks,goal,_metadata())
 
 
 def _smart_entry():
@@ -508,7 +461,7 @@ def render_decisions():
         prose("Compare staying with moving, including deposits, rent and the savings cushion you want to keep.")
         if st.button("Open move-out comparison", type="primary"):
             st.session_state.move_start_mode = "Use My Money figures"
-            st.switch_page("pages/7_Moving_Out_Alpha.py")
+            st.switch_page("pages/13_Detailed_Move.py")
         return
     amount = 0
     frequency = "monthly"

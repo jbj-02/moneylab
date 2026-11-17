@@ -9,7 +9,7 @@ MoneyLab helps students, recent graduates and early-career professionals turn th
 ## Build a plan
 
 - **Start with a priority.** One setup flow asks what matters, your monthly money, then balances and debts. Blank answers remain unknown. The portion of savings assigned to a goal is counted once.
-- **Understand the answer first.** My Plan states the goal, deadline and projected gap, then offers one engine-verified change. Select **Test this change** to compare the current and adjusted goal outcomes and the money left each month. Arithmetic and assumptions stay under **How we calculated this**.
+- **Understand the answer first.** My Plan states the goal, deadline and projected gap, then offers one engine-verified change. Select **Test this change** to compare the current and adjusted goal outcomes and the money left each month. Arithmetic and assumptions stay under **See details**.
 - **Compare before committing.** Test purchases, recurring costs, recorded expenses, income, loan payments or a move. See cash, debt, interest and goal effects. Inspect the exact edits and explicitly approve any plan update; exploring is temporary.
 - **Test uncertainty and follow through.** Stress the same income, expense or one-time-cost assumption against both plans. After approval, see the chosen contribution, target and projected date; compare a new recorded balance with that schedule before updating it.
 - **Return to your figures.** **Edit figures** updates the shared profile. Blank answers remain unknown; entering a confirmed $0 resolves only that field. Backups and the opt-in single-user local store preserve your selected schedule and preference. Public account-based saving remains deferred.
@@ -37,7 +37,7 @@ python -m pip install -r requirements.txt
 python -m streamlit run app.py
 ```
 
-Run the automated suite with `python -m pytest -q`. GitHub Actions also runs desktop and mobile Chromium journeys on pull requests. See the [result-first notes](docs/result-first-experience.md) for the experience, suggestion rules and validation, the [action-plan notes](docs/action-plan.md) for progress and stress tests, and the [overhaul notes](docs/product-overhaul.md) for local-saving setup and hosted persistence requirements.
+Run the automated suite with `python -m pytest -q`. GitHub Actions also runs desktop and mobile Chromium journeys on pull requests. See the [streamlined journey audit](docs/streamlined-journeys.md) for measured before/after task paths and desktop/mobile screenshots, the [result-first notes](docs/result-first-experience.md) for the experience, suggestion rules and validation, the [action-plan notes](docs/action-plan.md) for progress and stress tests, and the [overhaul notes](docs/product-overhaul.md) for local-saving setup and hosted persistence requirements.
 
 ## Repository layout
 

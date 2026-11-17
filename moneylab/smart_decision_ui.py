@@ -11,9 +11,9 @@ from moneylab.cadence import FREQUENCIES
 from moneylab.decision_language import interpret_decision, label_for
 
 _ROUTES = {
-    "moving": "pages/7_Moving_Out_Alpha.py",
-    "purchase": "pages/3_Explore.py",
-    "recurring": "pages/3_Explore.py",
+    "moving": "pages/13_Detailed_Move.py",
+    "purchase": "pages/12_More_Decisions.py",
+    "recurring": "pages/12_More_Decisions.py",
 }
 _MOVING_FIELDS = (
     "income", "current_housing", "rent", "other_living", "minimum_debt",

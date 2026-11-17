@@ -6,6 +6,7 @@ used. CI retains screenshots; the Python suite validates exact amounts.
 from decimal import Decimal
 import json
 import os
+import re
 from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
 
@@ -28,6 +29,11 @@ def shot(page, label):
 
 
 def navigate(page, label):
+    if label == 'Test a decision':
+        navigate(page,'Can I buy this?')
+        show_details(page)
+        page.get_by_role('link',name='Other changes and recurring costs',exact=True).click()
+        return
     link = page.get_by_test_id('stSidebar').get_by_role('link', name=label, exact=True)
     box = link.bounding_box()
     if not link.is_visible() or box is None or box['x'] < 0:
@@ -38,21 +44,42 @@ def navigate(page, label):
         collapse = page.get_by_role('button', name='Collapse sidebar', exact=True)
         if collapse.is_visible():
             collapse.click()
+            expect(link).not_to_be_in_viewport()
 
 
 def number(page, label, value):
     page.get_by_role('spinbutton', name=label, exact=True).fill(str(value))
 
 
+def show_details(page):
+    expect(page.get_by_test_id('stApp')).to_have_attribute('data-test-script-state','notRunning')
+    expander=page.get_by_test_id('stMain').get_by_test_id('stExpander').filter(has=page.get_by_text('See details',exact=True)).first
+    if not expander.evaluate('(e)=>e.querySelector("details").open'):
+        expander.locator('summary').first.click()
+
+
+def resume_test(page):
+    page.get_by_role('heading',level=1).first.wait_for()
+    expect(page.get_by_test_id('stApp')).to_have_attribute('data-test-script-state','notRunning')
+    if page.get_by_role('heading',name='Current plan vs alternative',exact=True).count():
+        return
+    if page.get_by_role('heading',name='My Plan',exact=True).count():
+        show_details(page)
+    page.get_by_role('link',name='Review pending alternative',exact=True).click()
+
+
 def confirm(page):
-    review=page.get_by_text(REVIEW, exact=True)
-    review.wait_for(state='attached')
+    # Known inputs need no separate low-risk review screen. Applying always
+    # keeps its own explicit checkbox; missing markers still block approval.
+    review=page.get_by_text(REVIEW,exact=True)
+    if not review.count():
+        return
     if not review.is_visible():
         review.locator('xpath=ancestor::details[1]').locator('summary').click()
     if not page.get_by_role('checkbox',name=REVIEW,exact=True).is_checked():
         review.click()
-    page.get_by_role('button', name='Confirm my figures', exact=True).click()
-    expect(page.get_by_role('button', name='Confirm my figures', exact=True)).to_have_count(0)
+    page.get_by_role('button',name='Confirm my figures',exact=True).click()
+    expect(page.get_by_role('button',name='Confirm my figures',exact=True)).to_have_count(0)
 
 
 def fictional_profile(income='3000', spending='2200', cash='2000'):
@@ -65,13 +92,18 @@ def fictional_profile(income='3000', spending='2200', cash='2000'):
     ]
 
 
+def upload_workspace(page,filename,payload):
+    with page.expect_response(lambda r:'/upload_file/' in r.url and r.request.method=='PUT') as uploaded:
+        page.get_by_test_id('stFileUploader').locator('input[type=file]').set_input_files({
+            'name':filename,'mimeType':'application/json','buffer':json.dumps(payload).encode()})
+    assert uploaded.value.ok
+    expect(page.get_by_role('button',name='Remove '+filename,exact=True)).to_be_visible()
+
+
 def restore_profile(page, blocks):
     navigate(page, 'Settings & data')
     expect(page.get_by_role('heading', name='Save or restore your workspace')).to_be_visible()
-    page.get_by_test_id('stFileUploader').locator('input[type=file]').set_input_files({
-        'name':'fictional-profile.json', 'mimeType':'application/json',
-        'buffer':json.dumps({'schema_version':5,'workspace':{'schema_version':3,'blocks':blocks,'scenarios':[],'decision_drafts':[]},'plan':{'priority':'Build an emergency fund','unknown':[],'is_example':False}}).encode(),
-    })
+    upload_workspace(page,'fictional-profile.json',{'schema_version':5,'workspace':{'schema_version':3,'blocks':blocks,'scenarios':[],'decision_drafts':[]},'plan':{'priority':'Build an emergency fund','unknown':[],'is_example':False}})
     page.get_by_text("I understand this replaces my current session's data", exact=True).click()
     page.get_by_role('button', name='Restore selected workspace', exact=True).click()
     expect(page.get_by_text('Workspace restored. Review your figures and recalculate any decision.', exact=True)).to_be_visible()
@@ -160,7 +192,7 @@ def savings_and_purchase_journey(browser, viewport, label):
     before = export_profile(page)
     assert before[3]['monthly_contribution'] == '200.00'
     navigate(page, 'My Plan')
-    page.get_by_role('link', name='Review pending alternative', exact=True).click()
+    resume_test(page)
     page.get_by_text('I want to replace my plan with these exact changes', exact=True).click()
     page.get_by_role('button', name='Apply these changes to my plan', exact=True).click()
     expect(page.get_by_text('Your approved changes are now in your plan.', exact=False)).to_be_visible()
@@ -176,7 +208,7 @@ def savings_and_purchase_journey(browser, viewport, label):
     exported = export_profile(page)
     assert exported == after, 'Exploring a purchase must not change the actual plan'
     navigate(page, 'Test a decision')
-    page.get_by_role('link', name='Review pending alternative', exact=True).click()
+    resume_test(page)
     page.get_by_role('button', name='Discard alternative', exact=True).click()
     expect(page.get_by_role('heading', name='Current plan vs alternative')).to_have_count(0)
     context.close()
@@ -188,7 +220,7 @@ def struggling_journey(browser, viewport, label):
     page.goto(BASE, wait_until='domcontentloaded')
     expect(page.get_by_role('heading', name='My Plan', exact=True)).to_be_visible()
     restore_profile(page, fictional_profile('2000', '2200', '100'))
-    page.get_by_text('How we calculated this',exact=True).click()
+    show_details(page)
     expect(page.get_by_text('-$200.00', exact=True)).to_be_visible()
     expect(page.get_by_text('Recorded bills run short', exact=False).first).to_be_visible()
     expect(page.get_by_role('button', name='Test this change', exact=True)).to_have_count(0)
@@ -206,8 +238,8 @@ def action_plan_journey(browser, viewport, label):
                        target_months=12, monthly_contribution='100'))
     restore_profile(page, blocks)
     confirm(page)
-    page.get_by_text('Other changes to explore',exact=True).click()
-    page.get_by_role('button',name='Choose a different goal adjustment',exact=True).click()
+    show_details(page)
+    page.get_by_role('button',name='Other goal adjustments',exact=True).click()
     expect(page.get_by_role('heading', name='What should I do?', exact=True)).to_be_visible()
     page.get_by_text('Keep my current pace', exact=True).click()
     expect(page.get_by_text('10 months from the plan date', exact=False)).to_be_visible()
@@ -230,7 +262,7 @@ def action_plan_journey(browser, viewport, label):
     page.get_by_text('Save more to meet the deadline', exact=True).click()
     page.get_by_role('button', name='Inspect this option', exact=True).click()
     expect(page.get_by_role('heading', name='Current plan vs alternative', exact=True)).to_be_visible()
-    page.get_by_text('How we calculated this',exact=True).click()
+    show_details(page)
     page.get_by_text('What if things change?', exact=True).click()
     page.get_by_text('Lower income', exact=True).click()
     expect(page.get_by_role('combobox', name='Recorded item to stress-test', exact=True)).to_have_value('Take-home pay')
@@ -244,10 +276,11 @@ def action_plan_journey(browser, viewport, label):
     assert original['workspace']['blocks'][3]['monthly_contribution'] == '200.00'
     assert 'accepted_plan' not in original['plan']
     navigate(page, 'My Plan')
-    page.get_by_role('link', name='Review pending alternative', exact=True).click()
+    resume_test(page)
     page.get_by_text('I want to replace my plan with these exact changes', exact=True).click()
     page.get_by_role('button', name='Apply these changes to my plan', exact=True).click()
     expect(page.get_by_role('heading', name='My Plan', exact=True)).to_be_visible()
+    show_details(page)
     expect(page.get_by_text('Your chosen plan:', exact=False).first).to_be_visible()
     chosen = download_workspace(page)
     assert chosen['schema_version'] == 5
@@ -255,6 +288,7 @@ def action_plan_journey(browser, viewport, label):
     assert chosen['plan']['accepted_plan']['blocks'][3]['monthly_contribution'] == '333.34'
     navigate(page, 'My Plan')
     confirm(page)
+    show_details(page)
     page.get_by_text('Check my progress for Emergency fund', exact=True).click()
     number(page, 'Recorded goal balance ($)', 7900)
     page.get_by_role('button', name='Compare my progress', exact=True).click()
@@ -283,8 +317,8 @@ def dashboard_summary_journey(browser, viewport, label):
     expect(summary).to_contain_text('$10,000.00')
     expect(page.get_by_text('Setting aside $133.34',exact=False)).to_be_visible()
     shot(page,f'{label}-dashboard-summary')
-    page.get_by_text('Other changes to explore',exact=True).click()
-    page.get_by_role('button',name='Choose a different goal adjustment',exact=True).click()
+    show_details(page)
+    page.get_by_role('button',name='Other goal adjustments',exact=True).click()
     page.get_by_text('Give myself more time',exact=True).click()
     page.get_by_role('button',name='Inspect this option',exact=True).click()
     expect(page.get_by_role('heading',name='Current plan vs alternative',exact=True)).to_be_visible()
@@ -302,10 +336,11 @@ def dashboard_summary_journey(browser, viewport, label):
     original = download_workspace(page)
     assert original['workspace']['blocks'][3]['monthly_contribution'] == '200.00'
     navigate(page, 'My Plan')
-    page.get_by_role('link', name='Review pending alternative', exact=True).click()
+    resume_test(page)
     page.get_by_text('I want to replace my plan with these exact changes', exact=True).click()
     page.get_by_role('button', name='Apply these changes to my plan', exact=True).click()
     expect(page.get_by_role('heading', name='My Plan', exact=True)).to_be_visible()
+    show_details(page)
     expect(page.get_by_text('Your chosen plan:', exact=False).first.locator('..')).to_contain_text('$333.34/month')
     shot(page, f'{label}-dashboard-approved')
     chosen = download_workspace(page)
@@ -317,7 +352,7 @@ def dashboard_summary_journey(browser, viewport, label):
 def legacy_move_journey(browser, viewport, label):
     context = browser.new_context(viewport=viewport, reduced_motion='reduce')
     page = context.new_page()
-    page.goto(f'{BASE}/moving-alpha', wait_until='domcontentloaded')
+    page.goto(f'{BASE}/move-details', wait_until='domcontentloaded')
     expect(page.get_by_role('heading', name='Moving Out Decision Lab')).to_be_visible()
     for step, title in ((2, 'The proposed move'), (3, 'Review')):
         page.get_by_role('button', name='Continue', exact=True).click()

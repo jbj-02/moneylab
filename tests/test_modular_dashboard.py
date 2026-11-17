@@ -46,7 +46,7 @@ def test_home_starts_empty_with_one_setup_and_optional_example():
     assert app.session_state['ml_blocks'] == []
     assert any(t.value == 'My Plan' for t in app.title)
     assert any(b.label == 'Plan a savings goal' for b in app.button)
-    assert any(b.label == 'Try a fictional plan' for b in app.button)
+    assert any(b.label == 'Can I buy this?' for b in app.button)
     assert not app.sidebar.slider
 
 
@@ -93,7 +93,7 @@ def test_editing_original_after_preview_blocks_stale_apply():
 
 
 def test_purchase_comparison_is_immutable_and_can_be_discarded():
-    app = navigate(reviewed_profile(), '3_Explore.py')
+    app = navigate(reviewed_profile(), '12_More_Decisions.py')
     original = deepcopy(app.session_state['ml_blocks'])
     app = next(n for n in app.number_input if n.key == 'dc_cost_value').set_value(1200.0).run()
     app = click(app, 'Compare with my current plan')
@@ -150,7 +150,7 @@ def test_legacy_goals_bookmark_now_opens_integrated_plan():
 
 
 def test_weekly_recurring_cost_keeps_cadence_and_exports_reviewed_inputs():
-    app = navigate(reviewed_profile(), '3_Explore.py')
+    app = navigate(reviewed_profile(), '12_More_Decisions.py')
     app = next(r for r in app.radio if r.key == 'dc_cost_kind').set_value('Recurring commitment').run()
     next(n for n in app.number_input if n.key == 'dc_cost_value').set_value(45.0)
     app = next(s for s in app.selectbox if s.key == 'dc_cost_frequency').set_value('weekly').run()

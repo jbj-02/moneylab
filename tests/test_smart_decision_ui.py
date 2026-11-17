@@ -19,7 +19,7 @@ def errors(app):
 
 
 def enter_smart_request(app, sentence):
-    app = app.switch_page("pages/3_Explore.py").run()
+    app = app.switch_page("pages/12_More_Decisions.py").run()
     box = next(x for x in app.text_area
                if x.label == "What are you thinking about doing?")
     app = box.set_value(sentence).run()
