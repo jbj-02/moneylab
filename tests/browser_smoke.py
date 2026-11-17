@@ -33,6 +33,8 @@ def navigate(page, label):
         navigate(page,'Can I buy this?')
         show_details(page)
         page.get_by_role('link',name='Other changes and recurring costs',exact=True).click()
+        expect(page.get_by_role('heading',name='Test a decision',exact=True)).to_be_visible()
+        expect(page.get_by_test_id('stApp')).to_have_attribute('data-test-script-state','notRunning')
         return
     link = page.get_by_test_id('stSidebar').get_by_role('link', name=label, exact=True)
     box = link.bounding_box()
@@ -65,7 +67,7 @@ def show_details(page):
 
 
 def resume_test(page):
-    expect(page.get_by_role('heading',level=1).first).to_have_text(re.compile(r'^(My Plan|Current plan vs alternative)$'))
+    expect(page.get_by_role('heading',level=1).first).to_have_text(re.compile(r'^(My Plan|Current plan vs alternative|Test a decision)$'))
     expect(page.get_by_test_id('stApp')).to_have_attribute('data-test-script-state','notRunning')
     if page.get_by_role('heading',name='Current plan vs alternative',exact=True).count():
         return
