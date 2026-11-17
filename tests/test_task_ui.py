@@ -131,3 +131,15 @@ def test_purchase_keeps_a_recorded_cash_cushion_warning_next_to_the_result():
     app=app.run();fill(app,'task_purchase_price',700.0);app=click(app,'See impact')
     assert any('cash cushion' in w.value for w in app.warning)
     assert not any('cash cushion' in w.value for e in app.expander for w in e.warning)
+
+
+def test_purchase_after_an_inline_goal_test_can_return_to_my_plan():
+    app=start(profile());original=deepcopy(app.session_state['ml_blocks'])
+    app=click(app,'Test this change')
+    app=app.switch_page('pages/3_Explore.py').run()
+    fill(app,'task_purchase_price',200.0);app=click(app,'See impact')
+    app=app.switch_page('pages/0_Home.py').run()
+    assert not app.exception
+    assert not app.session_state['ml_preview_inline']
+    assert app.session_state['ml_blocks']==original
+    assert any('$780.00 short' in m.value for m in app.markdown)

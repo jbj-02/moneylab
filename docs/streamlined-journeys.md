@@ -42,7 +42,7 @@ The move solver retains debts, transfers and other goals. Negative cost adjustme
 
 Run `python -m pytest -q` for the calculation and Streamlit suite. Browser coverage is `tests/browser_smoke.py`, `tests/result_first_browser.py` and `tests/journey_audit.py` (Playwright Chromium). The matched audit exports the workspace before and after testing and checks identical saved blocks, exercises Back with retained purchase/move entries, tests the modeled move alternative, and covers desktop/mobile layout. The result-first suite covers rescued and on-track goals, a modeled later deadline, missing income, stale figures, explicit approval and exported applied changes. The broader suite retains optional tools, workspace restore and single-user persistence/deletion coverage.
 
-**Local validation:** 534 Python tests passed; all 12 broader desktop/mobile browser journeys and all 10 result-first journeys passed, including a new-session persistence/deletion check. The matched before/after audit adds eight walkthroughs per version, with the source-preservation and explicit-apply assertions described above. Screenshots are in the [gallery](validation/streamlined-2026-11-17/README.md).
+**Local validation:** 535 Python tests passed; all 12 broader desktop/mobile browser journeys and all 10 result-first journeys passed, including a new-session persistence/deletion check. The matched before/after audit adds eight walkthroughs per version, with the source-preservation and explicit-apply assertions described above. Screenshots are in the [gallery](validation/streamlined-2026-11-17/README.md).
 
 To reproduce the counts, start each version on a separate local port, then run:
 

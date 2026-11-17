@@ -293,6 +293,7 @@ def render_purchase():
                     st.session_state.dc_guest_compared=True
                 if blocks and has_cash and facts['comparison']:
                     st.session_state.ml_plan_preview=facts['comparison']
+                    st.session_state.ml_preview_inline=False
                     st.session_state.ml_plan_preview_origin='pages/3_Explore.py'
                 st.session_state.pop('plan_apply_confirm',None)
                 st.rerun()
