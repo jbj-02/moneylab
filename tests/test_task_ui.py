@@ -76,10 +76,10 @@ def test_move_uses_three_new_figures_and_one_modeled_alternative():
     app=click(app,'See impact')
     assert app.session_state['ml_blocks']==original
     assert next(m.value for m in app.metric if m.label=='Upfront costs')=='$1,200.00'
-    assert next(m.value for m in app.metric if m.label=='Money left each month')=='-$250.00'
+    assert next(m.value for m in app.metric if m.label=='Money left in first month')=='$250.00 short'
     app=click(app,'Test this alternative')
     assert app.session_state['task_move_draft']['rent']==1350
-    assert next(m.value for m in app.metric if m.label=='Money left each month')=='$0.00'
+    assert next(m.value for m in app.metric if m.label=='Money left in first month')=='$0.00'
     app=click(app,'Back')
     assert next(n.value for n in app.number_input if n.key=='task_move_rent')==1350
     assert next(n.value for n in app.number_input if n.key=='task_move_upfront')==1200
@@ -119,7 +119,7 @@ def test_move_with_missing_income_does_not_display_a_zero_income_projection():
     for key,value in [('rent',1700.0),('extra',150.0),('upfront',1200.0)]:
         fill(app,'task_move_'+key,value)
     app=click(app,'See impact')
-    assert next(m.value for m in app.metric if m.label=='Money left each month')=='Not checked'
+    assert next(m.value for m in app.metric if m.label=='Money left in first month')=='Not checked'
     assert not any(b.label=='Test this alternative' for b in app.button)
     assert next(b for b in app.button if b.key=='plan_apply').disabled
 
@@ -143,3 +143,31 @@ def test_purchase_after_an_inline_goal_test_can_return_to_my_plan():
     assert not app.session_state['ml_preview_inline']
     assert app.session_state['ml_blocks']==original
     assert any('$780.00 short' in m.value for m in app.markdown)
+
+
+def test_move_result_recalculates_monthly_summary_when_rent_is_committed():
+    blocks=[
+        dict(id='pay',kind='income',name='Take-home pay',monthly_amount='3500'),
+        dict(id='housing',kind='expense',name='Current housing',monthly_amount='0'),
+        dict(id='other',kind='expense',name='Other monthly commitments',monthly_amount='1900'),
+        dict(id='cash',kind='cash',name='Checking',balance='2200'),
+    ]
+    app=start(blocks).switch_page('pages/7_Moving_Out_Alpha.py').run()
+    original=deepcopy(app.session_state['ml_blocks'])
+    for key,value in [('rent',1500.0),('extra',150.0),('upfront',3000.0)]:
+        fill(app,'task_move_'+key,value)
+    app=click(app,'See impact')
+    metrics={m.label:m.value for m in app.metric}
+    assert metrics['Money left in first month']=='$50.00 short'
+    assert metrics['Monthly take-home pay']=='$3,500.00'
+    assert metrics['Projected monthly expenses and commitments']=='$3,550.00'
+    assert metrics['Upfront costs']=='$3,000.00'
+    assert app.session_state['task_move_result']['facts']['gap']==800
+    rent=next(n for n in app.number_input if n.label=='Proposed rent ($/month)')
+    app=rent.set_value(1300.0).run()
+    metrics={m.label:m.value for m in app.metric}
+    assert metrics['Money left in first month']=='$150.00 left'
+    assert metrics['Projected monthly expenses and commitments']=='$3,350.00'
+    assert app.session_state['task_move_result']['facts']['gap']==800
+    assert app.session_state['task_move_draft']['rent']==1300
+    assert app.session_state['ml_blocks']==original
