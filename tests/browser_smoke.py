@@ -49,7 +49,8 @@ def confirm(page):
     review.wait_for(state='attached')
     if not review.is_visible():
         review.locator('xpath=ancestor::details[1]').locator('summary').click()
-    page.get_by_role('checkbox',name=REVIEW,exact=True).check()
+    if not page.get_by_role('checkbox',name=REVIEW,exact=True).is_checked():
+        review.click()
     page.get_by_role('button', name='Confirm my figures', exact=True).click()
     expect(page.get_by_role('button', name='Confirm my figures', exact=True)).to_have_count(0)
 
