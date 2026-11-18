@@ -89,13 +89,59 @@ def test_known_zero_is_a_valid_answer_and_does_not_resolve_other_unknowns():
     assert details['unknown']==['debts'] and metadata['unknown']==['income','debts']
 
 
-def test_on_track_result_has_no_gap_and_tests_a_smaller_funded_pace():
+def test_on_track_result_tells_the_user_what_contribution_to_maintain():
     blocks=rescue_profile();blocks[0]['monthly_amount']='2800';blocks[4]['monthly_contribution']='300'
     answer=goal_result(blocks)
     assert "You're on track" in answer['finding']
-    assert answer['kind']=='release'
-    assert answer['comparison']['blocks'][4]['monthly_contribution']=='230.00'
+    assert answer['kind']=='maintain'
+    assert answer['comparison']['blocks'][4]['monthly_contribution']=='300.00'
+    assert 'Keep saving $300.00 each month' in answer['suggestion']
     assert answer['analysis']['goal']['on_track']
+
+
+def submission_profile(monthly, rent, dining):
+    return [
+        dict(id='pay', kind='income', name='Take-home pay', monthly_amount='3000'),
+        dict(id='rent', kind='expense', name='Rent', monthly_amount=str(rent)),
+        dict(id='dining', kind='expense', name='Dining out & takeaways', monthly_amount=str(dining)),
+        dict(id='cash', kind='cash', name='Checking', balance='0'),
+        dict(id='goal', kind='goal', name='Emergency fund', balance='2500', annual_rate='0',
+             monthly_contribution=str(monthly), target='4000', target_months=6),
+    ]
+
+
+def test_submission_feedback_on_track_case():
+    answer = goal_result(submission_profile(250, 2750, 0))
+    assert answer['status'] == 'On track'
+    assert answer['deadline_summary'] == '$4,000.00 projected in 6 months'
+    assert answer['position_summary'] == ('You are on pace to meet the $4,000.00 '
+                                          'Emergency fund target exactly.')
+    assert answer['additional_needed'] == 0
+    assert answer['kind'] == 'maintain'
+    assert answer['suggestion'] == 'Keep saving $250.00 each month to maintain this pace.'
+
+
+def test_submission_feedback_verified_dining_cut_case():
+    answer = goal_result(submission_profile(200, 2700, 100))
+    assert answer['status'] == '$300.00 behind'
+    assert answer['deadline_summary'] == '$3,700.00 projected in 6 months'
+    assert answer['additional_needed'] == 50
+    assert '$50.00 more each month would close the gap' in answer['position_summary']
+    assert answer['kind'] == 'expense' and answer['cut'] == 50
+    proposed = {block['id']: block for block in answer['comparison']['blocks']}
+    assert proposed['dining']['monthly_amount'] == '50.00'
+    assert proposed['goal']['monthly_contribution'] == '250.00'
+    assert answer['analysis']['goal']['at_new_deadline'] == 4000
+
+
+def test_submission_feedback_revised_goal_case():
+    answer = goal_result(submission_profile(100, 2900, 0))
+    assert answer['status'] == '$900.00 behind'
+    assert answer['deadline_summary'] == '$3,100.00 projected in 6 months'
+    assert answer['additional_needed'] == 150
+    assert answer['kind'] == 'later'
+    assert '$3,100.00 as the six-month target' in answer['suggestion']
+    assert '15 months to reach $4,000.00' in answer['suggestion']
 
 
 def test_other_goal_impact_is_exposed_and_stale_changes_cannot_apply():

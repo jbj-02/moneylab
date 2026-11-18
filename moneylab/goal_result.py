@@ -8,7 +8,7 @@ from decimal import Decimal, ROUND_FLOOR
 import re
 
 from moneylab.action_plan import MISSING_LABELS, explain_option, first_reached
-from moneylab.blocks import project_blocks, serialize_blocks
+from moneylab.blocks import ASSET_KINDS, MAX_AMOUNT, project_blocks, serialize_blocks
 from moneylab.engine import CENT, ZERO
 from moneylab.planning import goal_alternative, goal_outlook
 
@@ -60,6 +60,47 @@ def _expense_rescue(blocks, goal, room):
     return None
 
 
+def _additional_savings_needed(blocks, goal, outlook):
+    """Find the extra monthly goal transfer needed, independent of affordability.
+
+    A temporary income block supplies only the tested increment. This lets the
+    existing projection calculate interest and allocation order without
+    claiming that the user's recorded budget can fund the result.
+    """
+    if outlook['on_track']:
+        return ZERO
+    items = serialize_blocks(blocks)
+    planned = Decimal(goal['monthly_contribution'])
+    prior = sum((Decimal(b['monthly_contribution']) for b in items
+                 if b['kind'] in ASSET_KINDS and b['id'] != goal['id']), ZERO)
+    ceiling = max(ZERO, min(Decimal(goal['target']) + prior, MAX_AMOUNT - planned))
+    capacity_id = 'goal_feedback_capacity'
+    used_ids = {item['id'] for item in items}
+    while capacity_id in used_ids:
+        capacity_id += '_temporary'
+
+    def reaches(extra):
+        candidate = serialize_blocks(items)
+        target = next(b for b in candidate if b['id'] == goal['id'])
+        target['monthly_contribution'] = str(planned + extra)
+        candidate.append(dict(id=capacity_id, kind='income',
+                              name='Temporary goal capacity', monthly_amount=str(extra)))
+        projected = project_blocks(candidate, goal['target_months'])
+        outcome = next(g for g in projected['goals'] if g['id'] == goal['id'])
+        return outcome['on_track']
+
+    if not reaches(ceiling):
+        return None
+    low, high = 0, int(ceiling / CENT)
+    while low < high:
+        middle = (low + high) // 2
+        if reaches(middle * CENT):
+            high = middle
+        else:
+            low = middle + 1
+    return low * CENT
+
+
 def goal_result(blocks, *, missing=(), preference=None):
     """Return what we found, what to test and its actual simulated difference."""
     items = serialize_blocks(blocks)
@@ -85,9 +126,31 @@ def goal_result(blocks, *, missing=(), preference=None):
     if missing:
         finding = (f"Add your {MISSING_LABELS.get(missing[0],missing[0])} to check your "
                    f"{money(outlook['target'])} {goal['name']} goal in {outlook['deadline']} months.")
+    difference = outlook['projected'] - outlook['target']
+    additional_needed = None if missing else _additional_savings_needed(items, goal, outlook)
+    if missing:
+        labels = ', '.join(MISSING_LABELS.get(item, item) for item in missing)
+        status = 'More information needed'
+        deadline_summary = f"{money(outlook['target'])} goal in {outlook['deadline']} months"
+        position_summary = f"Add {labels} to calculate a reliable deadline balance and recommendation."
+    elif outlook['on_track']:
+        status = 'On track'
+        deadline_summary = f"{money(outlook['projected'])} projected in {outlook['deadline']} months"
+        position_summary=(f"You are {money(difference)} ahead of your {money(outlook['target'])} {goal['name']} target."
+                          if difference > ZERO else
+                          f"You are on pace to meet the {money(outlook['target'])} {goal['name']} target exactly.")
+    else:
+        status = f"{money(outlook['gap'])} behind"
+        deadline_summary = f"{money(outlook['projected'])} projected in {outlook['deadline']} months"
+        needed = (f" Saving {money(additional_needed)} more each month would close the gap."
+                  if additional_needed is not None else '')
+        position_summary=(f"The current pace leaves you {money(outlook['gap'])} short of your "
+                          f"{money(outlook['target'])} {goal['name']} target.{needed}")
     result = dict(goal=goal, outlook=outlook, finding=finding, kind='missing' if missing else 'unreachable',
                   suggestion='', comparison=None, analysis=None, warnings=[], baseline=baseline, flow=flow,
-                  missing=list(missing), expense_id=None, cut=ZERO)
+                  missing=list(missing), expense_id=None, cut=ZERO, status=status,
+                  deadline_summary=deadline_summary, position_summary=position_summary,
+                  additional_needed=additional_needed)
     gap = next((r for r in baseline['monthly_records'][1:] if r['unfunded_shortfall'] > ZERO), None)
     if gap and not set(missing).intersection({'income','checking'}):
         result['warnings'].append(f"Recorded bills run short by {money(gap['unfunded_shortfall'])} in month {gap['month']}. Savings slow or stop when money is unavailable.")
@@ -97,14 +160,9 @@ def goal_result(blocks, *, missing=(), preference=None):
         return result
     comparison = None
     if outlook['on_track']:
-        # A smaller request is a genuine, modeled change when the current pace exceeds what's needed.
-        requested = outlook['required'] if outlook['required'] is not None else outlook['planned']
-        comparison = goal_alternative(items, goal['id'], requested)
-        if requested < outlook['planned'] and _hits(comparison, goal['id']):
-            result.update(kind='release', suggestion=f"Setting aside {money(requested)} a month instead of {money(outlook['planned'])} would still meet the goal, leaving more for the rest of your plan.")
-        else:
-            comparison = goal_alternative(items, goal['id'], outlook['planned'])
-            result.update(kind='maintain', suggestion=f"Keep setting aside {money(outlook['planned'])} a month. Test this pace to see the goal and the money left together.")
+        comparison = goal_alternative(items, goal['id'], outlook['planned'])
+        result.update(kind='maintain',
+                      suggestion=f"Keep saving {money(outlook['planned'])} each month to maintain this pace.")
     elif outlook['required'] is not None and outlook['extra'] <= room:
         comparison = goal_alternative(items, goal['id'], outlook['required'])
         if _hits(comparison, goal['id']):
@@ -117,20 +175,22 @@ def goal_result(blocks, *, missing=(), preference=None):
             expense, cut, comparison = rescue
             extra_room = f", together with {money(room)} already left each month," if room else ''
             result.update(kind='expense', expense_id=expense['id'], cut=cut,
-                          suggestion=f"Cutting {expense['name']} by {money(cut)} a month and putting that money{extra_room} toward the goal would close the gap.")
+                          suggestion=f"Reduce {expense['name']} by {money(cut)} a month and redirect that money{extra_room} to savings. The verified projection reaches {money(outlook['target'])} by the deadline, closing the {money(outlook['gap'])} gap.")
     if comparison is None:
         completion = first_reached(baseline, goal)
         if completion is not None and completion > outlook['deadline']:
             comparison = goal_alternative(items, goal['id'], outlook['planned'], deadline=completion)
             if _hits(comparison, goal['id']):
-                result.update(kind='later', suggestion=f"The recorded plan cannot meet that deadline. Keeping {money(outlook['planned'])} a month and allowing {completion} months would reach the goal.")
+                deadline_label = 'six-month' if outlook['deadline'] == 6 else f"{outlook['deadline']}-month"
+                result.update(kind='later', suggestion=f"Revise the goal: use {money(outlook['projected'])} as the {deadline_label} target, or keep saving {money(outlook['planned'])} a month and allow {completion} months to reach {money(outlook['target'])}.")
             else:
                 comparison = None
         if comparison is None:
             next_question = ('What amount could you reduce from a recorded expense? Enter a change to test its effect.'
                              if any(b['kind']=='expense' and Decimal(b['monthly_amount'])>0 for b in items) else
                              'What monthly income can you confirm? Update that figure to calculate a new plan.')
-            result['suggestion'] = f"This plan does not reach the target within {horizon} months. {next_question}"
+            result['suggestion'] = (f"At the current pace, the model does not reach {money(outlook['target'])} within {horizon} months. "
+                                    f"Use {money(outlook['projected'])} as the {outlook['deadline']}-month target, or update the plan. {next_question}")
     if comparison:
         analysis = explain_option(comparison, goal['id'])
         for other in analysis['effects']['goals']:

@@ -90,7 +90,15 @@ def render_goal(blocks,metadata,reviewed):
     record=metadata.get('accepted_plan')
     if record and record['last_as_of']!=date.today().isoformat():
         finding=f"From your {record['last_as_of']} figures: {finding[0].lower()+finding[1:]}"
-    st.markdown(f'<section class="ml-result" aria-label="Your goal result"><h2>{escape(finding)}</h2></section>',unsafe_allow_html=True)
+    status_class='' if answer['kind']=='maintain' else ' attention'
+    st.markdown(
+        f'<section class="ml-result" aria-label="Your goal result">'
+        f'<div class="ml-eyebrow">GOAL STATUS</div>'
+        f'<div class="ml-status{status_class}">{escape(answer["status"])}</div>'
+        f'<h2>{escape(answer["deadline_summary"])}</h2>'
+        f'<p>{escape(answer["position_summary"])}</p></section>',
+        unsafe_allow_html=True,
+    )
     if record:
         for goal in (b for b in blocks if b['kind']=='goal'):
             due=record.get('due_dates',{}).get(goal['id'])
@@ -100,6 +108,7 @@ def render_goal(blocks,metadata,reviewed):
         h.prose('This figure is needed to check the money available for your goal. Blank does not mean $0.')
         render_missing(blocks,metadata,first_only=True,prefix='result_missing')
     else:
+        st.markdown('<div class="ml-eyebrow">RECOMMENDED NEXT STEP</div>',unsafe_allow_html=True)
         h.prose(answer['suggestion'])
         if answer['comparison']:
             if st.button('Test this plan' if answer['kind']=='maintain' else 'Test this change',type='primary',key='result_test'):

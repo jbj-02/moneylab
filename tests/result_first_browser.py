@@ -88,7 +88,7 @@ def rescue_onboarding(browser,viewport,label):
     expect(finding).to_contain_text('$780.00 short')
     expect(finding).to_contain_text('$5,000.00')
     expect(finding).to_contain_text('6 months')
-    expect(page.get_by_text('Cutting Dining out & takeaways by $130.00',exact=False)).to_be_visible()
+    expect(page.get_by_text('Reduce Dining out & takeaways by $130.00',exact=False)).to_be_visible()
     expect(page.get_by_role('button',name='Test this change',exact=True)).to_have_count(1)
     assert_details_collapsed(page)
     capture(page,f'{label}-after-rescue-result')
@@ -139,11 +139,11 @@ def on_track(browser,viewport,label):
     context,page=start(browser,viewport)
     blocks=profile();blocks[0]['monthly_amount']='2800';blocks[4]['monthly_contribution']='300'
     restore(page,blocks)
-    expect(page.get_by_role('region',name='Your goal result')).to_contain_text("You're on track")
-    expect(page.get_by_text('Setting aside $230.00 a month instead of $300.00',exact=False)).to_be_visible()
+    expect(page.get_by_role('region',name='Your goal result')).to_contain_text('On track')
+    expect(page.get_by_text('Keep saving $300.00 each month',exact=False)).to_be_visible()
     capture(page,f'{label}-after-on-track')
-    page.get_by_role('button',name='Test this change',exact=True).click()
-    expect(page.get_by_role('table')).to_contain_text('$270.00')
+    page.get_by_role('button',name='Test this plan',exact=True).click()
+    expect(page.get_by_role('table')).to_contain_text('$200.00')
     assert download_workspace(page)['workspace']['blocks'][4]['monthly_contribution']=='300.00'
     context.close()
 
@@ -152,7 +152,7 @@ def later_date(browser,viewport,label):
     context,page=start(browser,viewport)
     blocks=profile();blocks[2]['name']='Other bills'
     restore(page,blocks)
-    expect(page.get_by_text('allowing 14 months would reach the goal.',exact=False)).to_be_visible()
+    expect(page.get_by_text('allow 14 months to reach $5,000.00',exact=False)).to_be_visible()
     capture(page,f'{label}-after-later-date')
     page.get_by_role('button',name='Test this change',exact=True).click()
     expect(page.get_by_role('table')).to_contain_text('Current · month 6')
@@ -165,7 +165,7 @@ def later_date(browser,viewport,label):
 def missing_figure(browser,viewport,label):
     context,page=start(browser,viewport)
     restore(page,profile()[1:],['income'])
-    expect(page.get_by_role('region',name='Your goal result')).to_contain_text('Add your take-home income')
+    expect(page.get_by_role('region',name='Your goal result')).to_contain_text('Add take-home income')
     expect(page.get_by_role('button',name='Test this change',exact=True)).to_have_count(0)
     income=page.get_by_role('spinbutton',name='Take-home income per month ($)',exact=True)
     expect(income).to_be_empty()
