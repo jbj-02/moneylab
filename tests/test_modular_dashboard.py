@@ -55,7 +55,8 @@ def test_sample_discloses_example_and_shows_signed_monthly_remainder():
     assert any('Fictional example plan' in i.value for i in app.info)
     assert any('Summer travel fund' in m.value for m in app.markdown)
     assert any('projected in' in m.value for m in app.markdown)
-    assert any(b.label == 'Test this change' for b in app.button)
+    assert any(n.key == 'goal_try_spending' for n in app.number_input)
+    assert any(s.value == 'Test scenario' for s in app.subheader)
 
 
 def test_finances_has_compact_grouped_rows_and_single_entry_edit():

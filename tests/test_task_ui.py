@@ -103,14 +103,12 @@ def test_a_tested_move_only_updates_the_plan_after_the_apply_checkbox():
 def test_goal_has_one_details_area_and_keeps_the_test_on_my_plan():
     app=start(profile());original=deepcopy(app.session_state['ml_blocks'])
     assert [e.label for e in app.main.expander]==['See details']
-    app=click(app,'Test this change')
-    assert app.session_state['ml_preview_inline']
-    assert len(app.table)==1
-    assert app.table[0].value.iloc[0].tolist()==['$4,220.00','$5,000.00']
+    assert any(s.value=='Current plan' for s in app.subheader)
+    assert any(s.value=='Test scenario' for s in app.subheader)
+    summaries=[m.value for m in app.markdown if 'ml-compare-summary' in m.value]
+    assert len(summaries)==2 and '$4,220.00' in summaries[0] and '$5,000.00' in summaries[1]
     assert app.session_state['ml_blocks']==original
-    app=click(app,'Back')
     assert any('$780.00 short' in m.value for m in app.markdown)
-    assert app.session_state['ml_blocks']==original
 
 
 def test_move_with_missing_income_does_not_display_a_zero_income_projection():
@@ -135,7 +133,6 @@ def test_purchase_keeps_a_recorded_cash_cushion_warning_next_to_the_result():
 
 def test_purchase_after_an_inline_goal_test_can_return_to_my_plan():
     app=start(profile());original=deepcopy(app.session_state['ml_blocks'])
-    app=click(app,'Test this change')
     app=app.switch_page('pages/3_Explore.py').run()
     fill(app,'task_purchase_price',200.0);app=click(app,'See impact')
     app=app.switch_page('pages/0_Home.py').run()

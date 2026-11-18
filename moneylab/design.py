@@ -39,6 +39,10 @@ def theme():
     .ml-goal-small {font-size:.85rem;color:#58706a}
     .ml-result {background:#e6efe6;border-left:5px solid #17665a;border-radius:0 18px 18px 0;padding:1.5rem 1.75rem;margin:1rem 0 1.5rem}
     .ml-result h2 {font-size:1.85rem !important;line-height:1.4;letter-spacing:-.025em;margin:0;max-width:840px}
+    .ml-compare-row {display:flex;justify-content:space-between;gap:1rem;padding:.42rem 0;border-bottom:1px solid #e2e8e4}
+    .ml-compare-row span {color:#566a66}.ml-compare-row strong {white-space:nowrap}
+    .ml-compare-goal {display:flex;flex-direction:column;gap:.2rem;padding-top:1rem}
+    .ml-compare-goal>strong {font-size:1.6rem;color:#173c3a}.ml-compare-goal small {color:#647672}
     @media(max-width:768px) {
       .block-container{padding:1.4rem 1rem 3rem} h1{font-size:2rem !important}
       .ml-hero{padding:1.4rem;border-radius:16px}.ml-hero h2{font-size:1.6rem !important}

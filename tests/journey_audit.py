@@ -116,8 +116,9 @@ def run(args):
                         expect(page.get_by_role('region',name='Your goal result')).to_contain_text('$780.00 short')
                         records.append(dict(viewport=label,**audit.record()))
                         shot(page,folder,f'{label}-{args.mode}-goal')
-                        audit.click('Test this change')
-                        expect(page.get_by_role('heading',name='Current plan vs alternative',exact=True)).to_be_visible()
+                        expect(page.get_by_text('TRY A CHANGE',exact=True)).to_be_visible()
+                        expect(page.get_by_role('heading',name='Current plan',exact=True)).to_be_visible()
+                        expect(page.get_by_role('heading',name='Test scenario',exact=True)).to_be_visible()
                         records.append(dict(viewport=label,**{**audit.record(),'journey':'goal_test'}))
                         shot(page,folder,f'{label}-{args.mode}-goal-test')
                         original=export(page)['workspace']['blocks']
