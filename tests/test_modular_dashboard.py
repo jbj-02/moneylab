@@ -54,7 +54,7 @@ def test_sample_discloses_example_and_shows_signed_monthly_remainder():
     app = sample()
     assert any('Fictional example plan' in i.value for i in app.info)
     assert any('Summer travel fund' in m.value for m in app.markdown)
-    assert any('projected to be' in m.value for m in app.markdown)
+    assert any('projected in' in m.value for m in app.markdown)
     assert any(b.label == 'Test this change' for b in app.button)
 
 
