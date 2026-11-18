@@ -22,7 +22,7 @@ Baseline: `bec32bc59c7f49faddfda5f5923dfcb58429211c`, the latest authored result
 | Plan a move | 4 → 3 | 3 → 2 | 4 → 3 | 8 → 2 | 10 → 4 |
 | Guest purchase, cash answer | 3 → 3 | 2 → 2 | 4 → 2 | 2 → 2 | 2 → 2 |
 
-**Definitions:** visible screens include the starting My Plan view, the task form and the first result. An inline replacement result counts as another visible screen. Layout toggles and disclosures are controls within a screen. Page routes are distinct URLs; inline form/result states share a route. The JSON keeps the original route count in `screens` and labels the user-visible count `visible_screens`. New figures count the scenario amounts entered for this matched case, excluding already saved profile figures and untouched defaults. Clicks count control activations, including navigation, disclosures and opening/closing the mobile drawer; typing, field focus and fixture setup are excluded. The savings test row includes the displayed goal result and its comparison. The before move walk uses the working **All inputs** path: navigate, select moving, open comparison, load profile, select All inputs, open monthly costs, include the saved goal, compare. Exact traces and figures are in the [before JSON](validation/streamlined-2026-11-17/before-audit.json) and [after JSON](validation/streamlined-2026-11-17/after-audit.json).
+**Definitions:** visible screens include the starting My Plan view, the task form and the first result. An inline replacement result counts as another visible screen. Layout toggles and disclosures are controls within a screen. Page routes are distinct URLs; inline form/result states share a route. New figures count the scenario amounts entered for this matched case, excluding already saved profile figures and untouched defaults. Clicks count control activations, including navigation, disclosures and opening/closing the mobile drawer; typing, field focus and fixture setup are excluded. The savings test row includes the displayed goal result and its comparison. The before move walk uses the working **All inputs** path: navigate, select moving, open comparison, load profile, select All inputs, open monthly costs, include the saved goal, compare.
 
 The goal already had an immediate answer and the purchase already took two desktop control clicks. Their gains are fewer comparison routes and competing controls. Guest purchase asks less because its answer is explicitly limited to cash today; it no longer requires monthly totals before giving that answer.
 
@@ -36,13 +36,11 @@ Monthly pay $2,400; rent $1,500; other regular costs $500; dining $300; checking
 
 The move solver retains debts, transfers and other goals. Negative cost adjustments require a recorded expense and cannot exceed it. Cash pays upfront/purchase costs; neither borrowing nor goal withdrawals are assumed. Unknown amounts remain distinct from confirmed zero. A cash cushion warning remains beside a result when the user has selected one. Saved goal projections show their recorded date and an overdue selected deadline is surfaced.
 
-## Verification and screenshots
-
-[Before/after desktop and mobile gallery](validation/streamlined-2026-11-17/README.md). Captures are unedited browser screenshots; JSON includes measured actions and routes.
+## Verification
 
 Run `python -m pytest -q` for the calculation and Streamlit suite. Browser coverage is `tests/browser_smoke.py`, `tests/result_first_browser.py` and `tests/journey_audit.py` (Playwright Chromium). The matched audit exports the workspace before and after testing and checks identical saved blocks, exercises Back with retained purchase/move entries, tests the modeled move alternative, and covers desktop/mobile layout. The result-first suite covers rescued and on-track goals, a modeled later deadline, missing income, stale figures, explicit approval and exported applied changes. The broader suite retains optional tools, workspace restore and single-user persistence/deletion coverage.
 
-**Local validation:** 535 Python tests passed; all 12 broader desktop/mobile browser journeys and all 10 result-first journeys passed, including a new-session persistence/deletion check. The matched before/after audit adds eight walkthroughs per version, with the source-preservation and explicit-apply assertions described above. Screenshots are in the [gallery](validation/streamlined-2026-11-17/README.md).
+**Local validation:** 535 Python tests passed; all 12 broader desktop/mobile browser journeys and all 10 result-first journeys passed, including a new-session persistence/deletion check. The matched before/after audit adds eight walkthroughs per version, with the source-preservation and explicit-apply assertions described above.
 
 To reproduce the counts, start each version on a separate local port, then run:
 
