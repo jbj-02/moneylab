@@ -11,6 +11,7 @@ from moneylab.goal_result import goal_result, money
 from moneylab.moving_profile import housing_candidates
 from moneylab.planning import apply_preview, signature
 from moneylab.progress import accept_comparison, tracking_signature
+from moneylab.savings_change import comparison_summary, flexible_expenses, savings_scenario
 from moneylab.streamlined import cash_total, goal_effects, moving_impact, purchase_impact
 
 
@@ -79,6 +80,113 @@ def apply_controls(blocks, comparison, *, missing=(), primary=True, discard=True
         st.rerun()
 
 
+def _scenario_changed():
+    st.session_state.pop('plan_apply_confirm', None)
+
+
+def _spending_changed(original):
+    """Keep the redirect valid when a smaller spending cut is committed."""
+    freed=max(float(original)-float(st.session_state.goal_try_spending),0.0)
+    st.session_state.goal_try_redirect=min(float(st.session_state.goal_try_redirect),freed)
+    _scenario_changed()
+
+
+def _category_changed(expenses):
+    selected=st.session_state.goal_try_expense
+    expense=next(item for item in expenses if item['id']==selected)
+    st.session_state.goal_try_spending=float(expense['monthly_amount'])
+    st.session_state.goal_try_redirect=0.0
+    _scenario_changed()
+
+
+def _reset_scenario(original):
+    st.session_state.goal_try_spending=float(original)
+    st.session_state.goal_try_redirect=0.0
+    _scenario_changed()
+
+
+def _scenario_column(label, facts, goal_name):
+    with st.container(border=True):
+        st.subheader(label)
+        rows=(
+            ('Monthly take-home pay',facts['take_home']),
+            ('Spending and bills',facts['spending_and_bills']),
+            ('Available before savings',facts['available_before_savings']),
+            ('Savings contributions',facts['savings_contributions']),
+            ('Left after savings',facts['left_after_savings']),
+        )
+        summary=''.join(
+            f'<div class="ml-compare-row"><span>{escape(name)}</span><strong>{escape(money(value))}</strong></div>'
+            for name,value in rows
+        )
+        completion=('Not reached within 120 months' if facts['completion_month'] is None
+                    else f"{facts['completion_month']} months")
+        gap=f"{money(facts['gap'])} remaining" if facts['gap'] else 'Goal reached by the deadline'
+        st.markdown(
+            f'<div class="ml-compare-summary">{summary}'
+            f'<div class="ml-compare-goal"><span>{escape(goal_name)} at month {facts["deadline"]}</span>'
+            f'<strong>{escape(money(facts["projected"]))}</strong>'
+            f'<small>{escape(gap)} · Estimated time to goal: {escape(completion)}</small></div></div>',
+            unsafe_allow_html=True,
+        )
+
+
+def render_savings_change(blocks, answer):
+    """Render a temporary one-expense comparison below the initial advice."""
+    expenses=flexible_expenses(blocks)
+    if not expenses:
+        return False
+    goal=answer['goal'];source=signature(blocks)
+    marker=f"{source}:{goal['id']}"
+    scenario_keys=('goal_try_expense','goal_try_spending','goal_try_redirect')
+    if st.session_state.get('goal_try_source')!=marker or any(key not in st.session_state for key in scenario_keys):
+        preferred=answer.get('expense_id')
+        selected=next((item for item in expenses if item['id']==preferred),expenses[0])
+        original=Decimal(selected['monthly_amount'])
+        spending=original;redirect=Decimal(0)
+        if answer.get('comparison') and preferred==selected['id']:
+            proposed={item['id']:item for item in answer['comparison']['blocks']}
+            spending=Decimal(proposed[selected['id']]['monthly_amount'])
+            planned=Decimal(goal['monthly_contribution'])
+            redirect=min(max(Decimal(proposed[goal['id']]['monthly_contribution'])-planned,Decimal(0)),
+                         original-spending)
+        st.session_state.goal_try_source=marker
+        st.session_state.goal_try_expense=selected['id']
+        st.session_state.goal_try_spending=float(spending)
+        st.session_state.goal_try_redirect=float(redirect)
+        _scenario_changed()
+
+    st.markdown('<div class="ml-eyebrow">TRY A CHANGE</div>',unsafe_allow_html=True)
+    h=_h()
+    h.prose('Adjust one recorded category and decide how much of the reduction to save. This test stays separate from your plan until you apply it.')
+    labels={item['id']:item['name'] for item in expenses}
+    st.selectbox('Flexible spending category',labels,format_func=labels.get,key='goal_try_expense',
+                 on_change=_category_changed,args=(expenses,))
+    selected=next(item for item in expenses if item['id']==st.session_state.goal_try_expense)
+    original=Decimal(selected['monthly_amount'])
+    a,b=st.columns(2)
+    a.number_input('Monthly spending in test scenario ($)',min_value=0.0,max_value=float(original),step=25.0,
+                   key='goal_try_spending',on_change=_spending_changed,args=(original,))
+    freed=max(original-Decimal(str(st.session_state.goal_try_spending)),Decimal(0))
+    b.number_input('Of that reduction, put toward this goal ($)',min_value=0.0,max_value=float(freed),step=25.0,
+                   key='goal_try_redirect',on_change=_scenario_changed)
+    comparison=savings_scenario(blocks,goal['id'],selected['id'],
+                                st.session_state.goal_try_spending,st.session_state.goal_try_redirect)
+    current=comparison_summary(comparison['baseline'],goal['id'])
+    tested=comparison_summary(comparison['alternative'],goal['id'])
+    left,right=st.columns(2)
+    with left:
+        _scenario_column('Current plan',current,goal['name'])
+    with right:
+        _scenario_column('Test scenario',tested,goal['name'])
+    st.button('Reset scenario',key='goal_try_reset',on_click=_reset_scenario,args=(original,))
+    if comparison['source_signature']!=comparison['candidate_signature']:
+        apply_controls(blocks,comparison,missing=(),discard=False)
+    else:
+        st.info('This test now matches your submitted plan. Change a spending amount to compare another scenario.')
+    return True
+
+
 def render_goal(blocks,metadata,reviewed):
     h=_h()
     from moneylab.result_ui import render_missing
@@ -110,10 +218,11 @@ def render_goal(blocks,metadata,reviewed):
     else:
         st.markdown('<div class="ml-eyebrow">RECOMMENDED NEXT STEP</div>',unsafe_allow_html=True)
         h.prose(answer['suggestion'])
-        if answer['comparison']:
+        inline_change=render_savings_change(blocks,answer)
+        if answer['comparison'] and not inline_change:
             if st.button('Test this plan' if answer['kind']=='maintain' else 'Test this change',type='primary',key='result_test'):
                 h._remember(answer['comparison'],inline=True)
-        elif st.button('Try my own adjustment',type='primary',key='result_custom'):
+        elif not answer['comparison'] and not inline_change and st.button('Try my own adjustment',type='primary',key='result_custom'):
             st.session_state.ml_selected_action={'id':f"goal:{answer['goal']['id']}",'kind':'goal','goal_id':answer['goal']['id']}
             st.switch_page('pages/10_Action_Plan.py')
     for warning in answer['warnings']:

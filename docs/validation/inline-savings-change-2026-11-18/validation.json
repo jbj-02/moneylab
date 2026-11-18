@@ -1,0 +1,12 @@
+[
+  {
+    "viewport": "desktop",
+    "status": "passed",
+    "saved_plan_unchanged": true
+  },
+  {
+    "viewport": "mobile",
+    "status": "passed",
+    "saved_plan_unchanged": true
+  }
+]

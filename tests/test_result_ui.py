@@ -12,12 +12,13 @@ def test_one_modelled_test_has_a_prefilled_comparison_and_no_implicit_applicatio
     app=start(original)
     assert any('$780.00 short' in m.value for m in app.markdown)
     assert any('Dining out & takeaways by \\$130.00' in m.value for m in app.markdown)
-    app=click(app,'Test this change')
     assert app.session_state['ml_blocks']==original
-    assert app.session_state['ml_plan_preview']['blocks'][2]['monthly_amount']=='170.00'
-    assert len(app.table)==1
-    assert app.table[0].value.iloc[0].tolist()==['$4,220.00','$5,000.00']
-    assert app.table[0].value.iloc[2].tolist()==['$0.00','$0.00']
+    assert app.session_state['goal_try_spending']==170
+    assert app.session_state['goal_try_redirect']==130
+    assert any(s.value=='Current plan' for s in app.subheader)
+    assert any(s.value=='Test scenario' for s in app.subheader)
+    summaries=[m.value for m in app.markdown if 'ml-compare-summary' in m.value]
+    assert len(summaries)==2 and '$4,220.00' in summaries[0] and '$5,000.00' in summaries[1]
     assert next(b for b in app.button if b.key=='plan_apply').disabled
     assert any(e.label=='See details' for e in app.expander)
 
@@ -52,7 +53,13 @@ def test_custom_comparison_shows_other_goal_loss_outside_calculations():
 
 
 def test_declining_a_test_leaves_all_original_expenses_and_saving_intact():
-    blocks=rescue_profile();app=click(start(blocks),'Test this change')
-    app=click(app,'Discard alternative')
+    blocks=rescue_profile();app=start(blocks)
+    spending=next(n for n in app.number_input if n.key=='goal_try_spending')
+    app=spending.set_value(250).run()
+    redirect=next(n for n in app.number_input if n.key=='goal_try_redirect')
+    app=redirect.set_value(25).run()
     assert app.session_state['ml_blocks']==blocks
-    assert app.session_state['ml_plan_preview'] is None
+    app=click(app,'Reset scenario')
+    assert app.session_state['ml_blocks']==blocks
+    assert app.session_state['goal_try_spending']==300
+    assert app.session_state['goal_try_redirect']==0

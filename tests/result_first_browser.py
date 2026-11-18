@@ -89,36 +89,21 @@ def rescue_onboarding(browser,viewport,label):
     expect(finding).to_contain_text('$5,000.00')
     expect(finding).to_contain_text('6 months')
     expect(page.get_by_text('Reduce Dining out & takeaways by $130.00',exact=False)).to_be_visible()
-    expect(page.get_by_role('button',name='Test this change',exact=True)).to_have_count(1)
+    expect(page.get_by_text('TRY A CHANGE',exact=True)).to_be_visible()
+    expect(page.get_by_role('spinbutton',name='Monthly spending in test scenario ($)',exact=True)).to_have_value('170.00')
+    expect(page.get_by_role('spinbutton',name='Of that reduction, put toward this goal ($)',exact=True)).to_have_value('130.00')
     assert_details_collapsed(page)
     capture(page,f'{label}-after-rescue-result')
     original=download_workspace(page)['workspace']['blocks']
     navigate(page,'My Plan')
-    page.get_by_role('button',name='Test this change',exact=True).click()
-    expect(page.get_by_role('heading',name='Current plan vs alternative',exact=True)).to_be_visible()
     expect(page.get_by_role('button',name='Apply these changes to my plan',exact=True)).to_be_disabled()
-    expect(page.get_by_role('table')).to_contain_text('$4,220.00')
-    expect(page.get_by_role('table')).to_contain_text('$5,000.00')
+    expect(page.get_by_role('heading',name='Current plan',exact=True).locator(
+        'xpath=ancestor::div[@data-testid="stVerticalBlock"][1]')).to_contain_text('$4,220.00')
+    expect(page.get_by_role('heading',name='Test scenario',exact=True).locator(
+        'xpath=ancestor::div[@data-testid="stVerticalBlock"][1]')).to_contain_text('$5,000.00')
     capture(page,f'{label}-after-comparison')
     assert download_workspace(page)['workspace']['blocks']==original, 'Testing must not alter the plan'
-    navigate(page,'Edit figures')
-    page.get_by_role('button',name='Edit',exact=True).first.click()
-    dialog=page.get_by_role('dialog')
-    dialog.get_by_role('spinbutton',name='Amount each monthly period ($)',exact=True).fill('2500')
-    dialog.get_by_role('button',name='Save changes',exact=True).click()
-    expect(dialog).not_to_be_visible()
     navigate(page,'My Plan')
-    resume_test(page)
-    expect(page.get_by_text('Your figures changed.',exact=False).first).to_be_visible()
-    expect(page.get_by_role('button',name='Apply these changes to my plan',exact=True)).to_have_count(0)
-    capture(page,f'{label}-after-stale-edit')
-    page.get_by_role('button',name='Discard alternative',exact=True).click()
-    expect(page.get_by_role('button',name='Test this change',exact=True)).to_be_visible()
-    page.get_by_role('button',name='Test this change',exact=True).click()
-    expect(page.get_by_role('heading',name='Current plan vs alternative',exact=True)).to_be_visible()
-    show_details(page)
-    expect(page.get_by_text('monthly amount: $300.00 → $270.00',exact=False)).to_be_visible()
-    confirm(page)
     expect(page.get_by_role('button',name='Apply these changes to my plan',exact=True)).to_be_disabled()
     page.get_by_text('I want to replace my plan with these exact changes',exact=True).click()
     page.get_by_role('button',name='Apply these changes to my plan',exact=True).click()
@@ -129,7 +114,7 @@ def rescue_onboarding(browser,viewport,label):
     capture(page,f'{label}-after-applied',focus=chosen)
     exported=download_workspace(page)
     entries={b['id']:b for b in exported['workspace']['blocks']}
-    assert entries['setup_dining']['monthly_amount']=='270.00'
+    assert entries['setup_dining']['monthly_amount']=='170.00'
     assert entries['setup_goal']['monthly_contribution']=='230.00'
     assert exported['plan']['accepted_plan']['blocks']==exported['workspace']['blocks']
     context.close()
@@ -141,9 +126,8 @@ def on_track(browser,viewport,label):
     restore(page,blocks)
     expect(page.get_by_role('region',name='Your goal result')).to_contain_text('On track')
     expect(page.get_by_text('Keep saving $300.00 each month',exact=False)).to_be_visible()
+    expect(page.get_by_text('TRY A CHANGE',exact=True)).to_be_visible()
     capture(page,f'{label}-after-on-track')
-    page.get_by_role('button',name='Test this plan',exact=True).click()
-    expect(page.get_by_role('table')).to_contain_text('$200.00')
     assert download_workspace(page)['workspace']['blocks'][4]['monthly_contribution']=='300.00'
     context.close()
 
