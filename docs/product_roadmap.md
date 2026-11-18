@@ -70,8 +70,9 @@ with deterministic, test-backed scenarios rather than generic AI advice.
   What-if Lab and its existing functionality.
 - All results are planning estimates dependent on manual financial inputs.
   They never claim to verify real cash availability or daily bill timing.
-  The implementation is in \`moneylab/decisions.py\` and
-  \`moneylab/decision_ui.py\`, with UI and numerical regression tests.
+  The implementation is in \`moneylab/decisions.py\`, with numerical
+  regression tests. (The original \`decision_ui.py\` interface has since been
+  removed; current decision screens live in the plan and task UI modules.)
 
 ## Safety and trust requirements
 
