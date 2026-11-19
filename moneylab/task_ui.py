@@ -259,6 +259,9 @@ def render_goal(blocks,metadata,reviewed):
             due=record.get('due_dates',{}).get(goal['id'])
             if due and date.fromisoformat(due)<date.today() and Decimal(goal['balance'])<Decimal(goal['target']):
                 st.warning(f"The chosen deadline for {goal['name']} has passed. Record a current balance under See details before treating the saved projection as a plan from today.")
+    # Warnings first: an overspent budget changes how every number below reads.
+    for warning in answer['warnings']:
+        st.warning(warning.replace('$',r'\$'))
     if answer['kind']=='missing':
         h.prose('This figure is needed to check the money available for your goal. Blank does not mean $0.')
         render_missing(blocks,metadata,first_only=True,prefix='result_missing')
@@ -272,8 +275,6 @@ def render_goal(blocks,metadata,reviewed):
         elif not answer['comparison'] and not inline_change and st.button('Try my own adjustment',type='primary',key='result_custom'):
             st.session_state.ml_selected_action={'id':f"goal:{answer['goal']['id']}",'kind':'goal','goal_id':answer['goal']['id']}
             st.switch_page('pages/10_Action_Plan.py')
-    for warning in answer['warnings']:
-        st.warning(warning.replace('$',r'\$'))
     pending=st.session_state.get('ml_plan_preview')
     if pending and pending['source_signature']!=signature(blocks):
         st.warning('Your figures changed. Test again before applying the earlier alternative.')
