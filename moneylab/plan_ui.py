@@ -253,6 +253,8 @@ def render_home():
             prose("Compare rent, moving costs and the cushion left over.")
             if st.button('Plan a move',key='result_start_move'):
                 st.switch_page('pages/7_Moving_Out_Alpha.py')
+        st.button("Or look around with sample data", key="ml_home_example", on_click=load_example,
+                  help="Loads a fictional profile so you can try MoneyLab without entering your own numbers.")
         _caption("No bank connection needed. Blank answers stay unknown; confirmed $0 amounts stay zero.")
         return
     from moneylab.task_ui import render_goal as render_goal_result

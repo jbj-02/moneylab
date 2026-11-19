@@ -3,6 +3,8 @@ from datetime import date
 from decimal import Decimal
 from html import escape
 
+import altair as alt
+import pandas as pd
 import streamlit as st
 
 from moneylab.action_plan import MISSING_LABELS
@@ -11,7 +13,9 @@ from moneylab.goal_result import goal_result, money
 from moneylab.moving_profile import housing_candidates
 from moneylab.planning import apply_preview, signature
 from moneylab.progress import accept_comparison, tracking_signature
-from moneylab.savings_change import comparison_summary, flexible_expenses, savings_scenario
+from moneylab.savings_change import (
+    comparison_summary, flexible_expenses, goal_balance_series, savings_scenario, scenario_headline,
+)
 from moneylab.streamlined import cash_total, goal_effects, moving_impact, purchase_impact
 
 
@@ -102,7 +106,34 @@ def _category_changed(expenses):
 def _reset_scenario(original):
     st.session_state.goal_try_spending=float(original)
     st.session_state.goal_try_redirect=0.0
+    st.session_state.goal_try_extra=0.0
     _scenario_changed()
+
+
+def _use_suggested_extra(amount):
+    st.session_state.goal_try_extra=float(amount)
+    _scenario_changed()
+
+
+def _goal_chart(comparison, goal):
+    """Goal balance over time: current plan, test scenario and the target."""
+    series=goal_balance_series(comparison,goal['id'])
+    rows=[]
+    for index,month in enumerate(series['months']):
+        rows.append({'Month':month,'Line':'Current plan','Balance':series['current'][index]})
+        rows.append({'Month':month,'Line':'Test scenario','Balance':series['test'][index]})
+        rows.append({'Month':month,'Line':'Target','Balance':series['target']})
+    chart=alt.Chart(pd.DataFrame(rows)).mark_line(strokeWidth=3).encode(
+        x=alt.X('Month:Q',axis=alt.Axis(tickMinStep=1,title='Months from the plan date')),
+        y=alt.Y('Balance:Q',axis=alt.Axis(format='$,.0f'),title=f"{goal['name']} balance"),
+        color=alt.Color('Line:N',scale=alt.Scale(domain=['Current plan','Test scenario','Target'],
+                                                 range=['#17665a','#bb7728','#8a9692']),
+                        legend=alt.Legend(orient='top',title=None)),
+        tooltip=['Line:N','Month:Q',alt.Tooltip('Balance:Q',format='$,.2f')],
+    ).properties(height=240).configure_view(stroke=None).configure_axis(
+        gridColor='#e6ebe5',labelColor='#526462',titleColor='#526462')
+    st.altair_chart(chart,width='stretch')
+    st.caption(f"Your goal deadline is month {series['deadline']}. Monthly averages at the entered rates; not a bank balance forecast.")
 
 
 def _scenario_column(label, facts, goal_name):
@@ -138,7 +169,7 @@ def render_savings_change(blocks, answer):
         return False
     goal=answer['goal'];source=signature(blocks)
     marker=f"{source}:{goal['id']}"
-    scenario_keys=('goal_try_expense','goal_try_spending','goal_try_redirect')
+    scenario_keys=('goal_try_expense','goal_try_spending','goal_try_redirect','goal_try_extra')
     if st.session_state.get('goal_try_source')!=marker or any(key not in st.session_state for key in scenario_keys):
         preferred=answer.get('expense_id')
         selected=next((item for item in expenses if item['id']==preferred),expenses[0])
@@ -154,6 +185,7 @@ def render_savings_change(blocks, answer):
         st.session_state.goal_try_expense=selected['id']
         st.session_state.goal_try_spending=float(spending)
         st.session_state.goal_try_redirect=float(redirect)
+        st.session_state.goal_try_extra=0.0
         _scenario_changed()
 
     st.markdown('<div class="ml-eyebrow">TRY A CHANGE</div>',unsafe_allow_html=True)
@@ -170,10 +202,25 @@ def render_savings_change(blocks, answer):
     freed=max(original-Decimal(str(st.session_state.goal_try_spending)),Decimal(0))
     b.number_input('Of that reduction, put toward this goal ($)',min_value=0.0,max_value=float(freed),step=25.0,
                    key='goal_try_redirect',on_change=_scenario_changed)
+    st.number_input('Extra to save each month toward this goal ($)',min_value=0.0,max_value=1e6,step=25.0,
+                    key='goal_try_extra',on_change=_scenario_changed,
+                    help='On top of the amounts above. Only money your monthly budget can actually fund is counted.')
+    suggested=answer.get('additional_needed')
+    if suggested:
+        st.button(f"Try saving {money(suggested)} more a month".replace('$',r'\$'),key='goal_try_suggested',
+                  on_click=_use_suggested_extra,args=(suggested,))
     comparison=savings_scenario(blocks,goal['id'],selected['id'],
-                                st.session_state.goal_try_spending,st.session_state.goal_try_redirect)
+                                st.session_state.goal_try_spending,st.session_state.goal_try_redirect,
+                                extra=st.session_state.goal_try_extra)
     current=comparison_summary(comparison['baseline'],goal['id'])
     tested=comparison_summary(comparison['alternative'],goal['id'])
+    if comparison['source_signature']!=comparison['candidate_signature']:
+        added=Decimal(str(st.session_state.goal_try_redirect))+Decimal(str(st.session_state.goal_try_extra))
+        verdict=scenario_headline(current,tested,goal['name'],added_saving=added)
+        getattr(st,verdict['tone'])(verdict['text'].replace('$',r'\$'))
+        if verdict['note']:
+            st.caption(verdict['note'].replace('$',r'\$'))
+        _goal_chart(comparison,goal)
     left,right=st.columns(2)
     with left:
         _scenario_column('Current plan',current,goal['name'])
