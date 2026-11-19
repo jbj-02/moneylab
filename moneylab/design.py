@@ -18,6 +18,10 @@ def theme():
     [data-testid="stVerticalBlockBorderWrapper"] > div {border-radius:16px !important}
     [data-testid="stButton"] button,[data-testid="stFormSubmitButton"] button,
     [data-testid="stDownloadButton"] button {min-height:2.8rem;border-radius:10px;font-weight:600}
+    [data-testid="stPageLink"] a {color:#17665a;text-decoration:underline;text-underline-offset:3px;font-weight:600}
+    [data-testid="stPageLink"] a:hover {color:#0f4a41}
+    [data-testid="stSidebar"] [data-testid="stPageLink"] a {text-decoration:none;font-weight:500}
+    [data-testid="stHeaderActionElements"] {display:none}
     button:focus-visible,a:focus-visible {outline:3px solid #bf7725 !important;outline-offset:3px}
     [data-testid="stCaptionContainer"] {color:#536763;line-height:1.5}
     [data-testid="stExpander"] {background:#ffffff88;border-radius:12px}
